@@ -48,7 +48,7 @@ echo "Framework:"
 if [ -d "$SAGE_DIR" ]; then
   pass ".sage/ directory exists"
 else
-  fail ".sage/ directory not found — run 'npx sage-kit init'"
+  fail ".sage/ directory not found — run 'sage init'"
   echo ""
   echo "Result: $errors error(s), $warnings warning(s)"
   exit 1

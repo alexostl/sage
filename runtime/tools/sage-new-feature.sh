@@ -61,7 +61,7 @@ fi
 # ─── Check Prerequisites ──────────────────────────────────────────────────
 
 if [ ! -d "$SAGE_DIR" ]; then
-  echo "Error: No .sage/ directory found. Run 'npx sage-kit init' first."
+  echo "Error: No .sage/ directory found. Run 'sage init' first."
   exit 1
 fi
 

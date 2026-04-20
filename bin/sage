@@ -123,8 +123,18 @@ spin() {
 }
 
 # ── Resolve framework source ──
-# Priority: 1) SAGE_HOME env  2) ~/.sage/framework  3) script's own directory
+# Priority: 1) script's own directory  2) SAGE_HOME env  3) ~/.sage/framework
 resolve_framework() {
+  # Local checkout — script lives in bin/ inside the framework
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local parent_dir="$(dirname "$script_dir")"
+
+  if [ -d "$parent_dir/core" ] && [ -d "$parent_dir/skills" ]; then
+    SAGE_FRAMEWORK="$parent_dir"
+    return
+  fi
+
   # Global install
   if [ -n "${SAGE_HOME:-}" ] && [ -d "$SAGE_HOME/framework/core" ]; then
     SAGE_FRAMEWORK="$SAGE_HOME/framework"
@@ -133,16 +143,6 @@ resolve_framework() {
 
   if [ -d "$HOME/.sage/framework/core" ]; then
     SAGE_FRAMEWORK="$HOME/.sage/framework"
-    return
-  fi
-
-  # Local — script lives in bin/ inside the framework
-  local script_dir
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  local parent_dir="$(dirname "$script_dir")"
-
-  if [ -d "$parent_dir/core" ] && [ -d "$parent_dir/skills" ]; then
-    SAGE_FRAMEWORK="$parent_dir"
     return
   fi
 
@@ -181,12 +181,44 @@ ask_choice() {
   echo "$choice"
 }
 
+platform_has() {
+  local needle="$1"
+  case ",${PLATFORM:-}," in
+    *,"$needle",*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+platform_append() {
+  local platform_name="$1"
+  if [ -z "${PLATFORM:-}" ]; then
+    PLATFORM="$platform_name"
+    return
+  fi
+  platform_has "$platform_name" || PLATFORM="${PLATFORM},${platform_name}"
+}
+
+platform_label() {
+  local value="${1:-${PLATFORM:-}}"
+  if [ -z "$value" ]; then
+    echo "none"
+    return
+  fi
+  echo "$value" | sed 's/,/, /g'
+}
+
 select_platform() {
   local target="$1"
   PLATFORM=""
 
+  if [ -n "${PLATFORM_FLAG:-}" ]; then
+    PLATFORM="$PLATFORM_FLAG"
+    echo -e "  ${GREEN}Platform:${RESET} $(platform_label)"
+    return
+  fi
+
   # Auto-detect from existing files
-  local has_agent=false has_claude=false
+  local has_agent=false has_claude=false has_codex=false
   [ -d "$target/.agent" ] && has_agent=true
   [ -f "$target/GEMINI.md" ] && has_agent=true
   [ -d "$target/.claude" ] && has_claude=true
@@ -194,28 +226,41 @@ select_platform() {
   if [ -f "$target/CLAUDE.md" ] && head -1 "$target/CLAUDE.md" | grep -q "Sage"; then
     has_claude=true
   fi
+  if [ -d "$target/.agents/skills/sage-navigator" ] || [ -f "$target/.codex/config.toml" ]; then
+    has_codex=true
+  fi
+  if [ -f "$target/AGENTS.md" ] && head -1 "$target/AGENTS.md" | grep -q "Sage"; then
+    has_codex=true
+  fi
 
-  if [ "$has_agent" = true ] && [ "$has_claude" = true ]; then
-    PLATFORM="both"
-    echo -e "  ${GREEN}Detected:${RESET} Both platforms"
-    return
-  elif [ "$has_agent" = true ]; then
-    PLATFORM="antigravity"
-    echo -e "  ${GREEN}Detected:${RESET} Antigravity"
-    return
-  elif [ "$has_claude" = true ]; then
-    PLATFORM="claude-code"
-    echo -e "  ${GREEN}Detected:${RESET} Claude Code"
+  [ "$has_claude" = true ] && platform_append "claude-code"
+  [ "$has_agent" = true ] && platform_append "antigravity"
+  [ "$has_codex" = true ] && platform_append "codex"
+
+  if [ -n "$PLATFORM" ]; then
+    echo -e "  ${GREEN}Detected:${RESET} $(platform_label)"
     return
   fi
 
   # Ask interactively
   if [ -t 0 ]; then
     local choice
-    choice=$(ask_choice "Which platform are you using?" "Claude Code" "Antigravity" "Both")
+    choice=$(ask_choice \
+      "Which platform are you using?" \
+      "Claude Code" \
+      "Antigravity" \
+      "Codex" \
+      "Claude Code + Antigravity" \
+      "Claude Code + Codex" \
+      "Antigravity + Codex" \
+      "All three")
     case "$choice" in
       2) PLATFORM="antigravity" ;;
-      3) PLATFORM="both" ;;
+      3) PLATFORM="codex" ;;
+      4) PLATFORM="claude-code,antigravity" ;;
+      5) PLATFORM="claude-code,codex" ;;
+      6) PLATFORM="antigravity,codex" ;;
+      7) PLATFORM="claude-code,antigravity,codex" ;;
       *) PLATFORM="claude-code" ;;
     esac
   else
@@ -332,31 +377,37 @@ create_sage_state() {
   local target="$1"
   local project_name
   project_name=$(basename "$target")
-
-  if [ -d "$target/.sage" ]; then
-    # Still apply prefix flag to existing config
-    [ "$PREFIX_FLAG" = "true" ] && apply_prefix_config "$target"
-    echo -e "  ${GREEN}✓${RESET} .sage/ preserved (existing state)"
-    return
-  fi
-
   local sage_dir="$target/.sage"
+  local prefix_val="false"
+  local created_state=false
+  local preserved_state=false
+
+  [ "$PREFIX_FLAG" = "true" ] && prefix_val="true"
   mkdir -p "$sage_dir/work" "$sage_dir/docs" "$sage_dir/gates/scripts"
 
-  local prefix_val="false"
-  [ "$PREFIX_FLAG" = "true" ] && prefix_val="true"
+  if [ -d "$target/.sage" ]; then
+    preserved_state=true
+  fi
 
-  cat > "$sage_dir/config.yaml" << YAML
+  if [ ! -f "$sage_dir/config.yaml" ]; then
+    cat > "$sage_dir/config.yaml" << YAML
 sage-version: "1.0.0"
 project-name: "$project_name"
+platform: "${PLATFORM:-claude-code}"
+constitution: "${SELECTED_PRESET:-base}"
 detected-stack: [$DETECTED_STACK]
 auto_review: true
 auto_qa: true
 independent_gate3: true
 command_prefix: $prefix_val
 YAML
+    created_state=true
+  else
+    apply_prefix_config "$target"
+  fi
 
-  cat > "$sage_dir/decisions.md" << MD
+  if [ ! -f "$sage_dir/decisions.md" ]; then
+    cat > "$sage_dir/decisions.md" << MD
 # Decisions
 
 Shared log for significant decisions and context.
@@ -364,13 +415,18 @@ Both the AI agent and human collaborators write here.
 
 - [$(date +%Y-%m-%d)] Sage initialized for $project_name
 MD
+    created_state=true
+  fi
 
-  cat > "$sage_dir/conventions.md" << MD
+  if [ ! -f "$sage_dir/conventions.md" ]; then
+    cat > "$sage_dir/conventions.md" << MD
 # Project Conventions
 
 Discovered by Sage on $(date +%Y-%m-%d).
 The codebase-scan capability will enrich this on first run.
 MD
+    created_state=true
+  fi
 
   # Gate scripts
   for script in "$SAGE_FRAMEWORK/core/gates/scripts/"*.sh; do
@@ -386,7 +442,7 @@ MD
   fi
 
   # Constitution
-  if [ -n "${SELECTED_PRESET:-}" ] && [ "$SELECTED_PRESET" != "base" ] && [ "$SELECTED_PRESET" != "none" ]; then
+  if [ ! -f "$sage_dir/constitution.md" ] && [ -n "${SELECTED_PRESET:-}" ] && [ "$SELECTED_PRESET" != "base" ] && [ "$SELECTED_PRESET" != "none" ]; then
     cat > "$sage_dir/constitution.md" << CONSTMD
 ---
 name: "$project_name"
@@ -397,9 +453,16 @@ extends: $SELECTED_PRESET
 
 (Add project-specific principles here)
 CONSTMD
+    created_state=true
   fi
 
-  echo -e "  ${GREEN}✓${RESET} .sage/ initialized"
+  if [ "$preserved_state" = true ] && [ "$created_state" = true ]; then
+    echo -e "  ${GREEN}✓${RESET} .sage/ preserved and bootstrapped (existing state)"
+  elif [ "$preserved_state" = true ]; then
+    echo -e "  ${GREEN}✓${RESET} .sage/ preserved (existing state)"
+  else
+    echo -e "  ${GREEN}✓${RESET} .sage/ initialized"
+  fi
 }
 
 run_generators() {
@@ -407,14 +470,19 @@ run_generators() {
   local sage_path="$target/sage"
   [ -d "$sage_path" ] || sage_path="$SAGE_FRAMEWORK"
 
-  if [ "$PLATFORM" = "antigravity" ] || [ "$PLATFORM" = "both" ]; then
+  if platform_has "antigravity"; then
     echo ""
     bash "$sage_path/runtime/platforms/antigravity/setup/generate-antigravity.sh" "$target"
   fi
 
-  if [ "$PLATFORM" = "claude-code" ] || [ "$PLATFORM" = "both" ]; then
+  if platform_has "claude-code"; then
     echo ""
     bash "$sage_path/runtime/platforms/claude-code/setup/generate-claude-code.sh" "$target"
+  fi
+
+  if platform_has "codex"; then
+    echo ""
+    bash "$sage_path/runtime/platforms/codex/setup/generate-codex.sh" "$target"
   fi
 }
 
@@ -435,17 +503,24 @@ print_success() {
 
   echo -e "  ${BOLD}Get started:${RESET}"
   echo ""
-  if [ "$PLATFORM" = "claude-code" ] || [ "$PLATFORM" = "both" ]; then
+  if platform_has "claude-code"; then
     echo "    1. Open this project in your IDE"
     echo -e "    2. Type ${BOLD}/sage${RESET} and describe what you want to build"
     echo ""
     echo -e "  ${DIM}Commands: /${p}build  /${p}fix  /${p}architect  /${p}status  /${p}review  /${p}learn${RESET}"
   fi
-  if [ "$PLATFORM" = "antigravity" ] && [ "$PLATFORM" != "both" ]; then
+  if platform_has "antigravity"; then
     echo "    1. Open this project in Antigravity"
     echo -e "    2. Type ${BOLD}/sage${RESET} and describe what you want to build"
     echo ""
     echo -e "  ${DIM}Commands: /${p}build  /${p}fix  /${p}architect  /${p}status  /${p}review  /${p}learn${RESET}"
+  fi
+  if platform_has "codex"; then
+    echo "    1. Open this project in Codex"
+    echo "    2. Use AGENTS.md and the Sage skills in .agents/skills/"
+    echo ""
+    echo -e "  ${DIM}Codex surfaces: AGENTS.md  .agents/skills/  .codex/config.toml${RESET}"
+    echo -e "  ${DIM}Built-in helper: /review for diff-oriented review passes${RESET}"
   fi
 
   # Check for sage-memory
@@ -454,6 +529,9 @@ print_success() {
     has_memory=true
   fi
   if [ -f "$target/.claude.json" ] && grep -q "sage-memory" "$target/.claude.json" 2>/dev/null; then
+    has_memory=true
+  fi
+  if [ -f "$target/.codex/config.toml" ] && grep -q "sage-memory" "$target/.codex/config.toml" 2>/dev/null; then
     has_memory=true
   fi
 
@@ -594,12 +672,20 @@ sage_update() {
 
   # Detect platform
   PLATFORM=""
-  [ -f "$target/GEMINI.md" ] || [ -d "$target/.agent" ] && PLATFORM="antigravity"
+  if [ -f "$target/GEMINI.md" ] || [ -d "$target/.agent" ]; then
+    platform_append "antigravity"
+  fi
   if [ -f "$target/CLAUDE.md" ] && head -1 "$target/CLAUDE.md" 2>/dev/null | grep -q "Sage"; then
-    [ -z "$PLATFORM" ] && PLATFORM="claude-code" || PLATFORM="both"
+    platform_append "claude-code"
   fi
   if [ -d "$target/.claude/commands" ]; then
-    [ -z "$PLATFORM" ] && PLATFORM="claude-code" || [ "$PLATFORM" = "antigravity" ] && PLATFORM="both"
+    platform_append "claude-code"
+  fi
+  if [ -f "$target/AGENTS.md" ] && head -1 "$target/AGENTS.md" 2>/dev/null | grep -q "Sage"; then
+    platform_append "codex"
+  fi
+  if [ -d "$target/.agents/skills/sage-navigator" ] || [ -f "$target/.codex/config.toml" ]; then
+    platform_append "codex"
   fi
 
   if [ -z "$PLATFORM" ]; then
@@ -607,7 +693,7 @@ sage_update() {
     echo "  Selecting platform..."
     select_platform "$target"
   else
-    echo -e "  ${GREEN}Platform:${RESET} $PLATFORM"
+    echo -e "  ${GREEN}Platform:${RESET} $(platform_label)"
   fi
 
   # Detect community skills before updating
@@ -629,11 +715,14 @@ except: pass
   if [ -d "$target/sage" ]; then
     echo -e "    ${CYAN}↻${RESET} Update sage/ framework to latest version"
   fi
-  if [ "$PLATFORM" = "antigravity" ] || [ "$PLATFORM" = "both" ]; then
+  if platform_has "antigravity"; then
     echo -e "    ${CYAN}↻${RESET} Regenerate GEMINI.md and .agent/"
   fi
-  if [ "$PLATFORM" = "claude-code" ] || [ "$PLATFORM" = "both" ]; then
+  if platform_has "claude-code"; then
     echo -e "    ${CYAN}↻${RESET} Regenerate CLAUDE.md and .claude/commands/"
+  fi
+  if platform_has "codex"; then
+    echo -e "    ${CYAN}↻${RESET} Regenerate AGENTS.md, .agents/skills/, and .codex/config.toml"
   fi
   echo -e "    ${GREEN}✓${RESET} Preserve .sage/ project state (untouched)"
   if [ -n "$community_skills" ]; then
@@ -872,7 +961,13 @@ sage_setup() {
   echo ""
 
   # Detect platform
-  if [ -d ".claude" ] || [ -f "$HOME/.claude.json" ]; then
+  if [ -d ".codex" ] || [ -f "$HOME/.codex/config.toml" ]; then
+    echo -e "  ${CYAN}Codex${RESET} — add to .codex/config.toml or ~/.codex/config.toml:"
+    echo ""
+    echo '  [mcp_servers.sage-memory]'
+    echo '  command = "uvx"'
+    echo '  args = ["sage-memory"]'
+  elif [ -d ".claude" ] || [ -f "$HOME/.claude.json" ]; then
     echo -e "  ${CYAN}Claude Code${RESET} — add to ~/.claude.json:"
     echo ""
     echo '  {'
@@ -946,7 +1041,7 @@ sage_learn() {
   fi
 
   echo ""
-  echo "  This command works inside your AI agent (Claude Code, Antigravity)."
+  echo "  This command works inside your AI agent (Claude Code, Antigravity, Codex)."
   echo "  Open this project in your IDE, then tell the agent:"
   echo ""
 
@@ -978,11 +1073,11 @@ sage_help() {
   echo ""
   echo "Project commands:"
   echo "  sage new <n>                  Create a new project with Sage"
-  echo "  sage init [--prefix]             Add Sage to the current directory"
-  echo "  sage update                      Regenerate platform files"
-  echo "  sage upgrade                     Update Sage to the latest version"
-  echo "  sage learn [path]                Learn a codebase or module"
-  echo "  sage setup memory                Configure persistent memory"
+  echo "  sage init [--prefix]          Add Sage to the current directory"
+  echo "  sage update                   Regenerate platform files"
+  echo "  sage upgrade                  Update Sage to the latest version"
+  echo "  sage learn [path]             Learn a codebase or module"
+  echo "  sage setup memory             Configure persistent memory"
   echo ""
   echo "Skill management (powered by skills.sh):"
   echo "  sage find <query>                Search skills.sh catalog"
@@ -998,13 +1093,14 @@ sage_help() {
   echo "Flags:"
   echo "  --prefix                         Namespace commands as sage:build, sage:fix, etc."
   echo "  --preset <name>                  Set constitution preset (base|startup|enterprise|opensource)"
+  echo "  --platform <names>               claude-code, antigravity, codex, or comma-separated combinations"
   echo ""
   echo "Examples:"
-  echo "  sage new my-app                  # Create project with Sage"
-  echo "  sage init --prefix               # Add Sage with sage: prefixed commands"
-  echo "  sage learn                       # Broad scan of whole project"
-  echo "  sage learn src/billing/          # Deep dive into a module"
-  echo "  sage find react                  # Search skills.sh for React skills"
+  echo "  sage new my-app --platform codex                  # Create a Codex-native Sage project"
+  echo "  sage init --platform claude-code,codex --prefix   # Add Sage for Claude Code + Codex"
+  echo "  sage learn                                        # Broad scan of whole project"
+  echo "  sage learn src/billing/                           # Deep dive into a module"
+  echo "  sage find react                                   # Search skills.sh for React skills"
   echo "  sage add vercel-labs/agent-skills               # Browse + pick skills"
   echo "  sage add vercel-labs/agent-skills --skill react  # Install specific skill"
   echo "  sage add ./my-local-skills                      # Install from local path"
@@ -1019,16 +1115,21 @@ shift 2>/dev/null || true
 
 # Parse flags from remaining args
 PRESET_FLAG=""
+PLATFORM_FLAG=""
 PREFIX_FLAG=""
 REMAINING_ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --preset=*) PRESET_FLAG="${arg#--preset=}" ;;
     --preset)   PRESET_FLAG="__NEXT__" ;;
+    --platform=*) PLATFORM_FLAG="${arg#--platform=}" ;;
+    --platform)  PLATFORM_FLAG="__NEXT__" ;;
     --prefix)   PREFIX_FLAG="true" ;;
     *)
       if [ "$PRESET_FLAG" = "__NEXT__" ]; then
         PRESET_FLAG="$arg"
+      elif [ "$PLATFORM_FLAG" = "__NEXT__" ]; then
+        PLATFORM_FLAG="$arg"
       else
         REMAINING_ARGS+=("$arg")
       fi

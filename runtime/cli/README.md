@@ -1,18 +1,23 @@
 # Sage CLI
 
-> **Status: Experimental** — Not yet functional. Use `sage` directly.
+`runtime/cli` is the npm bridge for Sage's canonical shell CLI in
+[`bin/sage`](../../bin/sage).
 
-The CLI will provide a global `sage` command installable via `curl | bash`.
-This is planned for a future release. For now, use the setup script directly.
+It no longer maintains a separate installer implementation. This keeps
+platform support consistent across Claude Code, Antigravity, and Codex.
+
+## Supported Commands
 
 ```bash
-# Current (works today):
-sage new my-app
-sage install .
-sage update
-
-# Future (coming soon):
-sage new my-app
-sage install
-sage update
+npx sage-kit init --platform codex
+npx sage-kit new my-app --platform claude-code,codex
+npx sage-kit update
+npx sage-kit status
 ```
+
+## Notes
+
+- `init`, `new`, `update`, `upgrade`, `learn`, `setup`, `find`, `add`,
+  `remove`, and `skills` forward directly to `bin/sage`.
+- `status` remains a lightweight npm-native readout.
+- The shell CLI is the source of truth for adapter generation.

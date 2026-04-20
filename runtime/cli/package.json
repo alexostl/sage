@@ -17,11 +17,13 @@
     "tdd",
     "code-quality",
     "claude-code",
+    "codex",
+    "antigravity",
     "agentic",
     "skills"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/sage-framework/sage"
+    "url": "https://github.com/xoai/sage"
   }
 }
