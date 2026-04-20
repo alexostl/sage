@@ -80,15 +80,17 @@ All Sage state lives in `.sage/` — platform-agnostic:
 
 ## Switching Between Platforms
 
-Sage supports both Claude Code and Antigravity from the same project:
+Sage supports Claude Code, Antigravity, and Codex from the same project:
 
 ```bash
 sage init
 # Choose "Both" when prompted
 ```
 
-This creates CLAUDE.md + `.claude/` (for Claude Code) and GEMINI.md +
-`.agent/` (for Antigravity) side by side. The `.sage/` state is shared.
+This creates Claude-facing files (`CLAUDE.md` + `.claude/`) alongside any
+other selected adapters such as Antigravity (`GEMINI.md` + `.agent/`) and
+Codex (`AGENTS.md` + `.agents/skills/` + `.codex/config.toml`). The `.sage/`
+state is shared.
 
 ## Updating
 
@@ -96,4 +98,4 @@ This creates CLAUDE.md + `.claude/` (for Claude Code) and GEMINI.md +
 sage update
 ```
 
-Regenerates CLAUDE.md and `.claude/commands/` without touching `.sage/`.
+Regenerates Claude Code files without touching shared `.sage/` state.

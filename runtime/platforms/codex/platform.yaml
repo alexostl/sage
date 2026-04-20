@@ -1,0 +1,40 @@
+---
+name: codex
+description: >
+  Tier 1 adapter for OpenAI Codex. Maps Sage's process engine onto Codex-native
+  instructions, agent skills, project configuration, and multi-agent execution.
+version: "1.0.0"
+tier: 1
+capabilities:
+  subagents: true
+  parallel-execution: true
+  worktrees: false
+  hooks: false
+  slash-commands: false
+  skill-auto-activation: true
+  file-system-access: true
+  multi-model: true
+command-prefix: "prompt"
+install-method: workspace-setup
+supported-os: [linux, macos, windows]
+
+paths:
+  instructions-global: "~/.codex/AGENTS.md"
+  instructions-workspace: "AGENTS.md"
+  skills-global: "~/.agents/skills/"
+  skills-workspace: ".agents/skills/"
+  config-global: "~/.codex/config.toml"
+  config-workspace: ".codex/config.toml"
+  hooks-workspace: ".codex/hooks.json"
+  sage-state: ".sage/"
+
+codex:
+  builtin-commands:
+    - name: review
+      description: "Use Codex built-in /review for diff-oriented review passes."
+    - name: init
+      description: "Use Codex built-in /init only for ad hoc AGENTS scaffolding outside Sage."
+  notes:
+    - "Sage workflow entry is prompt-driven and skill-driven, not custom slash-command driven."
+    - "Hook parity is partial until Codex hooks are stable enough for Sage lifecycle integration."
+---

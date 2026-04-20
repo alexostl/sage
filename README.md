@@ -235,9 +235,9 @@ Three layers, deterministic first:
 2. **Sub-agent classifier** (focused) — independent context, single job: classify into UNDERSTAND / ENVISION / DELIVER / REFLECT.
 3. **Confirmation** (human decides) — 2-3 options with skill chains visible. The user confirms before anything runs.
 
-### Slash Commands
+### Workflow Entry
 
-Use inside your IDE (Claude Code, Antigravity):
+Use inside your IDE:
 
 | Command | What It Does |
 |---------|-------------|
@@ -255,6 +255,11 @@ Use inside your IDE (Claude Code, Antigravity):
 | `/reflect` | Review cycle → extract learnings → seed next cycle |
 | `/continue` | Resume any active cycle with full context |
 | `/status` | Compute project state from artifacts |
+
+On Codex, Sage uses `AGENTS.md` plus `.agents/skills/` instead of
+custom Sage slash commands. Workflow entry is prompt-driven and
+skill-driven, while Codex's built-in `/review` remains useful for
+diff-oriented review passes.
 
 ### Interaction Patterns
 
@@ -501,22 +506,25 @@ Sage is platform-agnostic. It works wherever AI agents work.
 
 | Platform | How Sage Integrates | Status |
 |----------|---------------------|--------|
-| [Claude Code](runtime/platforms/claude-code/) | CLAUDE.md + `.claude/commands/` with slash commands | Full |
-| [Antigravity](runtime/platforms/antigravity/) | GEMINI.md + `.agent/` with rules, skills, workflows | Full |
+| [Claude Code](runtime/platforms/claude-code/) | `CLAUDE.md` + `.claude/commands/` with slash commands | Full |
+| [Antigravity](runtime/platforms/antigravity/) | `GEMINI.md` + `.agent/` with rules, skills, workflows | Full |
+| [Codex](runtime/platforms/codex/) | `AGENTS.md` + `.agents/skills/` + `.codex/config.toml` | New |
 | [Claude Code Plugin](runtime/platforms/claude-code/setup/generate-plugin.sh) | Plugin format — install with `/plugin install sage@xoai` | Full |
 
-Three distribution paths from one source:
+Four distribution paths from one source:
 
 ```
 Sage Framework (source of truth)
     ├── generate-claude-code.sh → CLAUDE.md + .claude/ (in-project)
     ├── generate-antigravity.sh → GEMINI.md + .agent/ (in-project)
+    ├── generate-codex.sh       → AGENTS.md + .agents/ + .codex/ (in-project)
     └── generate-plugin.sh      → sage-plugin/ (Claude Code plugin)
 ```
 
-Both in-project paths share the same `.sage/` project state. Switch
-platforms mid-project. The plugin path manages its own installation
-via Claude Code's plugin system.
+All in-project adapters share the same `.sage/` project state. Switch
+platforms mid-project without moving project memory or workflow state.
+The plugin path manages its own installation via Claude Code's plugin
+system.
 
 ## Why sage/ Lives in Your Project
 

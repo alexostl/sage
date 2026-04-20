@@ -121,7 +121,7 @@ process regardless of which model executes them.
 
 ## Switching Between Platforms
 
-Sage supports both Claude Code and Antigravity from the same project:
+Sage supports Claude Code, Antigravity, and Codex from the same project:
 
 ```bash
 # Generate for both platforms
@@ -129,9 +129,10 @@ sage init
 # Choose option 3 (Both)
 ```
 
-This creates CLAUDE.md (for Claude Code) and .agent/ (for Antigravity)
-side by side. The `.sage/` project state is shared — you can switch
-between platforms mid-project.
+This creates whichever adapters you select side by side: Claude Code
+(`CLAUDE.md` + `.claude/`), Antigravity (`GEMINI.md` + `.agent/`), and
+Codex (`AGENTS.md` + `.agents/skills/` + `.codex/config.toml`). The `.sage/`
+project state is shared — you can switch between platforms mid-project.
 
 ## Updating
 

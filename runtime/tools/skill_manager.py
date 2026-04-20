@@ -369,6 +369,14 @@ def deploy_to_platform(name, source_dir, project_dir):
                 shutil.copy2(cf, rules / f"skill-{name}-constitution.md")
         ui.success(f"Deployed to .agent/skills/{name}/")
         deployed = True
+    # Codex: copy full skill into .agents/skills
+    codex_skills = project_dir / ".agents" / "skills"
+    if codex_skills.is_dir():
+        dest = codex_skills / name
+        if dest.exists(): shutil.rmtree(dest)
+        shutil.copytree(source_dir, dest)
+        ui.success(f"Deployed to .agents/skills/{name}/")
+        deployed = True
     if not deployed:
         ui.dim(f"Available at sage/skills/{name}/. Run sage init to deploy.")
 
@@ -386,6 +394,10 @@ def undeploy_from_platform(name, project_dir):
     r = project_dir / ".agent" / "rules" / f"skill-{name}-constitution.md"
     if r.exists():
         r.unlink()
+    p = project_dir / ".agents" / "skills" / name
+    if p.exists():
+        shutil.rmtree(p)
+        ui.success(f"Removed from .agents/skills/{name}/")
 
 # ── Display ──
 def fmt_installs(n):
