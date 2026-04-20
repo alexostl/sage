@@ -11,7 +11,7 @@
  *   npx tsx mcp-client.ts call-tool <server> <tool> --params-arg key1=value1 key2=value2
  *
  * Configuration:
- *   Reads from .claude/mcp.json or .sage/mcp.json (Claude Code standard format)
+ *   Reads from .codex/config.toml or legacy Sage MCP JSON config
  *
  * Output:
  *   JSON to stdout. Errors to stderr. Exit code 0 on success, 1 on failure.
@@ -19,8 +19,10 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { readFileSync, existsSync } from "fs";
-import { resolve, dirname } from "path";
+import { existsSync } from "fs";
+import { resolve } from "path";
+import { execFileSync } from "child_process";
+import { fileURLToPath } from "url";
 
 // ── Types ──
 interface MCPServerConfig {
@@ -49,23 +51,17 @@ interface CallResult {
 
 // ── Config Loading ──
 function findConfig(startDir: string = process.cwd()): MCPConfig | null {
-  const searchPaths = [
-    resolve(startDir, ".claude", "mcp.json"),
-    resolve(startDir, ".sage", "mcp.json"),
-  ];
+  const loaderPath = fileURLToPath(new URL("./load_config.py", import.meta.url));
+  if (!existsSync(loaderPath)) return null;
 
-  for (const configPath of searchPaths) {
-    if (existsSync(configPath)) {
-      try {
-        const raw = readFileSync(configPath, "utf-8");
-        const parsed = JSON.parse(raw);
-        // Handle both { mcpServers: {} } and top-level server configs
-        if (parsed.mcpServers) return parsed;
-        return { mcpServers: parsed };
-      } catch (e) {
-        console.error(`Error reading ${configPath}: ${(e as Error).message}`);
-      }
+  try {
+    const output = execFileSync("python3", [loaderPath, resolve(startDir)], { encoding: "utf-8" });
+    const parsed = JSON.parse(output) as { mcpServers?: Record<string, MCPServerConfig> };
+    if (parsed.mcpServers) {
+      return { mcpServers: parsed.mcpServers };
     }
+  } catch (e) {
+    console.error(`Error reading MCP config: ${(e as Error).message}`);
   }
   return null;
 }
@@ -223,7 +219,7 @@ Examples:
   const config = findConfig();
   if (!config) {
     console.error("No MCP configuration found.");
-    console.error("Expected: .claude/mcp.json or .sage/mcp.json");
+    console.error("Expected: .codex/config.toml, .claude/mcp.json, or .sage/mcp.json");
     console.error("See: runtime/mcp/sage-mcp-config.example.json");
     process.exit(1);
   }

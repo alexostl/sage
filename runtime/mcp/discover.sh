@@ -3,12 +3,13 @@
 # ║  Sage MCP Discovery                                      ║
 # ║                                                           ║
 # ║  Connects to configured MCP servers, lists available      ║
-# ║  tools, and caches the manifest for CLAUDE.md inclusion.  ║
+# ║  tools, and caches the manifest for adapter-native        ║
+# ║  instruction surfaces.                                    ║
 # ║                                                           ║
 # ║  Usage:                                                   ║
 # ║    bash discover.sh [project-dir]                         ║
 # ║                                                           ║
-# ║  Reads from: .claude/mcp.json or .sage/mcp.json          ║
+# ║  Reads from: .codex/config.toml or legacy Sage MCP JSON  ║
 # ║  Writes to:  .sage/mcp-manifest.json                     ║
 # ╚═══════════════════════════════════════════════════════════╝
 set -uo pipefail
@@ -17,32 +18,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="${1:-.}"
 PROJECT="$(cd "$PROJECT" && pwd)"
 MCP_CLIENT="$SCRIPT_DIR/mcp-client.ts"
+MCP_LOADER="$SCRIPT_DIR/load_config.py"
 
 echo "═══ Sage MCP Discovery ═══"
 echo "  Project: $PROJECT"
 
 # ── Find MCP config ──
-MCP_CONFIG=""
-if [ -f "$PROJECT/.claude/mcp.json" ]; then
-  MCP_CONFIG="$PROJECT/.claude/mcp.json"
-elif [ -f "$PROJECT/.sage/mcp.json" ]; then
-  MCP_CONFIG="$PROJECT/.sage/mcp.json"
-fi
+LOADED_CONFIG=$(python3 "$MCP_LOADER" "$PROJECT" 2>/dev/null || echo '{"format":null,"source":null,"mcpServers":{}}')
+MCP_CONFIG=$(printf "%s" "$LOADED_CONFIG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('source') or '')" 2>/dev/null)
 
 if [ -z "$MCP_CONFIG" ]; then
   echo ""
   echo "  ⚠️  No MCP configuration found"
-  echo "  Expected: .claude/mcp.json or .sage/mcp.json"
+  echo "  Expected: .codex/config.toml, .claude/mcp.json, or .sage/mcp.json"
   echo ""
-  echo "  To configure MCP servers, create .sage/mcp.json:"
-  echo '  {'
-  echo '    "mcpServers": {'
-  echo '      "context7": {'
-  echo '        "command": "npx",'
-  echo '        "args": ["-y", "@upstash/context7-mcp@latest"]'
-  echo '      }'
-  echo '    }'
-  echo '  }'
+  echo "  To configure MCP servers for Codex, add entries under [mcp_servers] in .codex/config.toml"
   echo ""
 
   # Write empty manifest
@@ -51,7 +41,7 @@ if [ -z "$MCP_CONFIG" ]; then
 {
   "discovered": null,
   "servers": {},
-  "summary": "No MCP servers configured. Add .sage/mcp.json to enable."
+  "summary": "No MCP servers configured. Add .codex/config.toml, .claude/mcp.json, or .sage/mcp.json to enable."
 }
 EMPTY
 
@@ -69,10 +59,10 @@ if [ ! -f "$MCP_CLIENT" ]; then
 fi
 
 # ── List servers in config ──
-SERVERS=$(node -e "
-  const config = JSON.parse(require('fs').readFileSync('$MCP_CONFIG', 'utf-8'));
-  const servers = config.mcpServers || config;
-  console.log(Object.keys(servers).join('\n'));
+SERVERS=$(printf "%s" "$LOADED_CONFIG" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print('\n'.join(data.get('mcpServers', {}).keys()))
 " 2>/dev/null)
 
 if [ -z "$SERVERS" ]; then
@@ -168,7 +158,7 @@ echo "  Total: $TOTAL_TOOLS tools discovered"
 echo "  Manifest: .sage/mcp-manifest.json"
 echo ""
 
-# ── Generate CLAUDE.md snippet ──
+# ── Generate always-on instructions snippet ──
 SNIPPET_FILE="$PROJECT/.sage/mcp-snippet.md"
 cat > "$SNIPPET_FILE" << SNIPPET
 ## MCP Tools Available
@@ -178,7 +168,7 @@ For current framework docs, prefer context7 over training data.
 $(echo -e "$SUMMARY_LINES")
 SNIPPET
 
-echo "  CLAUDE.md snippet: .sage/mcp-snippet.md"
+echo "  Instructions snippet: .sage/mcp-snippet.md"
 echo ""
 
 if [ "$HAS_FAILURES" = true ]; then
