@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env tsx
 /**
  * Sage MCP Client — Layer 2 Proxy
  *
@@ -6,12 +6,13 @@
  * main agent's context window. Returns extracted results only.
  *
  * Usage:
- *   npx tsx mcp-client.ts list-tools [--server <name>]
- *   npx tsx mcp-client.ts call-tool <server> <tool> [--params '{"key":"value"}']
- *   npx tsx mcp-client.ts call-tool <server> <tool> --params-arg key1=value1 key2=value2
+ *   bash runtime/mcp/run-client.sh list-tools [--server <name>]
+ *   bash runtime/mcp/run-client.sh call-tool <server> <tool> [--params '{"key":"value"}']
+ *   bash runtime/mcp/run-client.sh call-tool <server> <tool> --params-arg key1=value1 key2=value2
  *
  * Configuration:
  *   Reads from .codex/config.toml or legacy Sage MCP JSON config
+ *   Install dependencies once with runtime/mcp/run-client.sh on a clean checkout
  *
  * Output:
  *   JSON to stdout. Errors to stderr. Exit code 0 on success, 1 on failure.
@@ -285,15 +286,15 @@ async function main() {
     console.log(`Sage MCP Client — Layer 2 Proxy
 
 Usage:
-  npx tsx mcp-client.ts list-tools [--server <name>]
-  npx tsx mcp-client.ts call-tool <server> <tool> [--params '{"key":"val"}']
-  npx tsx mcp-client.ts call-tool <server> <tool> --params-arg key=val key2=val2
+  bash runtime/mcp/run-client.sh list-tools [--server <name>]
+  bash runtime/mcp/run-client.sh call-tool <server> <tool> [--params '{"key":"val"}']
+  bash runtime/mcp/run-client.sh call-tool <server> <tool> --params-arg key=val key2=val2
 
 Examples:
-  npx tsx mcp-client.ts list-tools
-  npx tsx mcp-client.ts list-tools --server context7
-  npx tsx mcp-client.ts call-tool context7 resolve-library-id --params '{"libraryName":"next.js"}'
-  npx tsx mcp-client.ts call-tool context7 query-docs --params-arg libraryId=/nextjs/nextjs topic=caching`);
+  bash runtime/mcp/run-client.sh list-tools
+  bash runtime/mcp/run-client.sh list-tools --server context7
+  bash runtime/mcp/run-client.sh call-tool context7 resolve-library-id --params '{"libraryName":"next.js"}'
+  bash runtime/mcp/run-client.sh call-tool context7 query-docs --params-arg libraryId=/nextjs/nextjs topic=caching`);
     process.exit(0);
   }
 

@@ -19,6 +19,7 @@ PROJECT="${1:-.}"
 PROJECT="$(cd "$PROJECT" && pwd)"
 MCP_CLIENT="$SCRIPT_DIR/mcp-client.ts"
 MCP_LOADER="$SCRIPT_DIR/load_config.py"
+MCP_RUNNER="$SCRIPT_DIR/run-client.sh"
 
 echo "═══ Sage MCP Discovery ═══"
 echo "  Project: $PROJECT"
@@ -58,6 +59,11 @@ if [ ! -f "$MCP_CLIENT" ]; then
   exit 1
 fi
 
+if [ ! -f "$MCP_RUNNER" ]; then
+  echo "  ❌ MCP runner not found at $MCP_RUNNER"
+  exit 1
+fi
+
 # ── List servers in config ──
 SERVERS=$(printf "%s" "$LOADED_CONFIG" | python3 -c "
 import json, sys
@@ -85,7 +91,7 @@ for server in $SERVERS; do
   echo -n "  $server: "
 
   # Call list-tools for this server
-  TOOLS_JSON=$(npx tsx "$MCP_CLIENT" list-tools --server "$server" 2>/dev/null)
+  TOOLS_JSON=$(bash "$MCP_RUNNER" list-tools --server "$server" 2>/dev/null)
 
   if [ $? -ne 0 ] || [ -z "$TOOLS_JSON" ]; then
     echo "❌ failed to connect"
@@ -163,7 +169,7 @@ SNIPPET_FILE="$PROJECT/.sage/mcp-snippet.md"
 cat > "$SNIPPET_FILE" << SNIPPET
 ## MCP Tools Available
 
-Use \`npx tsx sage/runtime/mcp/mcp-client.ts call-tool <server> <tool>\` to call these.
+Use \`bash sage/runtime/mcp/run-client.sh call-tool <server> <tool>\` to call these.
 For current framework docs, prefer context7 over training data.
 $(echo -e "$SUMMARY_LINES")
 SNIPPET

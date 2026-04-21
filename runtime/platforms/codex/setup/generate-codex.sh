@@ -51,6 +51,10 @@ This preserves Sage's progressive disclosure model:
 - `SKILL.md` when chosen
 - references/scripts only when needed
 
+For narrow directory-specific overrides, Codex also supports `AGENTS.override.md`.
+Prefer keeping shared repository guidance in `AGENTS.md` and using overrides only
+when a subtree genuinely needs different rules.
+
 ## Process Constitution
 
 ### Rule 0: Route Every Substantial Request
@@ -148,6 +152,8 @@ instead of self-approving in the same reasoning thread.
 Project-scoped Codex config lives in `.codex/config.toml`.
 
 - If `mcp_servers` are configured there, use them natively.
+- Sage may manage only a marked block inside `.codex/config.toml`; preserve
+  unrelated user-owned Codex settings outside that block.
 - Do not assume `.claude/mcp.json` is the primary configuration surface in
   Codex mode.
 
@@ -290,8 +296,8 @@ done
 echo "  → $SK_COUNT direct skills"
 
 echo ""
-echo "⚙️  Generating .codex/config.toml..."
-python3 "$SCRIPT_DIR/../../../mcp/json_to_toml.py" "$SAGE_ROOT" > "$CODEX_DIR/config.toml"
+echo "⚙️  Updating .codex/config.toml..."
+python3 "$SCRIPT_DIR/../../../mcp/json_to_toml.py" --write "$CODEX_DIR/config.toml" "$SAGE_ROOT"
 echo "  ✓ .codex/config.toml"
 
 echo ""

@@ -8,15 +8,22 @@
  * the same implementation instead of maintaining a second platform installer.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { homedir } from 'os';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { spawnSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 const SHELL_CLI = join(REPO_ROOT, 'bin', 'sage');
+const SAGE_REPO = 'https://github.com/xoai/sage.git';
+const SAGE_HOME = join(homedir(), '.sage');
+const INSTALLED_FRAMEWORK = join(SAGE_HOME, 'framework');
+const INSTALLED_SHELL_CLI = join(INSTALLED_FRAMEWORK, 'bin', 'sage');
+const BIN_DIR = join(homedir(), '.local', 'bin');
+const INSTALLED_WRAPPER = join(BIN_DIR, 'sage');
 
 const c = {
   reset: '\x1b[0m',
@@ -46,9 +53,118 @@ function parseArgs(argv) {
   return { command, passthrough };
 }
 
+function hasFramework(rootDir) {
+  return existsSync(join(rootDir, 'core')) && existsSync(join(rootDir, 'skills'));
+}
+
+function installInstructions() {
+  return `Install Sage, then re-run this command.
+  curl -fsSL https://raw.githubusercontent.com/xoai/sage/main/install.sh | bash`;
+}
+
+function resolvePathCommand(commandName) {
+  try {
+    const output = execFileSync('bash', ['-lc', `command -v ${commandName}`], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return output || null;
+  } catch {
+    return null;
+  }
+}
+
+function validateInstalledFramework() {
+  return existsSync(INSTALLED_SHELL_CLI) && hasFramework(INSTALLED_FRAMEWORK);
+}
+
+function ensureWrapperScript() {
+  mkdirSync(BIN_DIR, { recursive: true });
+  writeFileSync(
+    INSTALLED_WRAPPER,
+    `#!/usr/bin/env bash
+SAGE_BIN="$HOME/.sage/framework/bin/sage"
+if [ ! -f "$SAGE_BIN" ]; then
+  echo "Error: Sage framework not found at ~/.sage/framework/"
+  echo "Reinstall: curl -fsSL https://raw.githubusercontent.com/xoai/sage/main/install.sh | bash"
+  exit 1
+fi
+exec bash "$SAGE_BIN" "$@"
+`,
+    { mode: 0o755 }
+  );
+  chmodSync(INSTALLED_WRAPPER, 0o755);
+}
+
+function bootstrapInstalledFramework() {
+  if (validateInstalledFramework()) {
+    ensureWrapperScript();
+    return INSTALLED_SHELL_CLI;
+  }
+
+  if (!resolvePathCommand('git')) {
+    console.error(`${c.red}Error: git is required to bootstrap Sage.${c.reset}`);
+    console.error(installInstructions());
+    process.exit(1);
+  }
+
+  console.log(`${c.blue}Bootstrapping Sage framework into ${INSTALLED_FRAMEWORK}...${c.reset}`);
+  mkdirSync(SAGE_HOME, { recursive: true });
+
+  const updateResult =
+    existsSync(join(INSTALLED_FRAMEWORK, '.git'))
+      ? spawnSync('git', ['-C', INSTALLED_FRAMEWORK, 'pull', '--ff-only', '-q'], {
+          stdio: 'inherit',
+          env: process.env,
+        })
+      : null;
+
+  if (!updateResult || updateResult.status !== 0 || !validateInstalledFramework()) {
+    rmSync(INSTALLED_FRAMEWORK, { recursive: true, force: true });
+    const cloneResult = spawnSync('git', ['clone', '-q', SAGE_REPO, INSTALLED_FRAMEWORK], {
+      stdio: 'inherit',
+      env: process.env,
+    });
+
+    if (cloneResult.error) {
+      console.error(`${c.red}Error: ${cloneResult.error.message}${c.reset}`);
+      console.error(installInstructions());
+      process.exit(1);
+    }
+
+    if ((cloneResult.status ?? 1) !== 0 || !validateInstalledFramework()) {
+      console.error(`${c.red}Error: failed to bootstrap the Sage framework.${c.reset}`);
+      console.error(installInstructions());
+      process.exit(1);
+    }
+  }
+
+  ensureWrapperScript();
+  return INSTALLED_SHELL_CLI;
+}
+
+function resolveShellCli() {
+  if (existsSync(SHELL_CLI) && hasFramework(REPO_ROOT)) {
+    return SHELL_CLI;
+  }
+
+  if (validateInstalledFramework()) {
+    ensureWrapperScript();
+    return INSTALLED_SHELL_CLI;
+  }
+
+  const pathSage = resolvePathCommand('sage');
+  if (pathSage && existsSync(pathSage) && (pathSage !== INSTALLED_WRAPPER || validateInstalledFramework())) {
+    return pathSage;
+  }
+
+  return bootstrapInstalledFramework();
+}
+
 function runShellCli(command, passthrough) {
   let cwd = process.cwd();
-  const shellArgs = [SHELL_CLI, command];
+  const shellCli = resolveShellCli();
+  const shellArgs = [shellCli, command];
   const forwardedArgs = [...passthrough];
 
   // Preserve the historical `sage-kit init <directory>` behavior even though
@@ -56,11 +172,6 @@ function runShellCli(command, passthrough) {
   if (command === 'init' && forwardedArgs[0] && !forwardedArgs[0].startsWith('-')) {
     cwd = resolve(process.cwd(), forwardedArgs.shift());
     mkdirSync(cwd, { recursive: true });
-  }
-
-  if (!existsSync(SHELL_CLI)) {
-    console.error(`${c.red}Error: missing shell CLI at ${SHELL_CLI}${c.reset}`);
-    process.exit(1);
   }
 
   const result = spawnSync('bash', [...shellArgs, ...forwardedArgs], {
@@ -156,9 +267,10 @@ function commandHelp() {
 
 ${c.bold}Notes:${c.reset}
 
-  This npm entrypoint forwards install/update commands to ${c.cyan}bin/sage${c.reset},
-  which is the canonical multi-platform implementation for Claude Code,
-  Antigravity, and Codex.
+  This npm entrypoint runs Sage's canonical shell CLI.
+  In a repo checkout it uses the local ${c.cyan}bin/sage${c.reset}; from npm it bootstraps
+  or reuses ${c.cyan}~/.sage/framework/bin/sage${c.reset} so the published package stays
+  self-consistent.
 
 ${c.bold}Examples:${c.reset}
 

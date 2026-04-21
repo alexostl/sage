@@ -2,14 +2,15 @@
 name: codex
 description: >
   Tier 1 adapter for OpenAI Codex. Maps Sage's process engine onto Codex-native
-  instructions, agent skills, project configuration, and multi-agent execution.
+  instructions, repo skills, project configuration, worktree-aware execution,
+  and multi-agent workflows.
 version: "1.0.0"
 tier: 1
 capabilities:
   subagents: true
   parallel-execution: true
-  worktrees: false
-  hooks: false
+  worktrees: true
+  hooks: true
   slash-commands: false
   skill-auto-activation: true
   file-system-access: true
@@ -35,6 +36,8 @@ codex:
     - name: init
       description: "Use Codex built-in /init only for ad hoc AGENTS scaffolding outside Sage."
   notes:
-    - "Sage workflow entry is prompt-driven and skill-driven, not custom slash-command driven."
-    - "Hook parity is partial until Codex hooks are stable enough for Sage lifecycle integration."
+    - "Sage workflow entry remains prompt-driven and skill-driven; Codex built-in commands complement but do not replace Sage workflows."
+    - "Codex worktrees are a native Git-repository feature, including Local/Worktree handoff and worktree-backed automations; Sage relies on those native flows rather than generating a separate worktree layer."
+    - "Codex hooks exist behind [features].codex_hooks = true, but Sage treats them as experimental and does not claim Claude-style lifecycle parity."
+    - "Sage keeps .agents/skills as the primary repo skill surface for compatibility with current Codex skills discovery and external-config import flows."
 ---
