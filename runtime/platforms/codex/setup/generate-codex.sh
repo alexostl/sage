@@ -41,7 +41,7 @@ instructions, Codex-native skills, and shared `.sage/` project state.
 Before substantial work:
 
 1. Read project state in `.sage/work/` and recent context in `.sage/decisions.md`.
-2. For new or ambiguous tasks, activate `.agents/skills/sage-navigator/SKILL.md`.
+2. For new or ambiguous tasks, start with the `sage` workflow skill.
 3. For explicit workflows, activate the matching workflow skill in
    `.agents/skills/`.
 4. For domain-specific execution, load only the relevant direct skill.
@@ -54,6 +54,32 @@ This preserves Sage's progressive disclosure model:
 For narrow directory-specific overrides, Codex also supports `AGENTS.override.md`.
 Prefer keeping shared repository guidance in `AGENTS.md` and using overrides only
 when a subtree genuinely needs different rules.
+
+## Fast Entry in Codex
+
+Codex supports two good discovery paths for Sage workflows:
+
+- Type `$` in the composer to invoke a Sage skill directly.
+- Type `/` to open the slash list; enabled Sage skills also appear there.
+
+Use these entrypoints intentionally:
+
+- `$sage` for ambiguous work or first-pass routing
+- `$build` for feature work and implementation
+- `$fix` for bug investigation and repair
+- `$architect` for redesigns, migrations, and system planning
+- `$continue` to resume an in-progress initiative
+- `$status` to inspect current project state before deciding what to do
+- `/review` for Codex-native diff review, and `$review` when the review itself
+  is the Sage workflow
+
+Short prompts that work well:
+
+- `$sage help me route this request`
+- `$build add usage analytics to onboarding`
+- `$fix debug why the MCP manifest is empty`
+- `/review this diff for regression risk`
+- `$review review the generated spec before implementation`
 
 ## Process Constitution
 
@@ -72,7 +98,7 @@ For Standard+ tasks, route before implementation:
 - qa / smoke / browser test → `qa`
 - reflect / retro / lessons → `reflect`
 
-If routing is ambiguous, use `sage-navigator`.
+If routing is ambiguous, use `sage`, which routes through `sage-navigator`.
 
 ### Rule 1: State First
 
@@ -139,7 +165,12 @@ Use these Codex-native workflow skills:
 
 If the request is substantial and no explicit workflow is obvious, start with:
 
-`Read .agents/skills/sage-navigator/SKILL.md and route this task.`
+`Use $sage and route this task through the Sage workflow.`
+
+If you want starter material for native Codex surfaces:
+
+- automation examples live in `sage/runtime/platforms/codex/AUTOMATIONS.md`
+- optional hooks starter docs live in `sage/runtime/platforms/codex/HOOKS.md`
 
 ## Subagents and Review
 
@@ -213,13 +244,13 @@ fi
 
 workflow_description() {
   case "$1" in
-    sage) echo "Start here. Reads Sage project state and routes the task to the right workflow." ;;
-    build) echo "Use for feature work, refactors, and implementation that needs spec, plan, and verification." ;;
-    fix) echo "Use for bugs, breakages, and regressions that require root-cause-first debugging." ;;
-    architect) echo "Use for migrations, redesigns, and system-level planning before implementation." ;;
-    continue) echo "Use to resume an in-progress Sage initiative from existing artifacts." ;;
-    review) echo "Use for independent artifact or code review, often alongside Codex built-in /review." ;;
-    status) echo "Use to inspect current Sage project state and active work." ;;
+    sage) echo "Primary Sage router. Start here for ambiguous tasks, then route into the right workflow." ;;
+    build) echo "Feature implementation workflow. Use for new behavior, refactors, and planned delivery work." ;;
+    fix) echo "Bugfix workflow. Use for regressions, breakages, and debugging with root-cause-first discipline." ;;
+    architect) echo "Planning workflow for redesigns, migrations, and system-level decisions before implementation." ;;
+    continue) echo "Resume an in-progress Sage initiative from existing briefs, specs, plans, and decisions." ;;
+    review) echo "Independent Sage review workflow. Pair with Codex built-in /review for diff-heavy code review." ;;
+    status) echo "Inspect current Sage project state, active initiatives, and what should happen next." ;;
     research) echo "Use for discovery, interviews, JTBD, and understanding before solutioning." ;;
     design) echo "Use for briefs, specs, UX definition, and product design work." ;;
     analyze) echo "Use for evaluation, audit, measurement, and findings against existing work." ;;

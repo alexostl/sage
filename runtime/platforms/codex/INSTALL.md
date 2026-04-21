@@ -39,6 +39,10 @@ bash sage/runtime/platforms/codex/setup/generate-codex.sh .
 - Codex reads `AGENTS.md` natively. Current Codex also supports
   `AGENTS.override.md` and fallback filenames, but Sage currently generates the
   root `AGENTS.md` path as its primary instruction entrypoint.
+- For workflow entry, prefer the skill-first path:
+  `$sage`, `$build`, `$fix`, `$architect`, `$continue`, `$status`, and
+  `$review`. The same enabled skills also show up in the slash list when you
+  type `/`, while native `/review` stays the best diff-review companion.
 - Sage deploys repo skills into `.agents/skills/`. This stays the primary
   adapter contract for now, even though newer Team Config docs also mention
   `.codex/skills/`.
@@ -63,6 +67,25 @@ Then add a repo-local `.codex/hooks.json` only if you have a clear validation or
 policy use case. Keep expectations conservative: current Codex hook coverage is
 partial and does not provide full Claude-style lifecycle parity.
 
+Starter materials now ship with the adapter:
+
+- `sage/runtime/platforms/codex/HOOKS.md`
+- `sage/runtime/platforms/codex/hooks.example.json`
+- `sage/runtime/platforms/codex/hooks/`
+
+Copy them into `.codex/` only when you want an explicit experimental hook
+setup.
+
+## Automation examples
+
+The adapter now ships a small examples pack for Codex-native automations:
+
+- `sage/runtime/platforms/codex/AUTOMATIONS.md`
+
+Use thread automations when the work should continue in the same conversation.
+Use standalone automations when you want a clean recurring task, especially on
+Git repos where Codex can isolate the work on a worktree.
+
 ## Operational caveat
 
 `sage update` now refreshes only the Sage-managed block inside
@@ -78,12 +101,15 @@ The latest end-to-end simulation found and this branch fixed:
 - direct-skill refresh on `sage update`
 - non-executable `bin/sage` in source checkouts
 
+Manual regression scripts now ship with the adapter:
+
+- `sage/runtime/platforms/codex/tests/run-regression.sh`
+- `sage/runtime/mcp/tests/run-regression.sh`
+
 ## Open follow-up work
 
 Remaining optional follow-up items are:
 
-- richer Sage-specific workflow entrypoints beyond prompt-driven routing
-- optional hooks scaffold and stronger hook enforcement patterns
-- automation templates for recurring Codex tasks
+- stronger hook enforcement patterns beyond the conservative starter scaffold
 - optional future dual-support for `.codex/skills/`
-- automated regression tests for `init`, `update`, and MCP discovery/runtime
+- CI integration for the shipped `init`, `update`, and MCP regression scripts

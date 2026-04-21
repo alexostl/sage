@@ -53,6 +53,6 @@ All adapters share the same `.sage/` project state directory.
 - Codex hooks exist, but they are currently experimental and opt-in. The
   adapter documents them conservatively and does not claim full Claude-style
   lifecycle parity.
-- Relative to Claude Code, the main remaining Codex gaps are native Sage-owned
-  slash-style workflow entrypoints, a more mature hook-enforcement layer,
-  automation templates, and lightweight regression coverage for adapter flows.
+- Relative to Claude Code, the main remaining Codex gaps are a more mature
+  hook-enforcement layer, optional future `.codex/skills/` posture if Codex
+  stabilizes there, and CI-backed regression coverage for adapter flows.

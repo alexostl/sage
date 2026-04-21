@@ -89,26 +89,28 @@ this branch:
 3. direct-skill refresh on `sage update`
 4. non-executable `bin/sage` in source checkouts
 
-At this point the remaining work is optional follow-up rather than a known
-release blocker.
+At this point the original conservative-port goals are implemented in this
+branch:
+
+1. workflow-entry UX pack through `$sage`, `$build`, `$fix`, `$architect`,
+   `$continue`, `$status`, and `$review`
+2. Codex-native automation templates/examples
+3. optional experimental hooks starter pack
+4. lightweight manual regression checks for Codex init/update/MCP paths
+
+Remaining work is optional follow-up rather than a known release blocker.
 
 ## Open Follow-Up Backlog
 
 Optional follow-up remains:
 
-1. Add optional Codex hooks scaffolding and one or two realistic starter
-   enforcement patterns.
-2. Add Codex automation templates/examples for repo brief, CI triage, and
-   reflect/review workflows.
-3. Evaluate whether `.codex/skills/` dual-support becomes safe once Codex docs
+1. Deepen hook enforcement beyond the conservative Bash-focused starter pack.
+2. Evaluate whether `.codex/skills/` dual-support becomes safe once Codex docs
    and runtime behavior settle.
-4. Add lightweight automated regression checks for:
-   - `sage init --platform codex`
-   - `sage update`
-   - MCP config translation and discovery/runtime boot
-5. Revisit whether Codex should eventually get a more opinionated workflow
-   entry UX beyond prompt-driven routing, if the platform exposes a stable
-   native surface for it.
+3. Wire the shipped regression scripts into CI or a repeatable release gate.
+4. Revisit whether Codex should eventually get a more opinionated workflow
+   entry UX beyond the current skill-first posture, if the platform exposes a
+   stable native surface for it.
 
 ## Workstreams
 

@@ -96,6 +96,28 @@ Antigravity, and Codex all read and write the same project state.
 
 ## Native Codex Features Sage Can Use
 
+### Workflow entry in Codex
+
+Codex does not need fake Sage-owned slash commands for good workflow entry.
+The adapter now leans into Codex's native skill surfaces:
+
+- type `$` to invoke a Sage workflow skill directly
+- type `/` to open the slash list; enabled Sage skills also appear there
+
+Recommended posture:
+
+- `$sage` for routing or ambiguous requests
+- `$build` for feature work and implementation
+- `$fix` for debugging and repair
+- `$architect` for redesigns and migrations
+- `$continue` to resume in-progress work
+- `$status` to inspect project state first
+- `/review` as the native diff-review companion, with `$review` when review
+  itself is the Sage workflow
+
+This keeps the Codex port intentional and easy to discover without pretending
+Codex supports the same custom slash-command layer as Claude Code.
+
 ### Worktrees
 
 Codex supports Git worktrees natively in the app, including Local/Worktree
@@ -131,8 +153,9 @@ Good fits for Sage-on-Codex automations include:
 - review or CI triage passes
 - lightweight reflect/retro prompts over recent changes
 
-Sage currently documents these patterns but does not generate automation
-definitions or run its own automation runner inside the adapter.
+Sage currently documents these patterns and now ships a small template pack in
+`sage/runtime/platforms/codex/AUTOMATIONS.md`, but it still does not generate
+automation definitions or run its own automation runner inside the adapter.
 
 ### Hooks
 
@@ -173,6 +196,15 @@ codex_hooks = true
 Treat that as a native Codex extension point, not as a full Sage lifecycle
 replacement.
 
+The adapter now also ships an opt-in starter pack:
+
+- docs: `sage/runtime/platforms/codex/HOOKS.md`
+- starter config: `sage/runtime/platforms/codex/hooks.example.json`
+- sample scripts: `sage/runtime/platforms/codex/hooks/`
+
+Nothing is generated into `.codex/hooks.json` by default. Teams copy and adapt
+the starter only when they want experimental native hooks.
+
 ## Current Limits and Posture
 
 - Codex custom workflow entry is prompt-driven and skill-driven rather than
@@ -193,30 +225,32 @@ The latest E2E simulation surfaced and this branch fixed:
 - direct-skill refresh on `sage update`
 - non-executable `bin/sage` in source checkouts
 
+The adapter now also ships lightweight manual regression scripts:
+
+- `sage/runtime/platforms/codex/tests/run-regression.sh`
+- `sage/runtime/mcp/tests/run-regression.sh`
+
 ## Open Follow-Up Features
 
 These remain the main non-blocking functional gaps versus the more mature
 Claude Code adapter:
 
-- Native Sage workflow entrypoints:
-  Codex does not provide Sage-owned slash commands like `/sage`, `/build`, or
-  `/fix`. Current workflow entry is prompt-driven and skill-driven.
 - Stronger hook enforcement:
-  Codex hooks exist, but Sage does not yet ship a mature, ready-to-enable hook
-  pack equivalent to Claude's deeper lifecycle enforcement.
-- Automation templates:
-  Codex automations fit Sage workflows well, but the adapter does not yet ship
-  ready-made recurring task templates such as repo brief, CI triage, or
-  reflect/retro automation examples.
-- Optional hook scaffolding:
-  The adapter documents hooks and preserves `.codex/hooks.json` as the native
-  path, but it does not yet generate an optional starter scaffold by default.
+  Codex hooks exist, and Sage now ships a conservative starter scaffold, but
+  there is still no mature hook-enforcement layer equivalent to Claude's
+  deeper lifecycle automation.
 - Optional `.codex/skills` dual-support:
   Sage keeps `.agents/skills/` as the primary contract until Codex docs and
   runtime behavior around `.codex/skills/` are stable enough to support safely.
-- Lightweight regression checks:
-  The port has been smoke-tested manually, but the repo still lacks automated
-  regression coverage for `sage init`, `sage update`, and the Codex MCP path.
+- CI-backed regression coverage:
+  The repo now has manual regression scripts for `sage init`, `sage update`,
+  and the Codex MCP path, but they are not yet wired into CI or a release gate.
+
+Deliberate non-goals for the conservative port:
+
+- custom Sage-owned slash commands layered on top of Codex
+- a Sage-owned automation runner inside Codex
+- a large Codex-only cockpit redesign for UX parity
 
 ## Switching Between Platforms
 
