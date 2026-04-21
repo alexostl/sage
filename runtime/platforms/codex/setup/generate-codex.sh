@@ -273,27 +273,34 @@ echo "  → $WF_COUNT workflow skills"
 echo ""
 echo "📚 Copying direct skills..."
 SK_COUNT=0
+SK_REFRESH_COUNT=0
 for skill_dir in "$SAGE_DIR"/skills/*/; do
   [ -d "$skill_dir" ] || continue
   skill_name=$(basename "$skill_dir")
+  skill_dest="$AGENTS_DIR/skills/$skill_name"
   [ -f "$skill_dir/SKILL.md" ] || continue
 
   if grep -q "type: bundle" "$skill_dir/SKILL.md" 2>/dev/null; then
     continue
   fi
 
-  [ -d "$AGENTS_DIR/skills/$skill_name" ] && continue
+  if [ -d "$skill_dest" ]; then
+    rm -rf "$skill_dest"
+    SK_REFRESH_COUNT=$((SK_REFRESH_COUNT + 1))
+    echo "  ↻ $skill_name"
+  else
+    echo "  ✓ $skill_name"
+  fi
 
-  mkdir -p "$AGENTS_DIR/skills/$skill_name"
-  cp "$skill_dir/SKILL.md" "$AGENTS_DIR/skills/$skill_name/SKILL.md"
+  mkdir -p "$skill_dest"
+  cp "$skill_dir/SKILL.md" "$skill_dest/SKILL.md"
   for subdir in references templates examples patterns anti-patterns integration scripts resources constitution gates; do
-    [ -d "$skill_dir/$subdir" ] && cp -a "$skill_dir/$subdir" "$AGENTS_DIR/skills/$skill_name/"
+    [ -d "$skill_dir/$subdir" ] && cp -a "$skill_dir/$subdir" "$skill_dest/"
   done
 
   SK_COUNT=$((SK_COUNT + 1))
-  echo "  ✓ $skill_name"
 done
-echo "  → $SK_COUNT direct skills"
+echo "  → $SK_COUNT direct skills ($SK_REFRESH_COUNT refreshed)"
 
 echo ""
 echo "⚙️  Updating .codex/config.toml..."

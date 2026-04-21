@@ -81,8 +81,11 @@ echo ""
 
 # ── Discover tools from each server ──
 MANIFEST_SERVERS=""
+MANIFEST_FAILURES=""
 SUMMARY_LINES=""
+FAILURE_LINES=""
 TOTAL_TOOLS=0
+HEALTHY_SERVERS=0
 HAS_FAILURES=false
 
 cd "$PROJECT"
@@ -91,11 +94,58 @@ for server in $SERVERS; do
   echo -n "  $server: "
 
   # Call list-tools for this server
-  TOOLS_JSON=$(bash "$MCP_RUNNER" list-tools --server "$server" 2>/dev/null)
+  SERVER_STDERR="$(mktemp)"
+  TOOLS_JSON=$(bash "$MCP_RUNNER" list-tools --server "$server" 2>"$SERVER_STDERR")
+  RUN_STATUS=$?
+  RUN_STDERR="$(cat "$SERVER_STDERR")"
+  rm -f "$SERVER_STDERR"
 
-  if [ $? -ne 0 ] || [ -z "$TOOLS_JSON" ]; then
+  if [ -z "$TOOLS_JSON" ]; then
     echo "❌ failed to connect"
     HAS_FAILURES=true
+    if [ -n "$MANIFEST_FAILURES" ]; then
+      MANIFEST_FAILURES="$MANIFEST_FAILURES,"
+    fi
+    ERROR_JSON=$(printf "%s" "${RUN_STDERR:-No output from MCP runner}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')
+    MANIFEST_FAILURES="$MANIFEST_FAILURES\"$server\":{\"status\":\"error\",\"error\":$ERROR_JSON}"
+    FAILURE_LINES="$FAILURE_LINES\n- $server: unavailable"
+    continue
+  fi
+
+  SERVER_STATUS=$(echo "$TOOLS_JSON" | node -e "
+    const data = JSON.parse(require('fs').readFileSync('/dev/stdin','utf-8'));
+    console.log(data._meta?.servers?.['$server']?.status || 'ok');
+  " 2>/dev/null)
+
+  SERVER_ERROR=$(echo "$TOOLS_JSON" | node -e "
+    const data = JSON.parse(require('fs').readFileSync('/dev/stdin','utf-8'));
+    const error = data._meta?.servers?.['$server']?.error || '';
+    process.stdout.write(error);
+  " 2>/dev/null)
+
+  if [ "$RUN_STATUS" -ne 0 ] || [ "$SERVER_STATUS" = "error" ]; then
+    ERROR_MESSAGE="${SERVER_ERROR:-${RUN_STDERR:-failed to start or connect}}"
+    echo "❌ failed"
+    [ -n "$ERROR_MESSAGE" ] && echo "    · $ERROR_MESSAGE"
+    HAS_FAILURES=true
+    if [ -n "$MANIFEST_FAILURES" ]; then
+      MANIFEST_FAILURES="$MANIFEST_FAILURES,"
+    fi
+    ERROR_JSON=$(printf "%s" "$ERROR_MESSAGE" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))')
+    MANIFEST_FAILURES="$MANIFEST_FAILURES\"$server\":{\"status\":\"error\",\"error\":$ERROR_JSON}"
+    FAILURE_LINES="$FAILURE_LINES\n- $server: unavailable"
+    echo ""
+    continue
+  fi
+
+  if [ "$SERVER_STATUS" = "disabled" ]; then
+    echo "⏸ disabled"
+    if [ -n "$MANIFEST_FAILURES" ]; then
+      MANIFEST_FAILURES="$MANIFEST_FAILURES,"
+    fi
+    MANIFEST_FAILURES="$MANIFEST_FAILURES\"$server\":{\"status\":\"disabled\"}"
+    FAILURE_LINES="$FAILURE_LINES\n- $server: disabled"
+    echo ""
     continue
   fi
 
@@ -139,6 +189,7 @@ for server in $SERVERS; do
 
   SUMMARY_LINES="$SUMMARY_LINES\n- $server: $TOOL_NAME_LIST"
   TOTAL_TOOLS=$((TOTAL_TOOLS + ${TOOL_COUNT:-0}))
+  HEALTHY_SERVERS=$((HEALTHY_SERVERS + 1))
 
   # Print tool details
   echo "$TOOL_NAMES" | while IFS='|' read -r tname tdesc; do
@@ -155,12 +206,14 @@ cat > "$PROJECT/.sage/mcp-manifest.json" << MANIFEST
 {
   "discovered": "$TIMESTAMP",
   "servers": {$MANIFEST_SERVERS},
-  "summary": "$TOTAL_TOOLS tools across $(echo "$SERVERS" | wc -l) server(s)"
+  "failures": {$MANIFEST_FAILURES},
+  "summary": "$TOTAL_TOOLS tools across $HEALTHY_SERVERS healthy server(s)$( [ "$HAS_FAILURES" = true ] && printf '; some servers failed' )"
 }
 MANIFEST
 
 echo "── Results ──"
 echo "  Total: $TOTAL_TOOLS tools discovered"
+echo "  Healthy servers: $HEALTHY_SERVERS"
 echo "  Manifest: .sage/mcp-manifest.json"
 echo ""
 
@@ -172,6 +225,7 @@ cat > "$SNIPPET_FILE" << SNIPPET
 Use \`bash sage/runtime/mcp/run-client.sh call-tool <server> <tool>\` to call these.
 For current framework docs, prefer context7 over training data.
 $(echo -e "$SUMMARY_LINES")
+$( [ -n "$FAILURE_LINES" ] && printf '\n## MCP Servers Unavailable During Discovery\n%s\n' "$(echo -e "$FAILURE_LINES")" )
 SNIPPET
 
 echo "  Instructions snippet: .sage/mcp-snippet.md"

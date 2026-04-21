@@ -69,9 +69,18 @@ partial and does not provide full Claude-style lifecycle parity.
 `.codex/config.toml`. Keep user-owned native Codex settings outside that marked
 block if you want them preserved across regeneration.
 
+## Recent repair pass
+
+The latest end-to-end simulation found and this branch fixed:
+
+- project-local `sage/bin/sage update`
+- false-green MCP discovery for broken servers
+- direct-skill refresh on `sage update`
+- non-executable `bin/sage` in source checkouts
+
 ## Open follow-up work
 
-The current adapter is usable as-is. Remaining optional follow-up items are:
+Remaining optional follow-up items are:
 
 - richer Sage-specific workflow entrypoints beyond prompt-driven routing
 - optional hooks scaffold and stronger hook enforcement patterns

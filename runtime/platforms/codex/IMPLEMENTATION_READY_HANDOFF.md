@@ -78,19 +78,23 @@ Each workstream is `mergeable` only if all of the following are true:
 
 If any of the above fails, mark the stream `no-merge` until fixed.
 
-## Release Status
+## Current Release Status
 
-The original release blockers for the Codex port have been addressed in this
-branch:
+The original rollout blockers were addressed. A later deep E2E simulation
+surfaced a short repair list, and those repairs have also been completed in
+this branch:
 
-1. npm bridge no longer points only at an unshipped `bin/sage` path.
-2. MCP runtime can now bootstrap its required dependencies from repo state.
-3. Codex regeneration no longer clobbers unrelated user-owned config.
-4. TOML loading is robust enough for normal hand-edited Codex config.
+1. project-local `sage/bin/sage update`
+2. false-green MCP discovery for broken servers
+3. direct-skill refresh on `sage update`
+4. non-executable `bin/sage` in source checkouts
 
-The remaining work is optional follow-up, not release-blocking.
+At this point the remaining work is optional follow-up rather than a known
+release blocker.
 
 ## Open Follow-Up Backlog
+
+Optional follow-up remains:
 
 1. Add optional Codex hooks scaffolding and one or two realistic starter
    enforcement patterns.

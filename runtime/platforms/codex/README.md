@@ -15,6 +15,10 @@ Codex-native surfaces:
 The adapter intentionally does not try to force full Claude Code UX parity
 where Codex has a different or still-evolving native surface.
 
+After deep E2E simulation inside throwaway test repos, the short repair list
+identified there has been addressed in this branch. Remaining work is optional
+follow-up, not a current release blocker for the port itself.
+
 ## Quick Setup
 
 From your project root:
@@ -180,10 +184,19 @@ replacement.
 - Sage only manages a marked block inside `.codex/config.toml`. Keep user-owned
   Codex settings outside that block if you want them to survive regeneration.
 
+## Recent E2E Repairs
+
+The latest E2E simulation surfaced and this branch fixed:
+
+- project-local `sage/bin/sage update`
+- false-green MCP discovery for broken servers
+- direct-skill refresh on `sage update`
+- non-executable `bin/sage` in source checkouts
+
 ## Open Follow-Up Features
 
-These are no longer release blockers for the Codex adapter, but they remain the
-main functional gaps versus the more mature Claude Code adapter:
+These remain the main non-blocking functional gaps versus the more mature
+Claude Code adapter:
 
 - Native Sage workflow entrypoints:
   Codex does not provide Sage-owned slash commands like `/sage`, `/build`, or

@@ -65,6 +65,32 @@ interface MCPConnection {
   };
 }
 
+type ServerStatus = "ok" | "disabled" | "error";
+
+interface ServerListToolsResult {
+  status: ServerStatus;
+  tools: ToolInfo[];
+  error?: string;
+}
+
+interface ListToolsResult {
+  servers: Record<string, ServerListToolsResult>;
+  hasFailures: boolean;
+}
+
+interface ListToolsCliOutput {
+  _meta: {
+    hasFailures: boolean;
+    servers: Record<string, { status: ServerStatus; error?: string }>;
+  };
+  [serverName: string]:
+    | ToolInfo[]
+    | {
+        hasFailures: boolean;
+        servers: Record<string, { status: ServerStatus; error?: string }>;
+      };
+}
+
 // ── Config Loading ──
 function findConfig(startDir: string = process.cwd()): MCPConfig | null {
   const loaderPath = fileURLToPath(new URL("./load_config.py", import.meta.url));
@@ -168,19 +194,23 @@ async function closeConnection(connection: MCPConnection): Promise<void> {
 async function listTools(
   config: MCPConfig,
   serverFilter?: string
-): Promise<Record<string, ToolInfo[]>> {
-  const results: Record<string, ToolInfo[]> = {};
+): Promise<ListToolsResult> {
+  const results: Record<string, ServerListToolsResult> = {};
   const servers = serverFilter
     ? { [serverFilter]: config.mcpServers[serverFilter] }
     : config.mcpServers;
+  let hasFailures = false;
 
   for (const [name, serverConfig] of Object.entries(servers)) {
     if (!serverConfig) {
-      console.error(`Server '${name}' not found in config`);
+      const error = `Server '${name}' not found in config`;
+      console.error(error);
+      results[name] = { status: "error", tools: [], error };
+      hasFailures = true;
       continue;
     }
     if (serverConfig.enabled === false) {
-      results[name] = [];
+      results[name] = { status: "disabled", tools: [] };
       continue;
     }
 
@@ -188,20 +218,44 @@ async function listTools(
       const connection = await connectToServer(name, serverConfig);
       const response = await connection.client.listTools();
 
-      results[name] = (response.tools || []).map((t) => ({
-        name: t.name,
-        description: t.description || "",
-        inputSchema: t.inputSchema as Record<string, unknown> | undefined,
-      }));
+      results[name] = {
+        status: "ok",
+        tools: (response.tools || []).map((t) => ({
+          name: t.name,
+          description: t.description || "",
+          inputSchema: t.inputSchema as Record<string, unknown> | undefined,
+        })),
+      };
 
       await closeConnection(connection);
     } catch (e) {
-      console.error(`Failed to list tools from ${name}: ${(e as Error).message}`);
-      results[name] = [];
+      const error = `Failed to list tools from ${name}: ${(e as Error).message}`;
+      console.error(error);
+      results[name] = { status: "error", tools: [], error };
+      hasFailures = true;
     }
   }
 
-  return results;
+  return { servers: results, hasFailures };
+}
+
+function toListToolsCliOutput(result: ListToolsResult): ListToolsCliOutput {
+  const output: ListToolsCliOutput = {
+    _meta: {
+      hasFailures: result.hasFailures,
+      servers: {},
+    },
+  };
+
+  for (const [name, serverResult] of Object.entries(result.servers)) {
+    output[name] = serverResult.tools;
+    output._meta.servers[name] = {
+      status: serverResult.status,
+      ...(serverResult.error ? { error: serverResult.error } : {}),
+    };
+  }
+
+  return output;
 }
 
 // ── Call Tool ──
@@ -311,8 +365,8 @@ Examples:
     const serverFilter = serverIdx >= 0 ? args[serverIdx + 1] : undefined;
 
     const tools = await listTools(config, serverFilter);
-    console.log(JSON.stringify(tools, null, 2));
-    process.exit(0);
+    console.log(JSON.stringify(toListToolsCliOutput(tools), null, 2));
+    process.exit(tools.hasFailures ? 1 : 0);
   }
 
   if (command === "call-tool") {
