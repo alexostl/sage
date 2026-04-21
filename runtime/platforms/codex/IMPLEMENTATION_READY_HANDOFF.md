@@ -17,6 +17,10 @@ real blockers and closes the highest-value compatibility gaps.
 
 ## Source of Truth
 
+This file is the single operational source of truth for Codex port status,
+remaining follow-up, and implementation handoff. Older ad hoc status notes
+should be removed rather than kept in parallel.
+
 Implementation should stay aligned with:
 
 - `runtime/platforms/codex/platform.yaml`
