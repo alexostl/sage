@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -67,6 +68,10 @@ def parse_value(raw: str):
         return True
     if value == "false":
         return False
+    if re.fullmatch(r"-?\d+", value):
+        return int(value)
+    if re.fullmatch(r"-?\d+\.\d+", value):
+        return float(value)
     if value.startswith("[") and value.endswith("]"):
         inner = value[1:-1].strip()
         if not inner:
@@ -84,6 +89,14 @@ def parse_value(raw: str):
     return value
 
 
+def ensure_dict(parent: dict, key: str) -> dict:
+    current = parent.get(key)
+    if not isinstance(current, dict):
+        current = {}
+        parent[key] = current
+    return current
+
+
 def parse_codex_toml(path: Path) -> dict:
     servers: dict[str, dict] = {}
     current: dict | None = None
@@ -94,8 +107,13 @@ def parse_codex_toml(path: Path) -> dict:
         if line.startswith("[") and line.endswith("]"):
             section = line[1:-1].strip()
             if section.startswith("mcp_servers."):
-                name = section.split(".", 1)[1]
-                current = servers.setdefault(name, {})
+                parts = section.split(".")
+                if len(parts) < 2:
+                    current = None
+                    continue
+                current = ensure_dict(servers, parts[1])
+                for part in parts[2:]:
+                    current = ensure_dict(current, part)
             else:
                 current = None
             continue

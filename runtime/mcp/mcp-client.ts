@@ -19,6 +19,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { execFileSync } from "child_process";
@@ -26,9 +27,16 @@ import { fileURLToPath } from "url";
 
 // ── Types ──
 interface MCPServerConfig {
-  command: string;
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
+  env_vars?: string[];
+  cwd?: string;
+  url?: string;
+  http_headers?: Record<string, string>;
+  env_http_headers?: Record<string, string>;
+  bearer_token_env_var?: string;
+  enabled?: boolean;
 }
 
 interface MCPConfig {
@@ -49,6 +57,13 @@ interface CallResult {
   contentType: "text" | "json" | "error";
 }
 
+interface MCPConnection {
+  client: Client;
+  transport: {
+    terminateSession?: () => Promise<void>;
+  };
+}
+
 // ── Config Loading ──
 function findConfig(startDir: string = process.cwd()): MCPConfig | null {
   const loaderPath = fileURLToPath(new URL("./load_config.py", import.meta.url));
@@ -67,23 +82,65 @@ function findConfig(startDir: string = process.cwd()): MCPConfig | null {
 }
 
 // ── Server Connection ──
+function buildEnv(config: MCPServerConfig): Record<string, string> {
+  const env = { ...process.env, ...(config.env || {}) } as Record<string, string>;
+
+  for (const variable of config.env_vars || []) {
+    const value = process.env[variable];
+    if (typeof value === "string") {
+      env[variable] = value;
+    }
+  }
+
+  return env;
+}
+
+function buildHttpHeaders(config: MCPServerConfig): Record<string, string> {
+  const headers: Record<string, string> = { ...(config.http_headers || {}) };
+
+  for (const [headerName, envVarName] of Object.entries(config.env_http_headers || {})) {
+    const value = process.env[envVarName];
+    if (typeof value === "string" && value.length > 0) {
+      headers[headerName] = value;
+    }
+  }
+
+  if (config.bearer_token_env_var) {
+    const token = process.env[config.bearer_token_env_var];
+    if (typeof token === "string" && token.length > 0) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return headers;
+}
+
 async function connectToServer(
   name: string,
   config: MCPServerConfig,
   timeoutMs: number = 15000
-): Promise<Client> {
+): Promise<MCPConnection> {
   const client = new Client(
     { name: `sage-mcp-${name}`, version: "1.0.0" },
     { capabilities: {} }
   );
 
-  const env = { ...process.env, ...(config.env || {}) };
-
-  const transport = new StdioClientTransport({
-    command: config.command,
-    args: config.args || [],
-    env,
-  });
+  let transport;
+  if (config.url) {
+    const headers = buildHttpHeaders(config);
+    transport = new StreamableHTTPClientTransport(new URL(config.url), {
+      requestInit: Object.keys(headers).length > 0 ? { headers } : undefined,
+    });
+  } else if (config.command) {
+    transport = new StdioClientTransport({
+      command: config.command,
+      args: config.args || [],
+      env: buildEnv(config),
+      cwd: config.cwd,
+    });
+  } else {
+    throw new Error(`MCP server '${name}' must define either url or command`);
+  }
 
   // Connect with timeout
   const connectPromise = client.connect(transport);
@@ -92,7 +149,18 @@ async function connectToServer(
   );
 
   await Promise.race([connectPromise, timeoutPromise]);
-  return client;
+  return { client, transport };
+}
+
+async function closeConnection(connection: MCPConnection): Promise<void> {
+  try {
+    if (typeof connection.transport.terminateSession === "function") {
+      await connection.transport.terminateSession();
+    }
+  } catch {
+    // Best-effort only; closing the client is still required.
+  }
+  await connection.client.close();
 }
 
 // ── List Tools ──
@@ -110,10 +178,14 @@ async function listTools(
       console.error(`Server '${name}' not found in config`);
       continue;
     }
+    if (serverConfig.enabled === false) {
+      results[name] = [];
+      continue;
+    }
 
     try {
-      const client = await connectToServer(name, serverConfig);
-      const response = await client.listTools();
+      const connection = await connectToServer(name, serverConfig);
+      const response = await connection.client.listTools();
 
       results[name] = (response.tools || []).map((t) => ({
         name: t.name,
@@ -121,7 +193,7 @@ async function listTools(
         inputSchema: t.inputSchema as Record<string, unknown> | undefined,
       }));
 
-      await client.close();
+      await closeConnection(connection);
     } catch (e) {
       console.error(`Failed to list tools from ${name}: ${(e as Error).message}`);
       results[name] = [];
@@ -148,16 +220,25 @@ async function callTool(
       contentType: "error",
     };
   }
+  if (serverConfig.enabled === false) {
+    return {
+      server: serverName,
+      tool: toolName,
+      success: false,
+      content: `Server '${serverName}' is disabled in MCP configuration`,
+      contentType: "error",
+    };
+  }
 
   try {
-    const client = await connectToServer(serverName, serverConfig);
+    const connection = await connectToServer(serverName, serverConfig);
 
-    const response = await client.callTool({
+    const response = await connection.client.callTool({
       name: toolName,
       arguments: params,
     });
 
-    await client.close();
+    await closeConnection(connection);
 
     // Extract text content from response
     const contentParts = (response.content as Array<{ type: string; text?: string }>) || [];
