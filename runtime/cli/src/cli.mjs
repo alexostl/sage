@@ -8,8 +8,7 @@
  * the same implementation instead of maintaining a second platform installer.
  */
 
-import { createInterface } from 'readline';
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
@@ -48,14 +47,25 @@ function parseArgs(argv) {
 }
 
 function runShellCli(command, passthrough) {
+  let cwd = process.cwd();
+  const shellArgs = [SHELL_CLI, command];
+  const forwardedArgs = [...passthrough];
+
+  // Preserve the historical `sage-kit init <directory>` behavior even though
+  // `bin/sage init` always operates on the current working directory.
+  if (command === 'init' && forwardedArgs[0] && !forwardedArgs[0].startsWith('-')) {
+    cwd = resolve(process.cwd(), forwardedArgs.shift());
+    mkdirSync(cwd, { recursive: true });
+  }
+
   if (!existsSync(SHELL_CLI)) {
     console.error(`${c.red}Error: missing shell CLI at ${SHELL_CLI}${c.reset}`);
     process.exit(1);
   }
 
-  const result = spawnSync('bash', [SHELL_CLI, command, ...passthrough], {
+  const result = spawnSync('bash', [...shellArgs, ...forwardedArgs], {
     stdio: 'inherit',
-    cwd: process.cwd(),
+    cwd,
     env: process.env,
   });
 

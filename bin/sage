@@ -207,12 +207,76 @@ platform_label() {
   echo "$value" | sed 's/,/, /g'
 }
 
+normalize_platform_value() {
+  local raw="${1:-}"
+  local compact="${raw//[[:space:]]/}"
+  local expanded=""
+  local normalized=()
+  local token
+  local valid
+
+  [ -n "$compact" ] || return 1
+
+  IFS=',' read -r -a requested <<< "$compact"
+  for token in "${requested[@]}"; do
+    case "$token" in
+      both)
+        if [ -n "$expanded" ]; then
+          expanded="$expanded,claude-code,antigravity"
+        else
+          expanded="claude-code,antigravity"
+        fi
+        ;;
+      claude-code|antigravity|codex)
+        if [ -n "$expanded" ]; then
+          expanded="$expanded,$token"
+        else
+          expanded="$token"
+        fi
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  done
+
+  IFS=',' read -r -a requested <<< "$expanded"
+  for valid in claude-code antigravity codex; do
+    for token in "${requested[@]}"; do
+      if [ "$token" = "$valid" ]; then
+        normalized+=("$valid")
+        break
+      fi
+    done
+  done
+
+  [ "${#normalized[@]}" -gt 0 ] || return 1
+
+  local joined=""
+  for token in "${normalized[@]}"; do
+    if [ -n "$joined" ]; then
+      joined="$joined,$token"
+    else
+      joined="$token"
+    fi
+  done
+
+  echo "$joined"
+}
+
 select_platform() {
   local target="$1"
   PLATFORM=""
 
   if [ -n "${PLATFORM_FLAG:-}" ]; then
-    PLATFORM="$PLATFORM_FLAG"
+    if ! PLATFORM="$(normalize_platform_value "$PLATFORM_FLAG")"; then
+      echo ""
+      echo -e "  ${RED}❌ Invalid --platform value: ${PLATFORM_FLAG}${RESET}"
+      echo "  Valid values: claude-code, antigravity, codex"
+      echo "  You can combine them with commas, e.g. claude-code,codex"
+      echo "  Legacy alias supported: both -> claude-code,antigravity"
+      exit 1
+    fi
     echo -e "  ${GREEN}Platform:${RESET} $(platform_label)"
     return
   fi
