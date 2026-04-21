@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SAGE_ROOT="${1:-.}"
-SAGE_DIR="$SAGE_ROOT/sage"
+SAGE_DIR="${SAGE_FRAMEWORK_DIR:-$SAGE_ROOT/sage}"
 CODEX_DIR="$SAGE_ROOT/.codex"
 AGENTS_DIR="$SAGE_ROOT/.agents"
 PROJECT_SAGE="$SAGE_ROOT/.sage"
@@ -19,7 +19,7 @@ echo "════════════════════════�
 
 if [ ! -d "$CORE" ]; then
   echo "❌ Sage framework not found at $SAGE_DIR"
-  echo "   Run this from the project root where sage/ is located."
+  echo "   Run this from the project root with Sage available locally."
   exit 1
 fi
 
@@ -167,10 +167,12 @@ If the request is substantial and no explicit workflow is obvious, start with:
 
 `Use $sage and route this task through the Sage workflow.`
 
-If you want starter material for native Codex surfaces:
+If you want starter material for native Codex surfaces, look in the framework
+under `runtime/platforms/codex/` (or `sage/runtime/platforms/codex/` in
+standard projects):
 
-- automation examples live in `sage/runtime/platforms/codex/AUTOMATIONS.md`
-- optional hooks starter docs live in `sage/runtime/platforms/codex/HOOKS.md`
+- `AUTOMATIONS.md`
+- `HOOKS.md`
 
 ## Subagents and Review
 

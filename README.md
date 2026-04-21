@@ -154,6 +154,15 @@ sage init                        # interactive — detects stack, asks for prese
 sage init --preset startup       # or pick a preset directly
 ```
 
+Private branch-only maintainer capability:
+
+```bash
+sage init --self-host --platform claude-code,codex
+```
+
+Use that only when self-hosting the framework repository itself on a private
+capability branch. See `SELF_HOSTING.md`.
+
 Available presets: `base` (default), `startup`, `enterprise`, `opensource`.
 Presets add engineering principles on top of the universal base (TDD, no
 secrets, explicit deps). Configure later in `.sage/config.yaml`.

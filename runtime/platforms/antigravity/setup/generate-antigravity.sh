@@ -6,10 +6,15 @@
 set -euo pipefail
 
 SAGE_ROOT="${1:-.}"
-SAGE_DIR="$SAGE_ROOT/sage"
+SAGE_DIR="${SAGE_FRAMEWORK_DIR:-$SAGE_ROOT/sage}"
 AGENT_DIR="$SAGE_ROOT/.agent"
 PROJECT_SAGE="$SAGE_ROOT/.sage"
 CORE="$SAGE_DIR/core"
+SKILLS_REF="sage/skills"
+
+if [ "$SAGE_DIR" = "$SAGE_ROOT" ]; then
+  SKILLS_REF="skills"
+fi
 
 echo ""
 echo "🚀 Sage → Antigravity Setup"
@@ -18,7 +23,7 @@ echo "════════════════════════�
 # ── Validate ──
 if [ ! -d "$CORE" ]; then
   echo "❌ Sage framework not found at $SAGE_DIR"
-  echo "   Run this from the project root where sage/ is located."
+  echo "   Run this from the project root with Sage available locally."
   exit 1
 fi
 
@@ -837,12 +842,12 @@ for skill_dir in "$SAGE_DIR/skills"/*/; do
 
   target_dir="$AGENT_DIR/skills/$skill_name"
   mkdir -p "$target_dir"
-  cat > "$target_dir/SKILL.md" << LOADEREOF
+cat > "$target_dir/SKILL.md" << LOADEREOF
 ---
 name: $skill_name
 description: $desc
 ---
-Read and follow the full skill at sage/skills/$skill_name/SKILL.md
+Read and follow the full skill at ${SKILLS_REF}/$skill_name/SKILL.md
 LOADEREOF
 
   LOADER_COUNT=$((LOADER_COUNT + 1))

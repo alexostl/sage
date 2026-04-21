@@ -81,6 +81,20 @@ find . -name '*.gate.md' | wc -l  # Gates
 find skills -maxdepth 1 -type d | wc -l  # Packs
 ```
 
+### Private Maintainer Capability: Self-Hosting The Framework
+
+Some private branches may enable a maintainer-only self-host mode for running
+Sage inside the Sage framework repository itself.
+
+When present, the usage is:
+
+```bash
+sage init --self-host --platform claude-code,codex
+```
+
+This is not part of the public contribution contract by default. Treat it as a
+branch-local capability unless explicitly promoted into the product.
+
 ## Code of Conduct
 
 - **Be honest about quality.** If a reference file is wrong, say so. If a

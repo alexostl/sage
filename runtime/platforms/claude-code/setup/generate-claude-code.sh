@@ -6,10 +6,17 @@
 set -euo pipefail
 
 SAGE_ROOT="${1:-.}"
-SAGE_DIR="$SAGE_ROOT/sage"
+SAGE_DIR="${SAGE_FRAMEWORK_DIR:-$SAGE_ROOT/sage}"
 CLAUDE_DIR="$SAGE_ROOT/.claude"
 PROJECT_SAGE="$SAGE_ROOT/.sage"
 CORE="$SAGE_DIR/core"
+SKILLS_REF="sage/skills"
+WORKFLOWS_REF="sage/core/workflows"
+
+if [ "$SAGE_DIR" = "$SAGE_ROOT" ]; then
+  SKILLS_REF="skills"
+  WORKFLOWS_REF="core/workflows"
+fi
 
 echo ""
 echo "🚀 Sage → Claude Code Setup"
@@ -26,7 +33,7 @@ fi
 # ── Validate ──
 if [ ! -d "$CORE" ]; then
   echo "❌ Sage framework not found at $SAGE_DIR"
-  echo "   Run this from the project root where sage/ is located."
+  echo "   Run this from the project root with Sage available locally."
   exit 1
 fi
 
@@ -1013,18 +1020,29 @@ for skill_dir in "$SAGE_DIR/skills"/*/; do
   # Create loader SKILL.md (prefix skill directory name if configured)
   target_dir="$CLAUDE_DIR/skills/${PREFIX}${skill_name}"
   mkdir -p "$target_dir"
-  cat > "$target_dir/SKILL.md" << LOADEREOF
+cat > "$target_dir/SKILL.md" << LOADEREOF
 ---
 name: ${PREFIX}${skill_name}
 description: $desc
 ---
-Read and follow the full skill at sage/skills/$skill_name/SKILL.md
+Read and follow the full skill at ${SKILLS_REF}/$skill_name/SKILL.md
 LOADEREOF
 
   SKILL_COUNT=$((SKILL_COUNT + 1))
 done
 
 echo "  ✓ $SKILL_COUNT skills deployed to .claude/skills/"
+
+if [ "$SKILLS_REF" != "sage/skills" ]; then
+  python3 - <<PY
+from pathlib import Path
+path = Path("$SAGE_ROOT/CLAUDE.md")
+text = path.read_text()
+text = text.replace("sage/skills/", "$SKILLS_REF/")
+text = text.replace("sage/core/workflows/", "$WORKFLOWS_REF/")
+path.write_text(text)
+PY
+fi
 
 # ═══════════════════════════════════════════════════════════════
 # Session hook — auto-inject Sage context on session start
