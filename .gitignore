@@ -32,3 +32,13 @@ docs/
 sage/
 .claude/
 CLAUDE.md
+
+# Track only the shared, durable Sage working-layer docs on codex-port.
+!.sage/
+.sage/*
+!.sage/docs/
+.sage/docs/*
+!.sage/docs/decision-sage-source-of-truth.md
+!.sage/docs/learn-sage-codex-codex-platform-context.md
+!.sage/docs/learn-sage-codex-repository-map.md
+!.sage/docs/learn-sage-codex-working-model.md
