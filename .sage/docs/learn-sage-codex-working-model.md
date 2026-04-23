@@ -22,6 +22,11 @@ That means:
 
 The practical starting point for a working session is always `.sage/`.
 
+For repository-operational Git work, `.sage/` is not enough by itself. Future
+sessions must also follow `.sage/docs/learn-sage-codex-branch-worktree-model.md`
+for branch roles, local-vs-remote branch handling, update order, and upstream
+PR rules.
+
 ## What Belongs In `.sage/docs/`
 
 Put information in `.sage/docs/` when it is:
@@ -113,3 +118,30 @@ For normal project work:
 
 If a future session cannot start effectively from `.sage`, the missing context
 should be added to `.sage` rather than left implicit.
+
+## Source-Of-Truth Rule For Repo Operations
+
+For branch and upstream operations, the source-of-truth chain is:
+
+1. `upstream/main` for external truth
+2. `origin/main` as the fork's mirrored upstream branch on GitHub
+3. `origin/codex-port` as the shared integration branch on GitHub
+4. local `self-host/main` as the active self-host work surface
+
+That operational chain is defined in
+`.sage/docs/learn-sage-codex-branch-worktree-model.md` and should not be
+reinvented ad hoc in future sessions.
+
+Before mutating any long-lived branch in that chain:
+
+1. produce an upstream-impact analysis artifact that identifies overlap files,
+   risk areas, and planned QA scope
+2. sync forward only after that analysis exists
+3. treat `behind 0` or successful merges as topology only, not compatibility
+4. run fresh QA after the sync and do not call the chain stable until that QA
+   passes
+
+For this repo, only `self-host/main` is expected to have a resident local
+worktree. `main` and `codex-port` are remote-first branches maintained on
+GitHub and should be recreated locally only for short-lived sync, QA, or
+upstream-prep tasks.
