@@ -4,6 +4,12 @@ All notable changes to Sage will be documented in this file.
 
 ## [1.1.0] — Auto-Review + skills.sh Integration
 
+### Bug Fixes
+- **Project framework copies exclude nested repo metadata:** `sage init` and
+  `sage update` now remove copied `.git`, `.github`, `.tmp`, and `.DS_Store`
+  entries from in-project `sage/` copies. Existing projects lose accidental
+  nested `sage/.git` on the next `sage update`.
+
 ### Auto-Review Sub-Agent
 - **Automatic independent review** of spec and plan after user approval [A].
   Sub-agent gets a fresh context window — no self-bias from the producing agent.
