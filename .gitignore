@@ -42,3 +42,7 @@ CLAUDE.md
 !.sage/docs/learn-sage-codex-codex-platform-context.md
 !.sage/docs/learn-sage-codex-repository-map.md
 !.sage/docs/learn-sage-codex-working-model.md
+
+# Python
+__pycache__/
+*.pyc
