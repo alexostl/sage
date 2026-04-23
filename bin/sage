@@ -239,6 +239,12 @@ resolve_update_source() {
 # SHARED FUNCTIONS
 # ═══════════════════════════════════════════════════════════════
 
+prune_framework_copy() {
+  local sage_dir="$1"
+  rm -rf "$sage_dir/.git" "$sage_dir/.github" "$sage_dir/.tmp"
+  rm -f "$sage_dir/.DS_Store"
+}
+
 ask_choice() {
   local prompt="$1"
   shift
@@ -449,6 +455,7 @@ copy_framework() {
   else
     cp -a "$SAGE_FRAMEWORK" "$target/sage" &
     spin $! "Copying framework..."
+    prune_framework_copy "$target/sage"
     record_framework_source "$target" "$SAGE_FRAMEWORK"
     ensure_framework_entrypoint "$target"
     echo -e "  ${GREEN}✓${RESET} sage/ copied to project"
@@ -514,7 +521,7 @@ apply_prefix_config() {
   local prefix_val="false"
   [ "$PREFIX_FLAG" = "true" ] && prefix_val="true"
   if grep -q 'command_prefix:' "$config" 2>/dev/null; then
-    sed -i "s/^command_prefix:.*$/command_prefix: $prefix_val/" "$config"
+    sed -i.bak "s/^command_prefix:.*$/command_prefix: $prefix_val/" "$config" && rm -f "${config}.bak"
   else
     echo "command_prefix: $prefix_val" >> "$config"
   fi
@@ -939,6 +946,7 @@ except: pass
     rm -rf "$target/sage"
     cp -a "$update_source" "$target/sage" &
     spin $! "Updating framework..."
+    prune_framework_copy "$target/sage"
     record_framework_source "$target" "$update_source"
     ensure_framework_entrypoint "$target"
     echo -e "  ${GREEN}✓${RESET} sage/ updated"
