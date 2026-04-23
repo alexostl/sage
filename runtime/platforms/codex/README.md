@@ -196,25 +196,67 @@ codex_hooks = true
 Treat that as a native Codex extension point, not as a full Sage lifecycle
 replacement.
 
-The adapter now also ships an opt-in starter pack:
+The adapter ships a starter pack that is intentionally opt-in but now
+strengthens Sage enforcement when enabled:
 
-- docs: `sage/runtime/platforms/codex/HOOKS.md`
-- starter config: `sage/runtime/platforms/codex/hooks.example.json`
-- sample scripts: `sage/runtime/platforms/codex/hooks/`
+- `session-start.sh` — rich Sage context on session start (active work
+  with titles/status/phase, doc count, 3 latest decisions)
+- `pre-prompt.sh` — `UserPromptSubmit` **pre-turn gate**. Matches build /
+  fix / architect keywords in free-form prompts and, when required
+  `.sage/work/` artifacts are missing, returns `decision: "block"` plus
+  an `additionalContext` redirect that puts the agent back on the
+  Sage rulebook. This is the strongest Codex-native enforcement lever
+  and has no Claude equivalent.
+- `pre-bash.sh` / `post-bash.sh` — narrow Bash guardrail and review
+  reminder, unchanged from the previous starter.
 
-Nothing is generated into `.codex/hooks.json` by default. Teams copy and adapt
-the starter only when they want experimental native hooks.
+Docs: `sage/runtime/platforms/codex/HOOKS.md`.
+Starter config: `sage/runtime/platforms/codex/hooks.example.json`.
+Sample scripts: `sage/runtime/platforms/codex/hooks/`.
 
-## Current Limits and Posture
+Nothing is generated into `.codex/hooks.json` by default. Teams copy and
+adapt the starter when they want runtime enforcement on top of the
+`AGENTS.md` constitution.
 
-- Codex custom workflow entry is prompt-driven and skill-driven rather than
-  custom Sage slash-command driven.
+## Enforcement Posture
+
+The adapter uses three layers to keep the agent on the Sage rulebook
+rather than treating the framework as inspiration:
+
+1. **Always-on constitution in `AGENTS.md`.** Codex loads `AGENTS.md`
+   once per session (root → cwd). The generated file states the
+   Process Constitution with **observable compliance signals** per rule
+   (e.g. "first line says `Sage → [workflow]`", "both `spec.md` and
+   `plan.md` exist on disk before implementation", "completion message
+   pastes actual test output"). Signals are what the agent is expected
+   to show in its output — drift shows up as missing signals.
+2. **First-turn PREAMBLE on workflow skills.** Each generated workflow
+   skill in `.agents/skills/<workflow>/SKILL.md` opens with a `RULES
+   (apply to every step — non-negotiable)` block. Codex does not carry
+   skills across turns, so the PREAMBLE acts as framing when the user
+   types `$build`, `$fix`, `$architect`, etc.
+3. **Opt-in runtime gates via hooks.** The starter pack in
+   `runtime/platforms/codex/hooks/` includes `pre-prompt.sh`, a
+   `UserPromptSubmit` pre-turn gate that blocks Standard+ build / fix /
+   architect prompts missing their required `.sage/work/` artifacts and
+   redirects the model into the right workflow.
+
+Layer 3 is the strongest Codex-native lever, and it is opt-in because
+`[features].codex_hooks = true` remains experimental upstream.
+
+## Current Limits
+
+- Codex custom workflow entry is prompt-driven and skill-driven rather
+  than custom Sage slash-command driven.
 - Sage does not claim full Claude parity for hooks, slash commands, or
   lifecycle integrations.
-- `.agents/skills/` remains the primary Sage skill surface for now; there is no
+- `.agents/skills/` remains the primary Sage skill surface; there is no
   automatic migration or dual-write into `.codex/skills/`.
-- Sage only manages a marked block inside `.codex/config.toml`. Keep user-owned
-  Codex settings outside that block if you want them to survive regeneration.
+- Sage only manages a marked block inside `.codex/config.toml`. Keep
+  user-owned Codex settings outside that block to survive regeneration.
+- `PreToolUse` gating is available only for Bash in current Codex hook
+  docs. File-edit tools (Write / Edit) cannot be gated; "no edits
+  before root cause" relies on `pre-prompt.sh` plus the constitution.
 
 ## Recent E2E Repairs
 
@@ -232,19 +274,26 @@ The adapter now also ships lightweight manual regression scripts:
 
 ## Open Follow-Up Features
 
-These remain the main non-blocking functional gaps versus the more mature
-Claude Code adapter:
+These remain the main non-blocking functional gaps versus the more
+mature Claude Code adapter:
 
-- Stronger hook enforcement:
-  Codex hooks exist, and Sage now ships a conservative starter scaffold, but
-  there is still no mature hook-enforcement layer equivalent to Claude's
-  deeper lifecycle automation.
+- Stronger checkpoint review via `features.guardian_approval` and a
+  `sage-reviewer` subagent:
+  Codex supports `[agents.<name>]` subagent definitions and an
+  experimental `guardian_approval` routing flag. Wiring a dedicated
+  `sage-reviewer` subagent (own `AGENTS.md`, own tools policy) would
+  let the `[A]` approval gate route through an independent reviewer
+  with a fresh context window, operationalizing Rule 5 ("spec
+  compliance is adversarial") as a separate process. This is a
+  natural next step after `pre-prompt.sh`; not shipped here because
+  it expands scope beyond this fix.
 - Optional `.codex/skills` dual-support:
-  Sage keeps `.agents/skills/` as the primary contract until Codex docs and
-  runtime behavior around `.codex/skills/` are stable enough to support safely.
+  Sage keeps `.agents/skills/` as the primary contract until Codex
+  docs and runtime behavior around `.codex/skills/` stabilize.
 - CI-backed regression coverage:
-  The repo now has manual regression scripts for `sage init`, `sage update`,
-  and the Codex MCP path, but they are not yet wired into CI or a release gate.
+  The repo now has manual regression scripts for `sage init`,
+  `sage update`, and the Codex MCP path, but they are not yet wired
+  into CI or a release gate.
 
 Deliberate non-goals for the conservative port:
 

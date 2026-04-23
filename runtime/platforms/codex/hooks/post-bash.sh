@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python3 - <<'PY'
+# Pass python source via -c so stdin stays intact for json.load.
+python3 -c "$(cat <<'PY'
 import json
 import sys
 
-payload = json.load(sys.stdin)
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
 command = (
     payload.get("tool_input", {}).get("command")
     or payload.get("tool_input", {}).get("cmd")
@@ -39,3 +43,4 @@ if any(marker in command for marker in mutation_markers):
         )
     )
 PY
+)"

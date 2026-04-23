@@ -2,11 +2,21 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume",
+        "matcher": "startup|resume|clear|compact",
         "hooks": [
           {
             "type": "command",
             "command": "sh -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); bash \"$root/.codex/hooks/session-start.sh\"'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); bash \"$root/.codex/hooks/pre-prompt.sh\"'"
           }
         ]
       }
