@@ -33,7 +33,7 @@ assert_executable() {
 assert_contains() {
   local file="$1"
   local text="$2"
-  rg -Fq -- "$text" "$file" || fail "Expected '$text' in $file"
+  grep -Fq -- "$text" "$file" || fail "Expected '$text' in $file"
 }
 
 assert_same_file() {
