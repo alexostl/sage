@@ -7,6 +7,8 @@ TMP_PARENT="$REPO_ROOT/.tmp"
 mkdir -p "$TMP_PARENT"
 TMP_ROOT="$(mktemp -d "$TMP_PARENT/codex-adapter-regression.XXXXXX")"
 PROJECT="$TMP_ROOT/project"
+PROJECT_PREFIX_TRUE="$TMP_ROOT/project-prefix-true"
+PROJECT_PREFIX_ABSENT="$TMP_ROOT/project-prefix-absent"
 LOG_DIR="$TMP_ROOT/logs"
 
 fail() {
@@ -36,15 +38,24 @@ assert_contains() {
   grep -Fq -- "$text" "$file" || fail "Expected '$text' in $file"
 }
 
+assert_not_contains() {
+  local file="$1"
+  local text="$2"
+  if grep -Fq -- "$text" "$file"; then
+    fail "Did not expect '$text' in $file"
+  fi
+}
+
 assert_same_file() {
   cmp -s "$1" "$2" || fail "Expected files to match: $1 == $2"
 }
 
-run_in_project() {
+run_in_dir() {
   local log_name="$1"
-  shift
+  local dir="$2"
+  shift 2
   (
-    cd "$PROJECT"
+    cd "$dir"
     "$@"
   ) >"$LOG_DIR/$log_name" 2>&1 || {
     cat "$LOG_DIR/$log_name" >&2
@@ -52,9 +63,17 @@ run_in_project() {
   }
 }
 
-mkdir -p "$PROJECT/src" "$PROJECT/.claude" "$LOG_DIR"
+run_in_project() {
+  local log_name="$1"
+  shift
+  run_in_dir "$log_name" "$PROJECT" "$@"
+}
 
-cat >"$PROJECT/package.json" <<'JSON'
+create_project_fixture() {
+  local dir="$1"
+  mkdir -p "$dir/src" "$dir/.claude"
+
+  cat >"$dir/package.json" <<'JSON'
 {
   "name": "codex-adapter-regression",
   "private": true,
@@ -62,11 +81,17 @@ cat >"$PROJECT/package.json" <<'JSON'
 }
 JSON
 
-cat >"$PROJECT/src/index.js" <<'JS'
+  cat >"$dir/src/index.js" <<'JS'
 export function add(a, b) {
   return a + b;
 }
 JS
+}
+
+mkdir -p "$LOG_DIR"
+create_project_fixture "$PROJECT"
+create_project_fixture "$PROJECT_PREFIX_TRUE"
+create_project_fixture "$PROJECT_PREFIX_ABSENT"
 
 step "sage init --platform codex"
 run_in_project init.log "$REPO_ROOT/bin/sage" init --platform codex --preset base
@@ -80,6 +105,14 @@ assert_dir "$PROJECT/sage"
 assert_file "$PROJECT/sage/.sage-framework-source"
 assert_executable "$PROJECT/sage/bin/sage"
 grep -Fxq "$REPO_ROOT" "$PROJECT/sage/.sage-framework-source" || fail "Expected framework marker to point at repo root"
+assert_file "$PROJECT/.agents/skills/build/SKILL.md"
+assert_contains "$PROJECT/.agents/skills/build/SKILL.md" 'name: build'
+assert_file "$PROJECT/.agents/skills/api/SKILL.md"
+assert_contains "$PROJECT/.agents/skills/api/SKILL.md" 'name: "api"'
+assert_contains "$PROJECT/AGENTS.md" '$build'
+assert_contains "$PROJECT/AGENTS.md" '$fix'
+assert_contains "$PROJECT/AGENTS.md" '$sage'
+assert_not_contains "$PROJECT/AGENTS.md" '$sage:build'
 
 step "prepare merge fixture"
 cat >"$PROJECT/.claude/mcp.json" <<'JSON'
@@ -125,7 +158,45 @@ assert_contains "$PROJECT/.codex/config.toml" '# >>> SAGE MANAGED BLOCK START'
 assert_contains "$PROJECT/.codex/config.toml" '[mcp_servers.legacy-local]'
 assert_same_file "$PROJECT/.agents/skills/api/SKILL.md" "$PROJECT/sage/skills/api/SKILL.md"
 
+step "prefixed init"
+run_in_dir prefix-true-init.log "$PROJECT_PREFIX_TRUE" "$REPO_ROOT/bin/sage" init --platform codex --preset base --prefix
+
+assert_file "$PROJECT_PREFIX_TRUE/.agents/skills/sage:build/SKILL.md"
+assert_contains "$PROJECT_PREFIX_TRUE/.agents/skills/sage:build/SKILL.md" 'name: sage:build'
+assert_file "$PROJECT_PREFIX_TRUE/.agents/skills/sage:review/SKILL.md"
+assert_contains "$PROJECT_PREFIX_TRUE/.agents/skills/sage:review/SKILL.md" 'name: sage:review'
+assert_file "$PROJECT_PREFIX_TRUE/.agents/skills/sage:api/SKILL.md"
+assert_contains "$PROJECT_PREFIX_TRUE/.agents/skills/sage:api/SKILL.md" 'name: sage:api'
+assert_file "$PROJECT_PREFIX_TRUE/.agents/skills/sage-navigator/SKILL.md"
+assert_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '$sage:build'
+assert_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '$sage:fix'
+assert_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '$sage:review'
+assert_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '$sage'
+assert_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '/review'
+assert_not_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '$sage:sage'
+assert_not_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" '/sage:review'
+assert_not_contains "$PROJECT_PREFIX_TRUE/AGENTS.md" 'understand/sage:research'
+assert_contains "$PROJECT_PREFIX_TRUE/.agents/skills/sage-navigator/SKILL.md" '/sage:build'
+assert_contains "$PROJECT_PREFIX_TRUE/.agents/skills/sage:fix/SKILL.md" 'type /sage:build or /sage:architect instead'
+
+step "command_prefix absent update"
+run_in_dir prefix-absent-init.log "$PROJECT_PREFIX_ABSENT" "$REPO_ROOT/bin/sage" init --platform codex --preset base
+sed -i.bak '/^command_prefix:/d' "$PROJECT_PREFIX_ABSENT/.sage/config.yaml"
+rm -f "$PROJECT_PREFIX_ABSENT/.sage/config.yaml.bak"
+run_in_dir prefix-absent-update.log "$PROJECT_PREFIX_ABSENT" ./sage/bin/sage update --platform codex
+
+assert_file "$PROJECT_PREFIX_ABSENT/.agents/skills/build/SKILL.md"
+assert_contains "$PROJECT_PREFIX_ABSENT/.agents/skills/build/SKILL.md" 'name: build'
+assert_file "$PROJECT_PREFIX_ABSENT/.agents/skills/api/SKILL.md"
+assert_contains "$PROJECT_PREFIX_ABSENT/.agents/skills/api/SKILL.md" 'name: "api"'
+assert_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$build'
+assert_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$fix'
+assert_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$sage'
+assert_not_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$sage:build'
+
 step "summary"
 echo "PASS: Codex adapter regression checks"
 echo "  Project fixture: $PROJECT"
+echo "  Prefix fixture: $PROJECT_PREFIX_TRUE"
+echo "  Absent fixture: $PROJECT_PREFIX_ABSENT"
 echo "  Logs: $LOG_DIR"
