@@ -62,20 +62,55 @@ picked up.
 
 The gate is narrow on purpose:
 
-- Explicit `$skill` / `/slash` invocations are always allowed through —
-  skills run their own gate.
-- Tier 1 questions (`what`, `why`, `how`, `show`, `list`, `explain`,
-  …) pass through without matching.
-- Build-keyword prompts only block when **neither** `spec.md` nor
-  `plan.md` exists anywhere in `.sage/work/*/`.
-- Architect-keyword prompts block when no `brief.md` exists.
-- Fix-keyword prompts always redirect to the root-cause gate, because
-  the fix rule is behavioral, not file-backed.
+- **Explicit skill invocation** — any prompt starting with `$<skill>` or
+  `/<skill>` (e.g. `$build`, `/status`, `$autoresearch`,
+  `/design-review`) is allowed through unconditionally. The skill's
+  PREAMBLE runs its own gate. Pattern:
+  `^\s*[$/][a-z][a-z0-9-]*(?:\s|$)` — works for every current and future
+  workflow skill without maintaining a whitelist.
+- **Tier 1 read-only questions** (`what`, `why`, `how`, `show`, `list`,
+  `explain`, `describe`, …) pass through without matching.
+- **Tier 1 fixes** (`typo`, `indent`, `whitespace`, `formatting`,
+  `rename`, `comment`, `log statement`, `import`, `lint`, `docstring`,
+  `spelling`, …) pass through with a soft nudge that reminds the agent
+  to escalate if the work turns out to touch 3+ files or change
+  behavior broadly. Matches `fix.workflow.md` Surgical carve-out.
+- **Build-keyword prompts** block when **no active initiative** has
+  both `spec.md` and `plan.md` on disk. "Active" means the initiative's
+  frontmatter `status` is non-terminal (anything other than `completed`
+  or `abandoned`). Completed prior initiatives no longer satisfy the
+  gate — each new build needs its own active spec + plan pair.
+- **Build verbs are verb + noun.** `build a feature`, `implement a new
+  endpoint`, `add a migration` match. `add tests`, `add logging` do
+  not (they fall through to the default allow path; AGENTS.md Rule 3
+  and the `$build` PREAMBLE are the second line of defense).
+- **Architect-keyword prompts** block when no active initiative has
+  `brief.md` on disk.
+- **Fix-keyword prompts that are not Tier 1** always redirect to the
+  root-cause gate, because the fix rule is behavioral (root cause
+  approved), not file-backed.
 
 Edit the regex patterns in `pre-prompt.sh` if your repo needs a
-narrower or broader match set. The hook never crashes your session on
-malformed stdin or missing tools — it exits silently and lets the turn
-through.
+narrower or broader match set — especially the `BUILD_NOUNS` list,
+which controls what counts as a "concrete build target". The hook
+never crashes your session on malformed stdin or missing tools — it
+exits silently and lets the turn through.
+
+### Why status-aware (and not global)
+
+An earlier version of this gate used a global check: "any
+`.sage/work/*/spec.md` + `plan.md` anywhere satisfies the build gate."
+That held for the first build of a new project, then passed every
+subsequent unrelated build prompt because prior completed initiatives
+still had their files on disk. The current check restricts
+satisfaction to initiatives in a non-terminal status, which matches how
+the human actually uses `.sage/work/`: completed work is reference,
+not authorization for new work.
+
+If an initiative stays `status: in-progress` after its work is really
+done, the gate will be permissive for that project until the status is
+flipped to `completed`. Session-start already surfaces in-progress
+initiatives to make this drift visible.
 
 ## Deliberate Limits
 
@@ -95,3 +130,18 @@ see `[agents.sage-reviewer]` and `[features].guardian_approval` in
 
 If you need stronger policy later, use this starter pack as a seed and
 grow it incrementally.
+
+## Future considerations
+
+- **AGENTS.md size escape hatch.** The generated AGENTS.md is currently
+  ~12 KiB, comfortably under Codex's 32 KiB cap. If future enforcement
+  additions push it above ~20 KiB, split the Workflow Gates block to a
+  dedicated `sage/core/constitution/workflow-gates.md` and reference it
+  via `@` imports so only the top-level rules stay always-on.
+- **Initiative-slug-aware build gate.** The current build gate accepts
+  passthrough if *any* active initiative has a complete spec + plan
+  pair. A stricter variant would parse an initiative slug from the
+  prompt (e.g. `build the payments thing` → match `payments`) and
+  require the matching initiative specifically. Deferred — current
+  heuristic is "good enough and beats global passthrough", and a
+  slug-parser would introduce fragile regex logic without a clear win.
