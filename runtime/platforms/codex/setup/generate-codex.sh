@@ -96,6 +96,33 @@ path.write_text(text)
 PY
 }
 
+alternate_skill_name() {
+  local skill_name="$1"
+
+  if [ "$skill_name" = "sage" ]; then
+    return 0
+  fi
+
+  case "$skill_name" in
+    sage:*) printf '%s\n' "${skill_name#sage:}" ;;
+    *) printf 'sage:%s\n' "$skill_name" ;;
+  esac
+}
+
+remove_stale_skill_variant() {
+  local skill_name="$1"
+  local stale_name
+  local stale_dir
+
+  stale_name="$(alternate_skill_name "$skill_name")"
+  [ -n "$stale_name" ] || return 0
+
+  stale_dir="$AGENTS_DIR/skills/$stale_name"
+  if [ "$stale_name" != "$skill_name" ] && [ -d "$stale_dir" ]; then
+    rm -rf "$stale_dir"
+  fi
+}
+
 if [ ! -d "$CORE" ]; then
   echo "❌ Sage framework not found at $SAGE_DIR"
   echo "   Run this from the project root with Sage available locally."
@@ -740,6 +767,7 @@ for wf_file in "$CORE"/workflows/*.workflow.md; do
   wf_desc=$(workflow_description "$wf_name")
   wf_dest="$AGENTS_DIR/skills/$wf_skill_name"
 
+  remove_stale_skill_variant "$wf_skill_name"
   rm -rf "$wf_dest"
   mkdir -p "$wf_dest"
 
@@ -926,6 +954,7 @@ for skill_dir in "$SAGE_DIR"/skills/*/; do
     continue
   fi
 
+  remove_stale_skill_variant "$skill_target_name"
   if [ -d "$skill_dest" ]; then
     rm -rf "$skill_dest"
     SK_REFRESH_COUNT=$((SK_REFRESH_COUNT + 1))

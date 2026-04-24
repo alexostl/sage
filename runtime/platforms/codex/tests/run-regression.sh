@@ -9,6 +9,8 @@ TMP_ROOT="$(mktemp -d "$TMP_PARENT/codex-adapter-regression.XXXXXX")"
 PROJECT="$TMP_ROOT/project"
 PROJECT_PREFIX_TRUE="$TMP_ROOT/project-prefix-true"
 PROJECT_PREFIX_ABSENT="$TMP_ROOT/project-prefix-absent"
+PROJECT_TOGGLE="$TMP_ROOT/project-toggle"
+PROJECT_TOGGLE_PREFIX="$TMP_ROOT/project-toggle-prefix"
 LOG_DIR="$TMP_ROOT/logs"
 
 fail() {
@@ -26,6 +28,10 @@ assert_file() {
 
 assert_dir() {
   [ -d "$1" ] || fail "Expected directory: $1"
+}
+
+assert_not_dir() {
+  [ ! -d "$1" ] || fail "Did not expect directory: $1"
 }
 
 assert_executable() {
@@ -92,6 +98,8 @@ mkdir -p "$LOG_DIR"
 create_project_fixture "$PROJECT"
 create_project_fixture "$PROJECT_PREFIX_TRUE"
 create_project_fixture "$PROJECT_PREFIX_ABSENT"
+create_project_fixture "$PROJECT_TOGGLE"
+create_project_fixture "$PROJECT_TOGGLE_PREFIX"
 
 step "sage init --platform codex"
 run_in_project init.log "$REPO_ROOT/bin/sage" init --platform codex --preset base
@@ -194,9 +202,37 @@ assert_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$fix'
 assert_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$sage'
 assert_not_contains "$PROJECT_PREFIX_ABSENT/AGENTS.md" '$sage:build'
 
+step "toggle prefix off -> on in same project"
+run_in_dir toggle-init.log "$PROJECT_TOGGLE" "$REPO_ROOT/bin/sage" init --platform codex --preset base
+sed -i.bak 's/^command_prefix: false$/command_prefix: true/' "$PROJECT_TOGGLE/.sage/config.yaml"
+rm -f "$PROJECT_TOGGLE/.sage/config.yaml.bak"
+run_in_dir toggle-prefix-on.log "$PROJECT_TOGGLE" ./sage/bin/sage update --platform codex
+
+assert_file "$PROJECT_TOGGLE/.agents/skills/sage:build/SKILL.md"
+assert_file "$PROJECT_TOGGLE/.agents/skills/sage:api/SKILL.md"
+assert_not_dir "$PROJECT_TOGGLE/.agents/skills/build"
+assert_not_dir "$PROJECT_TOGGLE/.agents/skills/api"
+assert_not_dir "$PROJECT_TOGGLE/.agents/skills/review"
+assert_not_dir "$PROJECT_TOGGLE/.agents/skills/status"
+
+step "toggle prefix on -> off in same project"
+run_in_dir toggle-prefix-init.log "$PROJECT_TOGGLE_PREFIX" "$REPO_ROOT/bin/sage" init --platform codex --preset base --prefix
+sed -i.bak 's/^command_prefix: true$/command_prefix: false/' "$PROJECT_TOGGLE_PREFIX/.sage/config.yaml"
+rm -f "$PROJECT_TOGGLE_PREFIX/.sage/config.yaml.bak"
+run_in_dir toggle-prefix-off.log "$PROJECT_TOGGLE_PREFIX" ./sage/bin/sage update --platform codex
+
+assert_file "$PROJECT_TOGGLE_PREFIX/.agents/skills/build/SKILL.md"
+assert_file "$PROJECT_TOGGLE_PREFIX/.agents/skills/api/SKILL.md"
+assert_not_dir "$PROJECT_TOGGLE_PREFIX/.agents/skills/sage:build"
+assert_not_dir "$PROJECT_TOGGLE_PREFIX/.agents/skills/sage:api"
+assert_not_dir "$PROJECT_TOGGLE_PREFIX/.agents/skills/sage:review"
+assert_not_dir "$PROJECT_TOGGLE_PREFIX/.agents/skills/sage:status"
+
 step "summary"
 echo "PASS: Codex adapter regression checks"
 echo "  Project fixture: $PROJECT"
 echo "  Prefix fixture: $PROJECT_PREFIX_TRUE"
 echo "  Absent fixture: $PROJECT_PREFIX_ABSENT"
+echo "  Toggle fixture: $PROJECT_TOGGLE"
+echo "  Toggle prefix fixture: $PROJECT_TOGGLE_PREFIX"
 echo "  Logs: $LOG_DIR"
