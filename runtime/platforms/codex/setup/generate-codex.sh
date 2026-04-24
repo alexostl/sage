@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SAGE_ROOT="${1:-.}"
-SAGE_DIR="$SAGE_ROOT/sage"
+SAGE_DIR="${SAGE_FRAMEWORK_DIR:-$SAGE_ROOT/sage}"
 CODEX_DIR="$SAGE_ROOT/.codex"
 AGENTS_DIR="$SAGE_ROOT/.agents"
 PROJECT_SAGE="$SAGE_ROOT/.sage"
@@ -17,9 +17,88 @@ echo ""
 echo "🚀 Sage → Codex Setup"
 echo "═══════════════════════════════"
 
+# ── Read prefix config ──
+PREFIX=""
+if [ -f "$PROJECT_SAGE/config.yaml" ]; then
+  if grep -q 'command_prefix: true' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
+    PREFIX="sage:"
+  fi
+fi
+
+codex_prefix_text() {
+  local file="$1"
+  [ -n "$PREFIX" ] || return 0
+
+  python3 - "$file" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+commands = [
+    "design-review",
+    "autoresearch",
+    "architect",
+    "research",
+    "continue",
+    "reflect",
+    "analyze",
+    "design",
+    "review",
+    "status",
+    "build",
+    "learn",
+    "fix",
+    "map",
+    "qa",
+]
+cmd_pattern = "|".join(re.escape(cmd) for cmd in commands)
+
+def replace_command(match: re.Match[str]) -> str:
+    sigil, cmd = match.group(1), match.group(2)
+    if sigil == "/" and cmd == "review":
+        return match.group(0)
+    return f"{sigil}sage:{cmd}"
+
+text = re.sub(
+    rf"(?<![\w])([$/])({cmd_pattern})(?![\w:-])",
+    replace_command,
+    text,
+)
+text = re.sub(
+    rf"(\.agents/skills/)({cmd_pattern})(?=(/|\b))",
+    lambda m: f"{m.group(1)}sage:{m.group(2)}",
+    text,
+)
+
+path.write_text(text)
+PY
+}
+
+set_skill_name_frontmatter() {
+  local file="$1"
+  local skill_name="$2"
+
+  python3 - "$file" "$skill_name" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+skill_name = sys.argv[2]
+text = path.read_text()
+text, count = re.subn(r"^name:.*$", f"name: {skill_name}", text, count=1, flags=re.MULTILINE)
+if count != 1:
+    raise SystemExit(f"Expected exactly one frontmatter name line in {path}")
+path.write_text(text)
+PY
+}
+
 if [ ! -d "$CORE" ]; then
   echo "❌ Sage framework not found at $SAGE_DIR"
-  echo "   Run this from the project root where sage/ is located."
+  echo "   Run this from the project root with Sage available locally."
   exit 1
 fi
 
@@ -344,6 +423,8 @@ Starter material for native Codex surfaces (automations, hooks) lives at
 downstream projects): `AUTOMATIONS.md`, `HOOKS.md`.
 AGENTSEOF
 
+codex_prefix_text "$SAGE_ROOT/AGENTS.md"
+
 echo "📊 Checking project state..."
 if [ ! -d "$PROJECT_SAGE" ]; then
   mkdir -p "$PROJECT_SAGE/docs" "$PROJECT_SAGE/work" "$PROJECT_SAGE/gates/scripts"
@@ -389,6 +470,7 @@ if [ -f "$NAV_SRC/SKILL.md" ]; then
   rm -rf "$NAV_DEST"
   mkdir -p "$NAV_DEST"
   cp "$NAV_SRC/SKILL.md" "$NAV_DEST/SKILL.md"
+  codex_prefix_text "$NAV_DEST/SKILL.md"
   echo "  ✓ sage-navigator"
 fi
 
@@ -650,9 +732,13 @@ WF_COUNT=0
 for wf_file in "$CORE"/workflows/*.workflow.md; do
   [ -f "$wf_file" ] || continue
   wf_name=$(basename "$wf_file" .workflow.md)
+  wf_skill_name="$wf_name"
+  if [ -n "$PREFIX" ] && [ "$wf_name" != "sage" ]; then
+    wf_skill_name="${PREFIX}${wf_name}"
+  fi
   wf_title=$(printf '%s' "$wf_name" | tr '-' ' ')
   wf_desc=$(workflow_description "$wf_name")
-  wf_dest="$AGENTS_DIR/skills/$wf_name"
+  wf_dest="$AGENTS_DIR/skills/$wf_skill_name"
 
   rm -rf "$wf_dest"
   mkdir -p "$wf_dest"
@@ -661,7 +747,7 @@ for wf_file in "$CORE"/workflows/*.workflow.md; do
   if [ "$wf_name" = "sage" ]; then
     cat > "$wf_dest/SKILL.md" <<SAGEEOF
 ---
-name: sage
+name: $wf_skill_name
 description: >-
   $wf_desc
 ---
@@ -718,8 +804,9 @@ Based on user's choice or free-form input, classify scope and route:
 For complex routing or gap detection, read the sage-navigator at
 \`sage/core/capabilities/orchestration/sage-navigator/SKILL.md\`.
 SAGEEOF
+    codex_prefix_text "$wf_dest/SKILL.md"
     WF_COUNT=$((WF_COUNT + 1))
-    echo "  ✓ $wf_name (self-contained)"
+    echo "  ✓ $wf_skill_name (self-contained)"
     continue
   fi
 
@@ -727,7 +814,7 @@ SAGEEOF
   if [ "$wf_name" = "review" ]; then
     cat > "$wf_dest/SKILL.md" <<REVIEWEOF
 ---
-name: review
+name: $wf_skill_name
 description: >-
   $wf_desc
 ---
@@ -780,15 +867,16 @@ If none, [A] / [R] / [D] normally.
 
 Prepend review findings to \`.sage/decisions.md\`.
 REVIEWEOF
+    codex_prefix_text "$wf_dest/SKILL.md"
     WF_COUNT=$((WF_COUNT + 1))
-    echo "  ✓ $wf_name (delegated)"
+    echo "  ✓ $wf_skill_name (delegated)"
     continue
   fi
 
   # Generic workflow skill: frontmatter + PREAMBLE + workflow body
   {
     echo "---"
-    echo "name: $wf_name"
+    echo "name: $wf_skill_name"
     echo "description: >-"
     echo "  $wf_desc"
     echo "---"
@@ -803,9 +891,10 @@ REVIEWEOF
     echo ""
     sed '/^---$/,/^---$/d' "$wf_file"
   } > "$wf_dest/SKILL.md"
+  codex_prefix_text "$wf_dest/SKILL.md"
 
   WF_COUNT=$((WF_COUNT + 1))
-  echo "  ✓ $wf_name"
+  echo "  ✓ $wf_skill_name"
 done
 echo "  → $WF_COUNT workflow skills"
 
@@ -816,7 +905,11 @@ SK_REFRESH_COUNT=0
 for skill_dir in "$SAGE_DIR"/skills/*/; do
   [ -d "$skill_dir" ] || continue
   skill_name=$(basename "$skill_dir")
-  skill_dest="$AGENTS_DIR/skills/$skill_name"
+  skill_target_name="$skill_name"
+  if [ -n "$PREFIX" ]; then
+    skill_target_name="${PREFIX}${skill_name}"
+  fi
+  skill_dest="$AGENTS_DIR/skills/$skill_target_name"
   [ -f "$skill_dir/SKILL.md" ] || continue
 
   if grep -q "type: bundle" "$skill_dir/SKILL.md" 2>/dev/null; then
@@ -843,6 +936,10 @@ for skill_dir in "$SAGE_DIR"/skills/*/; do
 
   mkdir -p "$skill_dest"
   cp "$skill_dir/SKILL.md" "$skill_dest/SKILL.md"
+  if [ -n "$PREFIX" ]; then
+    set_skill_name_frontmatter "$skill_dest/SKILL.md" "$skill_target_name"
+  fi
+  codex_prefix_text "$skill_dest/SKILL.md"
   for subdir in references templates examples patterns anti-patterns integration scripts resources constitution gates; do
     [ -d "$skill_dir/$subdir" ] && cp -a "$skill_dir/$subdir" "$skill_dest/"
   done
