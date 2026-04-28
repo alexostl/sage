@@ -39,6 +39,7 @@ AGENTS.md
 # Track only the shared, durable Sage working-layer docs on codex-port.
 !.sage/
 .sage/*
+!.sage/config.yaml
 !.sage/docs/
 .sage/docs/*
 !.sage/docs/decision-sage-source-of-truth.md

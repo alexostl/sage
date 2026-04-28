@@ -1,0 +1,11 @@
+sage-version: "1.0.0"
+project-name: "sage-selfhost"
+platform: "claude-code,codex"
+constitution: "base"
+detected-stack: []
+auto_review: true
+auto_qa: true
+independent_gate3: true
+command_prefix: true
+deploy_loader_stubs: false
+deploy_direct_skills: false
