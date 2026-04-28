@@ -1,8 +1,8 @@
-# Learn: `sage-codex` Repository Map
+# Learn: `sage-selfhost` Repository Map
 
 ## Purpose
 
-This file is the working-entry map for future sessions inside `sage-codex`.
+This file is the working-entry map for future sessions inside `sage-selfhost`.
 Start here when you need to understand what the repository owns, where the
 canonical deep references live, and which paths are operationally relevant for
 ongoing work in Sage.
@@ -15,7 +15,7 @@ The rule of thumb is:
 
 ## What This Repository Is
 
-`sage-codex` is the Sage framework repository running in a self-hosted Codex
+`sage-selfhost` is the Sage framework repository running in a self-hosted Codex
 setup. It contains:
 
 - framework philosophy and public documentation
@@ -134,9 +134,9 @@ Do not use these files as first-stop guidance for normal project work.
 ## Recommended Reading Order For A New Agent
 
 1. `.sage/decisions.md`
-2. `.sage/docs/learn-sage-codex-working-model.md`
-3. `.sage/docs/learn-sage-codex-repository-map.md`
-4. `.sage/docs/learn-sage-codex-codex-platform-context.md` only if the task touches Codex/self-hosting surfaces
+2. `.sage/docs/learn-sage-selfhost-working-model.md`
+3. `.sage/docs/learn-sage-selfhost-repository-map.md`
+4. `.sage/docs/learn-sage-selfhost-codex-platform-context.md` only if the task touches Codex/self-hosting surfaces
 5. Deep canonical repo docs from `docs/`, `runtime/`, `core/`, or `develop/` as pointed to by the `.sage/docs/` files
 
 ## Operational Rule

@@ -39,9 +39,10 @@ CLAUDE.md
 !.sage/docs/
 .sage/docs/*
 !.sage/docs/decision-sage-source-of-truth.md
-!.sage/docs/learn-sage-codex-codex-platform-context.md
-!.sage/docs/learn-sage-codex-repository-map.md
-!.sage/docs/learn-sage-codex-working-model.md
+!.sage/docs/learn-sage-selfhost-codex-platform-context.md
+!.sage/docs/learn-sage-selfhost-repository-map.md
+!.sage/docs/learn-sage-selfhost-working-model.md
+!.sage/docs/learn-sage-selfhost-branch-worktree-model.md
 
 # Python
 __pycache__/

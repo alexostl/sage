@@ -2,7 +2,7 @@
 
 ## Context
 
-During the documentation rewrite for `sage-codex`, the repository had a split
+During the documentation rewrite for `sage-selfhost`, the repository had a split
 working context:
 
 - approved initiative state was already being created in `.sage/work/`
@@ -17,7 +17,7 @@ Sage's state-first operating model.
 
 ## Decision
 
-For normal project execution in `sage-codex`:
+For normal project execution in `sage-selfhost`:
 
 - `.sage/` is the working source of truth
 - `.sage/docs/` holds durable repo-operational knowledge
@@ -62,11 +62,11 @@ loop.
 
 1. A future working session can start from `.sage/` and locate normal repo
    operating guidance without opening the legacy folder.
-2. `.sage/docs/learn-sage-codex-repository-map.md` identifies where deeper
+2. `.sage/docs/learn-sage-selfhost-repository-map.md` identifies where deeper
    canonical repo truth lives.
-3. `.sage/docs/learn-sage-codex-working-model.md` explains how new work and
+3. `.sage/docs/learn-sage-selfhost-working-model.md` explains how new work and
    reusable knowledge should be recorded.
-4. `.sage/docs/learn-sage-codex-codex-platform-context.md` covers the practical
+4. `.sage/docs/learn-sage-selfhost-codex-platform-context.md` covers the practical
    Codex/self-hosting context needed for repo work.
 5. No remaining operational concept in the legacy folder is needed for normal
    execution unless it has been migrated, summarized, or explicitly discarded.

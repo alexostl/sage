@@ -1,4 +1,4 @@
-# Learn: `sage-codex` Working Model
+# Learn: `sage-selfhost` Working Model
 
 ## Purpose
 
@@ -9,7 +9,7 @@ sources of truth.
 
 ## Core Working Model
 
-`sage-codex` should be worked as a Sage project first and a framework repo
+`sage-selfhost` should be worked as a Sage project first and a framework repo
 second.
 
 That means:
@@ -23,7 +23,7 @@ That means:
 The practical starting point for a working session is always `.sage/`.
 
 For repository-operational Git work, `.sage/` is not enough by itself. Future
-sessions must also follow `.sage/docs/learn-sage-codex-branch-worktree-model.md`
+sessions must also follow `.sage/docs/learn-sage-selfhost-branch-worktree-model.md`
 for branch roles, local-vs-remote branch handling, update order, and upstream
 PR rules.
 
@@ -85,7 +85,7 @@ Use this rule:
 
 - if a broad public or implementation doc already exists and is still accurate,
   summarize it in `.sage` only as much as needed for execution and link onward
-- if a repo-operational conclusion is specific to working on `sage-codex`, keep
+- if a repo-operational conclusion is specific to working on `sage-selfhost`, keep
   that conclusion in `.sage`
 - if a document would only repeat existing public docs line-by-line, do not
   duplicate it
@@ -129,7 +129,7 @@ For branch and upstream operations, the source-of-truth chain is:
 4. local `self-host/main` as the active self-host work surface
 
 That operational chain is defined in
-`.sage/docs/learn-sage-codex-branch-worktree-model.md` and should not be
+`.sage/docs/learn-sage-selfhost-branch-worktree-model.md` and should not be
 reinvented ad hoc in future sessions.
 
 Before mutating any long-lived branch in that chain:

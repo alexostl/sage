@@ -1,4 +1,4 @@
-# Learn: `sage-codex` Codex Platform Context
+# Learn: `sage-selfhost` Codex Platform Context
 
 ## Purpose
 
@@ -9,7 +9,7 @@ deeper adapter docs.
 
 ## What Codex Support Means In This Repository
 
-In `sage-codex`, Codex support means Sage has a release-ready adapter that maps
+In `sage-selfhost`, Codex support means Sage has a release-ready adapter that maps
 Sage workflows onto Codex-native surfaces without pretending Codex is Claude
 Code.
 
