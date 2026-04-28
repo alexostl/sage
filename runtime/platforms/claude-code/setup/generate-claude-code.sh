@@ -30,11 +30,11 @@ if [ -f "$PROJECT_SAGE/config.yaml" ]; then
   fi
 fi
 
-# ── Read deploy config (default: deploy stubs) ──
-DEPLOY_LOADER_STUBS=true
+# ── Read deploy config (self-host default: skip stubs; opt in with `true`) ──
+DEPLOY_LOADER_STUBS=false
 if [ -f "$PROJECT_SAGE/config.yaml" ]; then
-  if grep -q '^deploy_loader_stubs: false' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
-    DEPLOY_LOADER_STUBS=false
+  if grep -q '^deploy_loader_stubs: true' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
+    DEPLOY_LOADER_STUBS=true
   fi
 fi
 
@@ -1034,7 +1034,7 @@ fi
 # ═══════════════════════════════════════════════════════════════
 echo ""
 if [ "$DEPLOY_LOADER_STUBS" = "false" ]; then
-  echo "⊘ Skipping skill loader stubs (deploy_loader_stubs: false in .sage/config.yaml)"
+  echo "⊘ Skipping skill loader stubs (default; set deploy_loader_stubs: true in .sage/config.yaml to enable)"
 else
   echo "🧠 Deploying skills to .claude/skills/..."
 

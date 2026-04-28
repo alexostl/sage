@@ -25,11 +25,11 @@ if [ -f "$PROJECT_SAGE/config.yaml" ]; then
   fi
 fi
 
-# ── Read deploy config (default: deploy direct skills) ──
-DEPLOY_DIRECT_SKILLS=true
+# ── Read deploy config (self-host default: skip direct skills; opt in with `true`) ──
+DEPLOY_DIRECT_SKILLS=false
 if [ -f "$PROJECT_SAGE/config.yaml" ]; then
-  if grep -q '^deploy_direct_skills: false' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
-    DEPLOY_DIRECT_SKILLS=false
+  if grep -q '^deploy_direct_skills: true' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
+    DEPLOY_DIRECT_SKILLS=true
   fi
 fi
 
@@ -936,7 +936,7 @@ echo "  → $WF_COUNT workflow skills"
 
 echo ""
 if [ "$DEPLOY_DIRECT_SKILLS" = "false" ]; then
-  echo "⊘ Skipping direct skills deployment (deploy_direct_skills: false in .sage/config.yaml)"
+  echo "⊘ Skipping direct skills deployment (default; set deploy_direct_skills: true in .sage/config.yaml to enable)"
 else
   echo "📚 Copying direct skills..."
   SK_COUNT=0
