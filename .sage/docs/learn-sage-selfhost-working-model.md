@@ -124,9 +124,11 @@ should be added to `.sage` rather than left implicit.
 For branch and upstream operations, the source-of-truth chain is:
 
 1. `upstream/main` for external truth
-2. `origin/main` as the fork's mirrored upstream branch on GitHub
+2. `origin/main` as the fork's mirrored upstream branch on GitHub (read-only
+   mirror, not the GitHub default branch)
 3. `origin/codex-port` as the shared integration branch on GitHub
-4. local `self-host/main` as the active self-host work surface
+4. `origin/self-host/main` as the GitHub default branch on `alexostl/sage`
+   and the active self-host work surface (also resident locally)
 
 That operational chain is defined in
 `.sage/docs/learn-sage-selfhost-branch-worktree-model.md` and should not be

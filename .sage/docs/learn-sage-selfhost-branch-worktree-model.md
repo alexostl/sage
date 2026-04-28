@@ -12,12 +12,15 @@ or preparation of upstream PRs.
   External source of truth from `xoai/sage`.
 - `main`
   Manual fast-forward mirror of `upstream/main` on GitHub. No fork-specific
-  commits.
+  commits. **NOT the GitHub default branch** — read-only mirror, fast-forward
+  only. Never the base of a self-host PR.
 - `codex-port`
   Shared integration branch on GitHub for Codex-port and other reusable fork
   changes that have not been fully upstreamed yet.
 - `self-host/main`
-  Active local branch for repository-specific self-host work.
+  Active branch for repository-specific self-host work. **GitHub default
+  branch on `alexostl/sage`** — base for self-host PRs and the default diff
+  comparison target.
 - `upstream-fix-*`
   Temporary single-purpose branches created from fresh `upstream/main` only.
 
@@ -72,6 +75,8 @@ mix repository-local context with shared fixes and make review harder.
 - Is `origin/main` actually current with `upstream/main`?
 - Is this change shared/fork-wide (`origin/codex-port`) or self-host-specific
   (`self-host/main`)?
+- Does this PR target `self-host/main` (correct) and not `main` (which would
+  poison the upstream mirror)?
 - Do I really need a temporary local worktree for `main` or `codex-port`, or
   can this stay remote-only?
 - If preparing an upstream PR, is the branch freshly recreated from
