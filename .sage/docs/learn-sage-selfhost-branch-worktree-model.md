@@ -12,17 +12,34 @@ or preparation of upstream PRs.
   External source of truth from `xoai/sage`.
 - `main`
   Manual fast-forward mirror of `upstream/main` on GitHub. No fork-specific
-  commits. **NOT the GitHub default branch** — read-only mirror, fast-forward
-  only. Never the base of a self-host PR.
+  commits. **GitHub default branch on `alexostl/sage`** — kept as default so
+  the public repo page presents as a clean upstream mirror. Never merge
+  self-host work into it; manually pick a different base when opening a PR.
 - `codex-port`
   Shared integration branch on GitHub for Codex-port and other reusable fork
   changes that have not been fully upstreamed yet.
 - `self-host/main`
-  Active branch for repository-specific self-host work. **GitHub default
-  branch on `alexostl/sage`** — base for self-host PRs and the default diff
-  comparison target.
+  Active branch for repository-specific self-host work. **Local
+  `origin/HEAD` points here** so Claude Code Desktop, IDE diffs, and
+  `git rev-parse origin/HEAD` use it as the comparison base. Base for
+  self-host PRs.
 - `upstream-fix-*`
   Temporary single-purpose branches created from fresh `upstream/main` only.
+
+### Split-default convention
+
+GitHub's default branch and the local `origin/HEAD` intentionally diverge:
+
+- GitHub web (`alexostl/sage`) → `main` (clean upstream mirror facade)
+- Local `refs/remotes/origin/HEAD` → `self-host/main` (actual work trunk)
+
+When opening a PR on GitHub web, the base auto-fills as `main` — **always
+re-pick `self-host/main` manually** unless the PR is genuinely an upstream
+fast-forward of `main`. To re-sync the local pointer after a fresh clone:
+
+```
+git remote set-head origin self-host/main
+```
 
 ## Why `self-host/main` Exists
 

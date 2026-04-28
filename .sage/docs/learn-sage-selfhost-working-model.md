@@ -124,11 +124,17 @@ should be added to `.sage` rather than left implicit.
 For branch and upstream operations, the source-of-truth chain is:
 
 1. `upstream/main` for external truth
-2. `origin/main` as the fork's mirrored upstream branch on GitHub (read-only
-   mirror, not the GitHub default branch)
+2. `origin/main` as the fork's mirrored upstream branch on GitHub. Kept as
+   the **GitHub default branch** so the public repo page reads as a clean
+   upstream mirror — never a PR target for self-host work.
 3. `origin/codex-port` as the shared integration branch on GitHub
-4. `origin/self-host/main` as the GitHub default branch on `alexostl/sage`
-   and the active self-host work surface (also resident locally)
+4. `origin/self-host/main` as the active self-host work surface and the
+   local `origin/HEAD` target — base for self-host PRs and the default
+   comparison branch in Claude Code Desktop and IDE diffs.
+
+GitHub default and local `origin/HEAD` intentionally diverge. When opening
+a PR on GitHub web, manually re-pick `self-host/main` as the base — the
+auto-filled `main` would poison the upstream mirror.
 
 That operational chain is defined in
 `.sage/docs/learn-sage-selfhost-branch-worktree-model.md` and should not be
