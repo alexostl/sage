@@ -234,6 +234,23 @@ Run in your terminal:
 | `sage skills` | List installed skills |
 | `sage update [target]` | Update community skills to latest |
 
+### Repo hooks
+
+This repo ships a `pre-commit` hook at `.githooks/pre-commit` that
+gates Standard+ implementation commits on a valid `verification.md`
+(see `.sage/work/<slug>/verification.md` and the template at
+`.agents/skills/sage:build/templates/verification-template.md`). Git
+does not auto-wire repo-bundled hooks for new clones — run once
+after cloning:
+
+    bin/sage-install-hooks
+
+The script sets `core.hooksPath = .githooks` for this clone, is
+idempotent, and refuses to do anything destructive. Spec/plan-only
+commits and lightweight-scope initiatives are not gated. To close an
+initiative atomically (commit on inner branch + merge to integration
++ push + record in decisions.md), use `bin/sage-close <slug>`.
+
 ## How Sage Works
 
 ### Routing

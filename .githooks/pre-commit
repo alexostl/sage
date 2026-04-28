@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════
+# Sage pre-commit hook — gates Standard+ implementation commits on a
+# valid verification.md.
+#
+# Three-stage filter (cheap → expensive):
+#
+#   Stage A  Are any staged paths under .sage/work/<slug>/?
+#            If NO  → exit 0 (no initiative touched).
+#   Stage B  Does that initiative declare scope: standard | comprehensive?
+#            If NO  → exit 0 (lightweight or unscoped — ungated).
+#   Stage C  Is at least one staged path OUTSIDE .sage/ AND OUTSIDE the
+#            docs allowlist (README*, repo-root *.md, docs/**)?
+#            If NO  → exit 0 (spec/plan/docs-only commit).
+#
+# Only commits that pass ALL THREE stages reach the validator. On
+# validator failure, hook exits non-zero with a one-line message
+# pointing at the offending file. No --no-verify recommendation; the
+# user must consciously type it.
+#
+# Install with: bin/sage-install-hooks
+# ═══════════════════════════════════════════════════════════════
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+HOOKS_LIB="$REPO_ROOT/runtime/platforms/codex/hooks"
+
+# Pull the list of staged-for-commit files (Added, Copied, Modified,
+# Renamed). Diff --cached is empty on the very first commit; in that
+# case there is nothing for us to gate.
+STAGED="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)"
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# ── Stage A: extract the (single) initiative slug touched, if any ───
+# We expect a commit to touch ONE initiative at a time. If multiple
+# slugs are touched we gate on the first one — the user can split the
+# commit if they need different gates.
+SLUG=""
+while IFS= read -r path; do
+  case "$path" in
+    .sage/work/*/*)
+      candidate="${path#.sage/work/}"
+      candidate="${candidate%%/*}"
+      if [ -n "$candidate" ]; then
+        SLUG="$candidate"
+        break
+      fi
+      ;;
+  esac
+done <<< "$STAGED"
+
+if [ -z "$SLUG" ]; then
+  exit 0
+fi
+
+# ── Stage B: read scope frontmatter ─────────────────────────────────
+INIT_DIR="$REPO_ROOT/.sage/work/$SLUG"
+SCOPE=""
+for art in spec.md brief.md fix-plan.md plan.md; do
+  if [ -f "$INIT_DIR/$art" ]; then
+    SCOPE="$(python3 - "$INIT_DIR/$art" <<'PY'
+import sys, pathlib
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+if not text.startswith("---"):
+    sys.exit(0)
+end = text.find("\n---", 4)
+if end < 0:
+    sys.exit(0)
+for line in text[4:end].splitlines():
+    line = line.strip()
+    if line.lower().startswith("scope:"):
+        val = line.split(":", 1)[1].strip().strip(chr(34)).strip(chr(39)).lower()
+        print(val)
+        break
+PY
+)"
+    if [ -n "$SCOPE" ]; then
+      break
+    fi
+  fi
+done
+
+case "$SCOPE" in
+  standard|comprehensive) ;;
+  *) exit 0 ;;
+esac
+
+# ── Stage C: implementation-file detection ──────────────────────────
+# An implementation file is any staged path that is:
+#   - NOT under .sage/  (working state, not implementation)
+#   - NOT a top-level *.md  (README.md, AGENTS.md, CLAUDE.md, etc.)
+#   - NOT under docs/    (project docs)
+#   - NOT under .sage-memory/ (separate memory store)
+# Note: top-level files with no slash in their path are matched as
+# "repo-root files" — only allowlisted if they end in .md.
+HAS_IMPL=0
+while IFS= read -r path; do
+  case "$path" in
+    .sage/*|.sage-memory/*|docs/*) continue ;;
+    *.md)
+      # If it has no slash, it is at repo root → allowlisted.
+      case "$path" in
+        */*) ;;     # under a subdir other than docs/ — counts as impl
+        *) continue ;;
+      esac
+      ;;
+  esac
+  HAS_IMPL=1
+  break
+done <<< "$STAGED"
+
+if [ "$HAS_IMPL" -eq 0 ]; then
+  exit 0
+fi
+
+# ── Validator ───────────────────────────────────────────────────────
+VERIFICATION="$INIT_DIR/verification.md"
+
+if [ ! -d "$HOOKS_LIB" ]; then
+  echo "Sage: pre-commit blocked — hooks library missing at $HOOKS_LIB." >&2
+  exit 1
+fi
+
+REASON="$(python3 - "$VERIFICATION" "$HOOKS_LIB" <<'PY'
+import sys, pathlib
+sys.path.insert(0, sys.argv[2])
+from lib.verification_check import validate
+ok, reasons = validate(sys.argv[1])
+if ok:
+    sys.exit(0)
+# Print first reason on stdout (caller surfaces it), exit non-zero.
+print(reasons[0] if reasons else "verification.md failed validation")
+sys.exit(1)
+PY
+)" || REASON_RC=$?
+
+if [ -n "${REASON_RC:-}" ]; then
+  echo "Sage: pre-commit blocked — $REASON" >&2
+  echo "Sage: see $VERIFICATION" >&2
+  exit 1
+fi
+
+# All gates green.
+exit 0

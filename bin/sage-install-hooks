@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════
+# bin/sage-install-hooks
+#
+# One-time install path for the repo-bundled .githooks/. Sets
+# git config core.hooksPath = .githooks so the pre-commit gate
+# (.githooks/pre-commit) runs for this clone.
+#
+# Idempotent: re-running prints the current value and does not
+# re-set unless the value differs.
+#
+# Usage:
+#   bin/sage-install-hooks
+#
+# Why this is a separate command:
+#   .githooks/pre-commit is shipped IN the repo (so it travels with
+#   clones), but git does not auto-wire core.hooksPath for new
+#   clones. Without this script, the hook silently does nothing for
+#   every fresh contributor. See L5 design notes in
+#   .sage/work/20260424-codex-enforcement-hybrid-levers/.
+# ═══════════════════════════════════════════════════════════════
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$REPO_ROOT" ]; then
+  echo "Sage: not inside a git repository." >&2
+  exit 1
+fi
+
+HOOKS_DIR_REL=".githooks"
+TARGET="$REPO_ROOT/$HOOKS_DIR_REL"
+
+if [ ! -d "$TARGET" ]; then
+  echo "Sage: hooks directory missing at $TARGET." >&2
+  echo "Sage: expected the repo to ship $HOOKS_DIR_REL/pre-commit." >&2
+  exit 1
+fi
+
+CURRENT="$(git -C "$REPO_ROOT" config --get core.hooksPath 2>/dev/null || true)"
+if [ "$CURRENT" = "$HOOKS_DIR_REL" ]; then
+  echo "Sage: hooks already wired (core.hooksPath = $HOOKS_DIR_REL)."
+  exit 0
+fi
+
+git -C "$REPO_ROOT" config core.hooksPath "$HOOKS_DIR_REL"
+NEW="$(git -C "$REPO_ROOT" config --get core.hooksPath)"
+if [ "$NEW" != "$HOOKS_DIR_REL" ]; then
+  echo "Sage: failed to set core.hooksPath (got '$NEW')." >&2
+  exit 1
+fi
+
+echo "Sage: hooks installed (core.hooksPath = $HOOKS_DIR_REL)."
+echo "Sage: .githooks/pre-commit will gate Standard+ implementation commits."

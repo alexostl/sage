@@ -1,0 +1,355 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════
+# bin/sage-close <slug>
+#
+# Sanctioned close-out path for a Sage initiative on Codex (and
+# Claude Code). Replaces ad-hoc `git add && git commit && git push`
+# with an idempotent, validator-gated, dual-branch atomic operation
+# per the documented branch-worktree operating model
+#   .sage/work/20260423-branch-worktree-operating-model/manifest.md
+#
+# Usage:
+#   bin/sage-close <slug>
+#
+# Phases (each idempotent — re-run skips completed phases). Ordering
+# matters: mark + record happen BEFORE commit so the commit captures
+# the flipped verification.md and the new decisions entry in one shot.
+#   1. preflight          — slug exists; verification.md present
+#   2. verify             — verification_check.validate() must pass
+#   3. mark closed        — flip verification.md frontmatter closed: true
+#   4. record             — prepend close entry to .sage/decisions.md
+#   5. commit (inner)     — HEREDOC commit on inner branch
+#   6. integrate          — --no-ff merge into integration branch
+#   7. push               — push both branches (skipped if SAGE_CLOSE_NO_PUSH=1)
+#
+# Env knobs:
+#   SAGE_CLOSE_DRY=1      — print planned actions, mutate nothing
+#   SAGE_CLOSE_NO_PUSH=1  — execute commit/integrate/record but skip push
+#   SAGE_PROJECT_ROOT     — override project root (default: git rev-parse)
+#   SAGE_INNER_BRANCH     — override inner branch (default: self-host/main)
+#   SAGE_INTEGRATION_BRANCH — override integration branch (default: codex-port)
+#
+# Branch model (HARDCODED defaults — see manifest cited above for rationale):
+#   inner       = self-host/main   (active work surface)
+#   integration = codex-port       (shared integration branch)
+#   mirror      = main             (read-only upstream mirror — NOT touched here)
+# ═══════════════════════════════════════════════════════════════
+set -euo pipefail
+
+# ── Argument + path resolution ─────────────────────────────────────
+if [ $# -lt 1 ]; then
+  echo "usage: bin/sage-close <slug>" >&2
+  exit 64
+fi
+SLUG="$1"
+
+# Project root: explicit env wins, else git toplevel from the cwd.
+if [ -n "${SAGE_PROJECT_ROOT:-}" ]; then
+  PROJECT_ROOT="$SAGE_PROJECT_ROOT"
+else
+  PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+fi
+if [ -z "$PROJECT_ROOT" ] || [ ! -d "$PROJECT_ROOT/.sage" ]; then
+  echo "Sage: cannot resolve project root with .sage/ directory." >&2
+  exit 65
+fi
+
+INIT_DIR="$PROJECT_ROOT/.sage/work/$SLUG"
+VERIFICATION="$INIT_DIR/verification.md"
+DECISIONS="$PROJECT_ROOT/.sage/decisions.md"
+
+INNER_BRANCH="${SAGE_INNER_BRANCH:-self-host/main}"
+INTEGRATION_BRANCH="${SAGE_INTEGRATION_BRANCH:-codex-port}"
+
+DRY="${SAGE_CLOSE_DRY:-}"
+NO_PUSH="${SAGE_CLOSE_NO_PUSH:-}"
+
+# Validator path — points at the verification_check module shipped under
+# runtime/platforms/codex/hooks/lib/. Re-uses the same module L1 + L5
+# consume; no duplicate shape rules.
+HOOKS_LIB="$PROJECT_ROOT/runtime/platforms/codex/hooks"
+
+# ── Logging helpers (no apostrophes inside heredoc bodies — see learning) ──
+log()      { printf 'Sage: %s\n' "$*"; }
+log_dry()  { printf 'Sage [DRY]: %s\n' "$*"; }
+log_skip() { printf 'Sage: %s already done, skipping.\n' "$*"; }
+die()      { printf 'Sage: ERROR — %s\n' "$*" >&2; exit 1; }
+
+# Run-or-print wrapper. In DRY mode we print but do not mutate.
+run() {
+  if [ -n "$DRY" ]; then
+    log_dry "would run: $*"
+  else
+    "$@"
+  fi
+}
+
+cd "$PROJECT_ROOT"
+
+# ── Phase 1: preflight ──────────────────────────────────────────────
+phase_preflight() {
+  log "phase 1/7 preflight — slug=$SLUG"
+  [ -d "$INIT_DIR" ] || die "initiative directory not found: $INIT_DIR"
+  [ -f "$VERIFICATION" ] || die "verification.md missing at $VERIFICATION"
+}
+
+# ── Phase 2: verify (validator) ─────────────────────────────────────
+phase_verify() {
+  log "phase 2/7 verify — running verification_check.validate"
+  python3 - "$VERIFICATION" <<'PY'
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path("runtime/platforms/codex/hooks").resolve()))
+from lib.verification_check import validate
+ok, reasons = validate(sys.argv[1])
+if not ok:
+    sys.stderr.write("Sage: verification.md FAILED shape check.\n")
+    for r in reasons:
+        sys.stderr.write("  - " + r + "\n")
+    sys.exit(1)
+print("Sage: verification.md shape OK.")
+PY
+}
+
+# ── Phase 3: commit on inner branch ─────────────────────────────────
+commit_done() {
+  # True if a commit on $INNER_BRANCH mentions the slug.
+  git log "$INNER_BRANCH" --grep="$SLUG" -n1 --format="%H" 2>/dev/null \
+    | grep -q '.'
+}
+
+phase_commit() {
+  if commit_done; then
+    log_skip "phase 5/7 commit"
+    return 0
+  fi
+  log "phase 5/7 commit — staging .sage/work/$SLUG/ + .sage/decisions.md"
+
+  # Ensure we are on the inner branch (or that it is current). Sage-close
+  # does not switch branches across worktrees; if cwd branch is wrong,
+  # tell the user.
+  local current
+  current="$(git symbolic-ref --short HEAD 2>/dev/null || echo DETACHED)"
+  if [ "$current" != "$INNER_BRANCH" ]; then
+    die "current branch is $current, expected $INNER_BRANCH (use the inner-branch worktree)"
+  fi
+
+  # Stage everything under the initiative directory + the validator,
+  # template, hooks, and bin scripts that this cycle touched. We
+  # explicitly avoid 'git add -A' to honour the no-secrets-by-accident
+  # principle from CLAUDE.md.
+  #
+  # Note: on repos that gitignore .sage/ (this repo, on self-host/main,
+  # follows the branch-worktree policy that keeps .sage/work/ local),
+  # these adds silently no-op. The authoritative file list then comes
+  # from the verification.md `## Files changed` section below.
+  if [ -n "$DRY" ]; then
+    log_dry "would: git add .sage/work/$SLUG/  (no-op if gitignored)"
+    log_dry "would: git add .sage/decisions.md (no-op if gitignored)"
+  else
+    git add ".sage/work/$SLUG/" 2>/dev/null || true
+    if [ -f "$DECISIONS" ]; then
+      git add ".sage/decisions.md" 2>/dev/null || true
+    fi
+  fi
+  # Optional staging hook: if the initiative ships a `## Files changed`
+  # section in verification.md we honour it. Each line beginning with
+  # `- ` is treated as a path to stage.
+  python3 - "$VERIFICATION" <<'PY' | while IFS= read -r path; do
+import sys, pathlib, re
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+m = re.search(r"##\s+Files changed\s*\n(.*?)(?:\n##\s|\Z)", text,
+              re.DOTALL | re.IGNORECASE)
+if not m:
+    sys.exit(0)
+for line in m.group(1).splitlines():
+    line = line.strip()
+    if line.startswith("- "):
+        print(line[2:].strip())
+PY
+    if [ -e "$path" ]; then
+      run git add "$path"
+    fi
+  done
+
+  if [ -z "$DRY" ]; then
+    if git diff --cached --quiet; then
+      log_skip "phase 5/7 commit (nothing staged)"
+      return 0
+    fi
+    git commit -m "$(cat <<EOF
+sage: close $SLUG
+
+Closes initiative $SLUG via bin/sage-close.
+
+Spec:           .sage/work/$SLUG/spec.md
+Plan:           .sage/work/$SLUG/plan.md
+Verification:   .sage/work/$SLUG/verification.md
+EOF
+)"
+  fi
+}
+
+# ── Phase 4: integrate (merge into integration branch) ──────────────
+integrate_done() {
+  # True if integration branch carries a merge commit mentioning the slug.
+  git log "$INTEGRATION_BRANCH" --merges --grep="$SLUG" -n1 --format="%H" 2>/dev/null \
+    | grep -q '.'
+}
+
+phase_integrate() {
+  if integrate_done; then
+    log_skip "phase 6/7 integrate"
+    return 0
+  fi
+  log "phase 6/7 integrate — merging $INNER_BRANCH into $INTEGRATION_BRANCH (--no-ff)"
+
+  # We do this in a temp worktree so we do not disturb the user current
+  # checkout. If integration branch is missing, we abort with a clear
+  # message rather than auto-creating it.
+  if ! git show-ref --verify --quiet "refs/heads/$INTEGRATION_BRANCH"; then
+    die "integration branch $INTEGRATION_BRANCH does not exist locally"
+  fi
+
+  if [ -n "$DRY" ]; then
+    log_dry "would create temp worktree, checkout $INTEGRATION_BRANCH, merge $INNER_BRANCH --no-ff, remove worktree"
+    return 0
+  fi
+
+  local wt
+  wt="$(mktemp -d -t sage-close-int.XXXXXX)"
+  trap "git worktree remove --force '$wt' 2>/dev/null || true" EXIT
+  git worktree add "$wt" "$INTEGRATION_BRANCH"
+  (
+    cd "$wt"
+    git merge --no-ff "$INNER_BRANCH" -m "$(cat <<EOF
+sage: integrate $SLUG into $INTEGRATION_BRANCH
+
+Merges close-out commit for initiative $SLUG from $INNER_BRANCH.
+EOF
+)"
+  )
+  git worktree remove --force "$wt"
+  trap - EXIT
+}
+
+# ── Phase 5: push ───────────────────────────────────────────────────
+push_done() {
+  # True if both branches have @{upstream} matching local tip.
+  for b in "$INNER_BRANCH" "$INTEGRATION_BRANCH"; do
+    local local_tip up_tip
+    local_tip="$(git rev-parse "$b" 2>/dev/null || true)"
+    up_tip="$(git rev-parse "${b}@{upstream}" 2>/dev/null || true)"
+    if [ -z "$up_tip" ] || [ "$local_tip" != "$up_tip" ]; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+phase_push() {
+  if [ -n "$NO_PUSH" ]; then
+    log "phase 7/7 push — SKIPPED (SAGE_CLOSE_NO_PUSH set)"
+    return 0
+  fi
+  if push_done; then
+    log_skip "phase 7/7 push"
+    return 0
+  fi
+  log "phase 7/7 push — $INNER_BRANCH + $INTEGRATION_BRANCH"
+  run git push origin "$INNER_BRANCH"
+  run git push origin "$INTEGRATION_BRANCH"
+}
+
+# ── Phase 6: record close entry in decisions.md ─────────────────────
+record_done() {
+  [ -f "$DECISIONS" ] || return 1
+  head -n 80 "$DECISIONS" | grep -q "close $SLUG"
+}
+
+phase_record() {
+  if record_done; then
+    log_skip "phase 4/7 record"
+    return 0
+  fi
+  log "phase 4/7 record — prepending close entry to .sage/decisions.md"
+  if [ -n "$DRY" ]; then
+    log_dry "would prepend close entry to $DECISIONS"
+    return 0
+  fi
+  python3 - "$DECISIONS" "$SLUG" <<'PY'
+import sys, pathlib, datetime
+path = pathlib.Path(sys.argv[1])
+slug = sys.argv[2]
+today = datetime.date.today().isoformat()
+entry = (
+    "### " + today + " — close " + slug + " (via bin/sage-close)\n"
+    "Initiative " + slug + " closed via bin/sage-close. Verification\n"
+    "passed shape check; commit on self-host/main + merge into\n"
+    "codex-port + push to origin completed atomically.\n\n"
+)
+text = path.read_text(encoding="utf-8") if path.is_file() else "# Decisions\n\n"
+header_end = text.find("\n", text.find("# Decisions"))
+if header_end < 0:
+    new = "# Decisions\n\n" + entry + text
+else:
+    # Insert after the H1 header + its trailing blank lines.
+    pre = text[:header_end + 1]
+    rest = text[header_end + 1:]
+    if not rest.startswith("\n"):
+        rest = "\n" + rest
+    new = pre + "\n" + entry + rest.lstrip("\n")
+path.write_text(new, encoding="utf-8")
+print("Sage: prepended close entry to " + str(path))
+PY
+}
+
+# ── Phase 7: flip verification.md closed: true ──────────────────────
+verification_closed() {
+  python3 - "$VERIFICATION" <<'PY' >/dev/null 2>&1
+import sys, pathlib, re
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+m = re.search(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
+if not m:
+    sys.exit(2)
+for line in m.group(1).splitlines():
+    line = line.strip()
+    if line.lower().startswith("closed:"):
+        val = line.split(":", 1)[1].strip().lower()
+        sys.exit(0 if val == "true" else 1)
+sys.exit(1)
+PY
+}
+
+phase_mark_closed() {
+  if verification_closed; then
+    log_skip "phase 3/7 mark closed"
+    return 0
+  fi
+  log "phase 3/7 mark closed — flipping verification.md frontmatter closed: true"
+  if [ -n "$DRY" ]; then
+    log_dry "would flip closed: true in $VERIFICATION"
+    return 0
+  fi
+  python3 - "$VERIFICATION" <<'PY'
+import sys, pathlib, re
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+new = re.sub(r"(\n\s*closed:\s*)(false|False|FALSE)", r"\1true", text, count=1)
+if new == text:
+    sys.stderr.write("Sage: could not flip closed: false to true (key not found?)\n")
+    sys.exit(1)
+p.write_text(new, encoding="utf-8")
+print("Sage: verification.md marked closed: true.")
+PY
+}
+
+# ── Run all phases ──────────────────────────────────────────────────
+phase_preflight
+phase_verify
+phase_mark_closed
+phase_record
+phase_commit
+phase_integrate
+phase_push
+
+log "close-out complete for $SLUG."

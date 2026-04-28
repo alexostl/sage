@@ -6,14 +6,21 @@
 # architect keywords AND the required `.sage/work/` state is
 # missing or inconsistent, the hook returns `decision: "block"` plus
 # an `additionalContext` block that redirects the model to the right
-# workflow. This is Codex's only pre-turn gate and the strongest
-# lever for keeping the agent on the Sage rulebook.
+# workflow.
+#
+# Every emission (block, hint, or plain passthrough) appends a
+# deterministic sticky-state block from `lib/active_state.py` so the
+# model is reminded of the active initiative, its phase, and the next
+# gate on every turn — closing the one-shot-gate-bypass class.
 #
 # Belt-and-suspenders — the AGENTS.md constitution still applies
 # when hooks are off. Enable by copying into .codex/hooks/ and
 # setting [features].codex_hooks = true in .codex/config.toml.
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+export SAGE_HOOK_DIR="$HOOK_DIR"
 
 # Pass the python source via -c (a string arg) so stdin stays intact
 # for the Codex hook JSON payload. `cat <<'PY'` captures the script,
@@ -24,6 +31,11 @@ import os
 import re
 import sys
 from pathlib import Path
+
+# Make lib/ importable for active_state + verification_check.
+HOOK_DIR = Path(os.environ.get("SAGE_HOOK_DIR") or os.path.dirname(__file__))
+if str(HOOK_DIR) not in sys.path:
+    sys.path.insert(0, str(HOOK_DIR))
 
 try:
     payload = json.load(sys.stdin)
@@ -46,11 +58,56 @@ if not isinstance(prompt, str) or not prompt.strip():
 root = Path(os.environ.get("SAGE_PROJECT_ROOT") or os.getcwd())
 sage_work = root / ".sage" / "work"
 
+# Sticky state computation ───────────────────────────────────────────
+# Compute once per invocation and append to every emission as the
+# additionalContext suffix. Empty string when active_state has nothing
+# useful to surface (rare, but possible). NOTE: avoid apostrophes in
+# this heredoc body — bash 3.2 (macOS default) mis-parses them.
+try:
+    from lib.active_state import compute as _compute_sticky  # type: ignore
+    STICKY = _compute_sticky(root)
+except Exception:
+    # Hook must not break the turn even if the helper raises.
+    STICKY = ""
+
+
+def _join_context(parts):
+    nonempty = [p for p in parts if p]
+    if not nonempty:
+        return ""
+    return "\n\n".join(nonempty)
+
+
+def emit_and_exit(decision=None, reason=None, gate_context=""):
+    """Single exit point. Always appends sticky context.
+
+    decision: None | "block" — Codex JSON decision field.
+    reason:   short string surfaced in Codex UI when decision="block".
+    gate_context: workflow-gate prose to put ABOVE the sticky block
+                  (so gate redirect is the first thing the agent reads).
+    """
+    additional = _join_context([gate_context, STICKY])
+    payload = {}
+    if decision is not None:
+        payload["decision"] = decision
+    if reason is not None:
+        payload["reason"] = reason
+    if additional:
+        payload["hookSpecificOutput"] = {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": additional,
+        }
+    if payload:
+        print(json.dumps(payload))
+    sys.exit(0)
+
+
 # Explicit skill invocation ($build, /fix, $some-new-skill, ...) always
-# passes through — the skill PREAMBLE handles the gate itself.
+# passes through — the skill PREAMBLE handles the gate itself. We still
+# emit sticky context so phase memory is refreshed.
 EXPLICIT_SKILL_RE = re.compile(r"^\s*[$/][a-z][a-z0-9-]*(?:\s|$)")
 if EXPLICIT_SKILL_RE.match(prompt):
-    sys.exit(0)
+    emit_and_exit()
 
 # Keyword classification — narrow on purpose. Tier 1 micro-edits should
 # pass through; only match prompts that clearly describe Standard+ work.
@@ -90,8 +147,6 @@ TINY_RE = re.compile(
 
 # Tier 1 fix pass-through — trivial fixes explicitly carved out by
 # fix.workflow.md (Surgical, 1-2 files, no plan required).
-# If the fix prompt also matches one of these tokens it is allowed
-# through with a hint to escalate if the work turns out deeper.
 TIER1_FIX_RE = re.compile(
     r"\b(typo|typos|indentation|indent|whitespace|formatting|"
     r"rename|renaming|comment|comments|logging|log\s+statement|"
@@ -100,10 +155,7 @@ TIER1_FIX_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Tier 1 build pass-through — "add tests", "add logging", "add a docstring"
-# are not Standard+ builds, they are code hygiene. BUILD_RE will catch
-# them via stray nouns ("add tests for the utils module" → module); this
-# gate lets them through with a hint, same pattern as TIER1_FIX_RE.
+# Tier 1 build pass-through.
 TIER1_BUILD_RE = re.compile(
     r"\btests?\b|\blogging\b|\blogs?\b|\blog\s+statement\b|"
     r"\blog\s+line\b|\bcomments?\b|\bdocstrings?\b|\bdocblocks?\b|"
@@ -113,9 +165,9 @@ TIER1_BUILD_RE = re.compile(
 )
 
 # Terminal frontmatter statuses — completed or abandoned work does NOT
-# count as "active". An initiative in one of the non-terminal statuses
-# (draft, in-progress, under-review, and anything else) is considered
-# active for gate purposes.
+# count as "active" for the build gate. (active_state.py uses a wider
+# definition that also catches verification-pending initiatives — that
+# divergence is intentional. See lib/active_state.py docstring.)
 TERMINAL_STATUSES = {"completed", "abandoned"}
 
 
@@ -127,7 +179,6 @@ def _frontmatter_status(path):
         return ""
     if not text.startswith("---"):
         return ""
-    # Walk to the next --- block.
     end = text.find("\n---", 4)
     if end < 0:
         return ""
@@ -136,7 +187,9 @@ def _frontmatter_status(path):
         line = line.strip()
         if line.lower().startswith("status:"):
             _, _, val = line.partition(":")
-            return val.strip().strip("\"").strip("\u0027").lower()
+            # chr(39) = apostrophe, written this way because bash 3.2
+            # (macOS) mis-parses raw apostrophes inside heredoc bodies.
+            return val.strip().strip(chr(34)).strip(chr(39)).lower()
     return ""
 
 
@@ -174,7 +227,7 @@ def emit_block(workflow, required, reason_line):
         "The request above matches the Sage " + workflow + " workflow. "
         "Required artifact(s) not found on disk: " + missing + ".\n\n"
         "Before responding to the prompt above:\n"
-        "1. Announce `Sage \u2192 " + workflow + " workflow.` in your reply.\n"
+        "1. Announce `Sage → " + workflow + " workflow.` in your reply.\n"
         "2. Read .sage/decisions.md (last 5 entries) and scan "
         ".sage/work/*/ frontmatter for active initiatives.\n"
         "3. Call sage_memory_search with domain keywords (limit 5), then "
@@ -182,38 +235,28 @@ def emit_block(workflow, required, reason_line):
         "types: limit is an integer, filter_tags is an array.\n"
         "4. Write the missing artifact(s) to "
         ".sage/work/<initiative>/ and present them to the user with "
-        "[A] Approve / [R] Revise \u2014 wait for approval before any code edit.\n\n"
+        "[A] Approve / [R] Revise — wait for approval before any code edit.\n\n"
         + reason_line + "\n\n"
         "Do not start implementation in this turn."
     )
-    print(json.dumps({
-        "decision": "block",
-        "reason": "Sage " + workflow + " gate: " + missing + " missing.",
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": context,
-        },
-    }))
-    sys.exit(0)
+    emit_and_exit(
+        decision="block",
+        reason="Sage " + workflow + " gate: " + missing + " missing.",
+        gate_context=context,
+    )
 
 
 def emit_pass_with_hint(workflow, hint):
     """Passthrough with a soft nudge injected as additionalContext."""
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": "Sage note \u2014 " + workflow + ": " + hint,
-        },
-    }))
-    sys.exit(0)
+    emit_and_exit(gate_context="Sage note — " + workflow + ": " + hint)
 
 
-# Skip tiny / read-only prompts.
+# Skip tiny / read-only prompts — but still emit sticky.
 if TINY_RE.search(prompt):
-    sys.exit(0)
+    emit_and_exit()
 
 # Fix keyword → require root-cause checkpoint before coding,
-# UNLESS the prompt also matches a Tier 1 fix token (typo, indent, ...).
+# UNLESS the prompt also matches a Tier 1 fix token.
 if FIX_RE.search(prompt):
     if TIER1_FIX_RE.search(prompt):
         emit_pass_with_hint(
@@ -223,14 +266,11 @@ if FIX_RE.search(prompt):
             "turns out to touch 3+ files or change behavior broadly, stop "
             "and escalate to $fix for a root-cause + scope checkpoint.",
         )
-    # Fix gate is behavioral (root cause approved) rather than file-backed,
-    # but we still redirect so the agent runs the gate instead of jumping
-    # straight to an edit.
     context = (
         "Sage workflow gate — fix.\n\n"
         "The request above matches the Sage fix workflow.\n\n"
         "Before editing any file:\n"
-        "1. Announce `Sage \u2192 fix workflow.` in your reply.\n"
+        "1. Announce `Sage → fix workflow.` in your reply.\n"
         "2. Call sage_memory_search on the bug domain / error text with "
         "filter_tags [\"self-learning\"] (limit 5). Parameter types: "
         "limit is an integer, filter_tags is an array.\n"
@@ -242,15 +282,11 @@ if FIX_RE.search(prompt):
         "$architect.\n\n"
         "Do not edit code in this turn until the root cause is approved."
     )
-    print(json.dumps({
-        "decision": "block",
-        "reason": "Sage fix gate: root cause must be approved before edits.",
-        "hookSpecificOutput": {
-            "hookEventName": "UserPromptSubmit",
-            "additionalContext": context,
-        },
-    }))
-    sys.exit(0)
+    emit_and_exit(
+        decision="block",
+        reason="Sage fix gate: root cause must be approved before edits.",
+        gate_context=context,
+    )
 
 # Architect keyword → require brief.md in an active initiative.
 if ARCHITECT_RE.search(prompt):
@@ -265,9 +301,7 @@ if ARCHITECT_RE.search(prompt):
             "is not a brief.",
         )
 
-# Build keyword → require spec.md AND plan.md inside an ACTIVE initiative
-# (non-terminal frontmatter status). This closes the global-scope hole
-# where a completed prior initiative would satisfy the gate forever.
+# Build keyword → require spec.md AND plan.md inside an ACTIVE initiative.
 if BUILD_RE.search(prompt):
     if TIER1_BUILD_RE.search(prompt):
         emit_pass_with_hint(
@@ -304,7 +338,7 @@ if BUILD_RE.search(prompt):
             "plan.md on disk. \"The design is clear\" is not a spec.",
         )
 
-# Nothing matched / all gates satisfied — allow the turn through.
-sys.exit(0)
+# Nothing matched / all gates satisfied — allow the turn through, with sticky.
+emit_and_exit()
 PY
 )"
