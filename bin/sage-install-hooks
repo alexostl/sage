@@ -2,52 +2,49 @@
 # ═══════════════════════════════════════════════════════════════
 # bin/sage-install-hooks
 #
-# One-time install path for the repo-bundled .githooks/. Sets
-# git config core.hooksPath = .githooks so the pre-commit gate
-# (.githooks/pre-commit) runs for this clone.
+# Thin wrapper around `bin/sage install-hooks`. Kept as the
+# sanctioned standalone entry point per the README "Repo hooks"
+# section, but the actual logic lives in bin/sage so the two cannot
+# drift.
 #
-# Idempotent: re-running prints the current value and does not
-# re-set unless the value differs.
+# Why a wrapper instead of duplicated logic:
+#   The install procedure (hook copy + sha256 preservation +
+#   core.hooksPath wire) lives in bin/sage's ensure_hooks_wired().
+#   Sourcing it via this script ensures one source of truth.
 #
 # Usage:
 #   bin/sage-install-hooks
-#
-# Why this is a separate command:
-#   .githooks/pre-commit is shipped IN the repo (so it travels with
-#   clones), but git does not auto-wire core.hooksPath for new
-#   clones. Without this script, the hook silently does nothing for
-#   every fresh contributor. See L5 design notes in
-#   .sage/work/20260424-codex-enforcement-hybrid-levers/.
 # ═══════════════════════════════════════════════════════════════
 set -euo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -z "$REPO_ROOT" ]; then
-  echo "Sage: not inside a git repository." >&2
+# Resolve the script's real directory, following symlinks. Users often
+# symlink CLIs from ~/bin/ → framework/bin/; without symlink resolution,
+# $HERE points at ~/bin/ where bin/sage does not exist.
+SELF="$0"
+if command -v readlink >/dev/null 2>&1; then
+  # GNU readlink supports -f; macOS readlink does not until coreutils.
+  RESOLVED="$(readlink -f "$SELF" 2>/dev/null || true)"
+  if [ -z "$RESOLVED" ]; then
+    # macOS fallback: walk symlinks one at a time.
+    RESOLVED="$SELF"
+    while [ -L "$RESOLVED" ]; do
+      LINK="$(readlink "$RESOLVED")"
+      case "$LINK" in
+        /*) RESOLVED="$LINK" ;;
+        *)  RESOLVED="$(dirname "$RESOLVED")/$LINK" ;;
+      esac
+    done
+  fi
+  SELF="$RESOLVED"
+fi
+HERE="$(cd "$(dirname "$SELF")" && pwd)"
+SAGE_BIN="$HERE/sage"
+
+if [ ! -x "$SAGE_BIN" ]; then
+  echo "Sage: framework entry point bin/sage not found alongside this script." >&2
+  echo "Sage: looked at $SAGE_BIN" >&2
+  echo "Sage: this script must ship from the same directory as bin/sage." >&2
   exit 1
 fi
 
-HOOKS_DIR_REL=".githooks"
-TARGET="$REPO_ROOT/$HOOKS_DIR_REL"
-
-if [ ! -d "$TARGET" ]; then
-  echo "Sage: hooks directory missing at $TARGET." >&2
-  echo "Sage: expected the repo to ship $HOOKS_DIR_REL/pre-commit." >&2
-  exit 1
-fi
-
-CURRENT="$(git -C "$REPO_ROOT" config --get core.hooksPath 2>/dev/null || true)"
-if [ "$CURRENT" = "$HOOKS_DIR_REL" ]; then
-  echo "Sage: hooks already wired (core.hooksPath = $HOOKS_DIR_REL)."
-  exit 0
-fi
-
-git -C "$REPO_ROOT" config core.hooksPath "$HOOKS_DIR_REL"
-NEW="$(git -C "$REPO_ROOT" config --get core.hooksPath)"
-if [ "$NEW" != "$HOOKS_DIR_REL" ]; then
-  echo "Sage: failed to set core.hooksPath (got '$NEW')." >&2
-  exit 1
-fi
-
-echo "Sage: hooks installed (core.hooksPath = $HOOKS_DIR_REL)."
-echo "Sage: .githooks/pre-commit will gate Standard+ implementation commits."
+exec "$SAGE_BIN" install-hooks

@@ -23,7 +23,21 @@
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-HOOKS_LIB="$REPO_ROOT/runtime/platforms/codex/hooks"
+
+# Self-locate the validator library. Two layouts are supported:
+#   1. Downstream project after `sage init` — framework copied to
+#      <repo>/sage/, validator at <repo>/sage/runtime/platforms/codex/hooks
+#   2. Framework / self-host clone — validator at repo root layout
+# Search downstream first because it is the more common deployment.
+HOOKS_LIB=""
+for candidate in \
+  "$REPO_ROOT/sage/runtime/platforms/codex/hooks" \
+  "$REPO_ROOT/runtime/platforms/codex/hooks"; do
+  if [ -d "$candidate" ]; then
+    HOOKS_LIB="$candidate"
+    break
+  fi
+done
 
 # Pull the list of staged-for-commit files (Added, Copied, Modified,
 # Renamed). Diff --cached is empty on the very first commit; in that
@@ -118,8 +132,10 @@ fi
 # ── Validator ───────────────────────────────────────────────────────
 VERIFICATION="$INIT_DIR/verification.md"
 
-if [ ! -d "$HOOKS_LIB" ]; then
-  echo "Sage: pre-commit blocked — hooks library missing at $HOOKS_LIB." >&2
+if [ -z "$HOOKS_LIB" ] || [ ! -d "$HOOKS_LIB" ]; then
+  echo "Sage: pre-commit blocked — hooks library not found." >&2
+  echo "Sage: tried $REPO_ROOT/sage/runtime/platforms/codex/hooks" >&2
+  echo "Sage: tried $REPO_ROOT/runtime/platforms/codex/hooks" >&2
   exit 1
 fi
 
