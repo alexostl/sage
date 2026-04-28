@@ -25,6 +25,14 @@ if [ -f "$PROJECT_SAGE/config.yaml" ]; then
   fi
 fi
 
+# ── Read deploy config (default: deploy direct skills) ──
+DEPLOY_DIRECT_SKILLS=true
+if [ -f "$PROJECT_SAGE/config.yaml" ]; then
+  if grep -q '^deploy_direct_skills: false' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
+    DEPLOY_DIRECT_SKILLS=false
+  fi
+fi
+
 codex_prefix_text() {
   local file="$1"
   [ -n "$PREFIX" ] || return 0
@@ -927,55 +935,59 @@ done
 echo "  → $WF_COUNT workflow skills"
 
 echo ""
-echo "📚 Copying direct skills..."
-SK_COUNT=0
-SK_REFRESH_COUNT=0
-for skill_dir in "$SAGE_DIR"/skills/*/; do
-  [ -d "$skill_dir" ] || continue
-  skill_name=$(basename "$skill_dir")
-  skill_target_name="$skill_name"
-  if [ -n "$PREFIX" ]; then
-    skill_target_name="${PREFIX}${skill_name}"
-  fi
-  skill_dest="$AGENTS_DIR/skills/$skill_target_name"
-  [ -f "$skill_dir/SKILL.md" ] || continue
+if [ "$DEPLOY_DIRECT_SKILLS" = "false" ]; then
+  echo "⊘ Skipping direct skills deployment (deploy_direct_skills: false in .sage/config.yaml)"
+else
+  echo "📚 Copying direct skills..."
+  SK_COUNT=0
+  SK_REFRESH_COUNT=0
+  for skill_dir in "$SAGE_DIR"/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    skill_target_name="$skill_name"
+    if [ -n "$PREFIX" ]; then
+      skill_target_name="${PREFIX}${skill_name}"
+    fi
+    skill_dest="$AGENTS_DIR/skills/$skill_target_name"
+    [ -f "$skill_dir/SKILL.md" ] || continue
 
-  if grep -q "type: bundle" "$skill_dir/SKILL.md" 2>/dev/null; then
-    continue
-  fi
+    if grep -q "type: bundle" "$skill_dir/SKILL.md" 2>/dev/null; then
+      continue
+    fi
 
-  # Workflow skills win the namespace: if a workflow SKILL.md already
-  # exists for this name (e.g. autoresearch), the workflow version
-  # carries the enforcement PREAMBLE. Skip the direct-skill copy so
-  # the PREAMBLE is preserved; the workflow body already references
-  # sage/skills/<name>/SKILL.md for the full skill content.
-  if [ -f "$CORE/workflows/${skill_name}.workflow.md" ]; then
-    echo "  ↷ $skill_name (workflow wins namespace)"
-    continue
-  fi
+    # Workflow skills win the namespace: if a workflow SKILL.md already
+    # exists for this name (e.g. autoresearch), the workflow version
+    # carries the enforcement PREAMBLE. Skip the direct-skill copy so
+    # the PREAMBLE is preserved; the workflow body already references
+    # sage/skills/<name>/SKILL.md for the full skill content.
+    if [ -f "$CORE/workflows/${skill_name}.workflow.md" ]; then
+      echo "  ↷ $skill_name (workflow wins namespace)"
+      continue
+    fi
 
-  remove_stale_skill_variant "$skill_target_name"
-  if [ -d "$skill_dest" ]; then
-    rm -rf "$skill_dest"
-    SK_REFRESH_COUNT=$((SK_REFRESH_COUNT + 1))
-    echo "  ↻ $skill_name"
-  else
-    echo "  ✓ $skill_name"
-  fi
+    remove_stale_skill_variant "$skill_target_name"
+    if [ -d "$skill_dest" ]; then
+      rm -rf "$skill_dest"
+      SK_REFRESH_COUNT=$((SK_REFRESH_COUNT + 1))
+      echo "  ↻ $skill_name"
+    else
+      echo "  ✓ $skill_name"
+    fi
 
-  mkdir -p "$skill_dest"
-  cp "$skill_dir/SKILL.md" "$skill_dest/SKILL.md"
-  if [ -n "$PREFIX" ]; then
-    set_skill_name_frontmatter "$skill_dest/SKILL.md" "$skill_target_name"
-  fi
-  codex_prefix_text "$skill_dest/SKILL.md"
-  for subdir in references templates examples patterns anti-patterns integration scripts resources constitution gates; do
-    [ -d "$skill_dir/$subdir" ] && cp -a "$skill_dir/$subdir" "$skill_dest/"
+    mkdir -p "$skill_dest"
+    cp "$skill_dir/SKILL.md" "$skill_dest/SKILL.md"
+    if [ -n "$PREFIX" ]; then
+      set_skill_name_frontmatter "$skill_dest/SKILL.md" "$skill_target_name"
+    fi
+    codex_prefix_text "$skill_dest/SKILL.md"
+    for subdir in references templates examples patterns anti-patterns integration scripts resources constitution gates; do
+      [ -d "$skill_dir/$subdir" ] && cp -a "$skill_dir/$subdir" "$skill_dest/"
+    done
+
+    SK_COUNT=$((SK_COUNT + 1))
   done
-
-  SK_COUNT=$((SK_COUNT + 1))
-done
-echo "  → $SK_COUNT direct skills ($SK_REFRESH_COUNT refreshed)"
+  echo "  → $SK_COUNT direct skills ($SK_REFRESH_COUNT refreshed)"
+fi
 
 echo ""
 echo "⚙️  Updating .codex/config.toml..."

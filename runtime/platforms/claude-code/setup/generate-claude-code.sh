@@ -30,6 +30,14 @@ if [ -f "$PROJECT_SAGE/config.yaml" ]; then
   fi
 fi
 
+# ── Read deploy config (default: deploy stubs) ──
+DEPLOY_LOADER_STUBS=true
+if [ -f "$PROJECT_SAGE/config.yaml" ]; then
+  if grep -q '^deploy_loader_stubs: false' "$PROJECT_SAGE/config.yaml" 2>/dev/null; then
+    DEPLOY_LOADER_STUBS=false
+  fi
+fi
+
 # ── Validate ──
 if [ ! -d "$CORE" ]; then
   echo "❌ Sage framework not found at $SAGE_DIR"
@@ -1025,24 +1033,24 @@ fi
 # Skill deployment — register skills as platform slash commands
 # ═══════════════════════════════════════════════════════════════
 echo ""
-echo "🧠 Deploying skills to .claude/skills/..."
+if [ "$DEPLOY_LOADER_STUBS" = "false" ]; then
+  echo "⊘ Skipping skill loader stubs (deploy_loader_stubs: false in .sage/config.yaml)"
+else
+  echo "🧠 Deploying skills to .claude/skills/..."
 
-SKILL_COUNT=0
-for skill_dir in "$SAGE_DIR/skills"/*/; do
-  [ -d "$skill_dir" ] || continue
-  skill_name=$(basename "$skill_dir")
-  [ -f "$skill_dir/SKILL.md" ] || continue
+  SKILL_COUNT=0
+  for skill_dir in "$SAGE_DIR/skills"/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+    [ -f "$skill_dir/SKILL.md" ] || continue
 
-  # Read description from frontmatter
-  desc=$(sed -n '/^---$/,/^---$/{ /^description:/s/^description: *//p; }' "$skill_dir/SKILL.md" 2>/dev/null)
-  [ -z "$desc" ] && desc="Sage skill: $skill_name"
-  # Truncate long descriptions for frontmatter
-  desc=$(echo "$desc" | head -1 | cut -c1-120)
+    desc=$(sed -n '/^---$/,/^---$/{ /^description:/s/^description: *//p; }' "$skill_dir/SKILL.md" 2>/dev/null)
+    [ -z "$desc" ] && desc="Sage skill: $skill_name"
+    desc=$(echo "$desc" | head -1 | cut -c1-120)
 
-  # Create loader SKILL.md (prefix skill directory name if configured)
-  target_dir="$CLAUDE_DIR/skills/${PREFIX}${skill_name}"
-  mkdir -p "$target_dir"
-cat > "$target_dir/SKILL.md" << LOADEREOF
+    target_dir="$CLAUDE_DIR/skills/${PREFIX}${skill_name}"
+    mkdir -p "$target_dir"
+    cat > "$target_dir/SKILL.md" << LOADEREOF
 ---
 name: ${PREFIX}${skill_name}
 description: $desc
@@ -1050,10 +1058,11 @@ description: $desc
 Read and follow the full skill at ${SKILLS_REF}/$skill_name/SKILL.md
 LOADEREOF
 
-  SKILL_COUNT=$((SKILL_COUNT + 1))
-done
+    SKILL_COUNT=$((SKILL_COUNT + 1))
+  done
 
-echo "  ✓ $SKILL_COUNT skills deployed to .claude/skills/"
+  echo "  ✓ $SKILL_COUNT skills deployed to .claude/skills/"
+fi
 
 if [ "$SKILLS_REF" != "sage/skills" ]; then
   python3 - <<PY
