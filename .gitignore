@@ -32,6 +32,9 @@ docs/
 sage/
 .claude/
 CLAUDE.md
+.agents/
+.codex/
+AGENTS.md
 
 # Track only the shared, durable Sage working-layer docs on codex-port.
 !.sage/
