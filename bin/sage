@@ -1946,7 +1946,64 @@ _render_l5_section() {
 }
 
 _render_skills_section() {
-  echo "Skills (behavioral isolation): <not yet implemented — M3>"
+  local target="${SAGE_STATUS_TARGET:-$(pwd)}"
+  local skills_dir="$target/.agents/skills"
+  local state="" hint=""
+
+  if [ ! -d "$skills_dir" ]; then
+    state="N/A"
+    hint="no .agents/skills/ — Codex platform not deployed"
+    printf "Skills (behavioral isolation): %s\n" "$state"
+    [ -n "$hint" ] && printf "  ${DIM}%s${RESET}\n" "$hint"
+    echo ""
+    return 0
+  fi
+
+  # Classify each deployed skill: workflow (no yaml) vs direct (yaml expected).
+  # `tier:` from SKILL.md is the source of truth — yaml may be stale.
+  local total_direct=0 yaml_count=0 workflow=0
+  local d skill_md
+  for d in "$skills_dir"/*/; do
+    [ -d "$d" ] || continue
+    skill_md="$d/SKILL.md"
+    [ -f "$skill_md" ] || continue
+    local tier
+    tier=$(awk '
+      /^---$/ { fm=!fm; next }
+      fm && /^tier:/ {
+        sub(/^tier:[[:space:]]*/, "")
+        gsub(/["\047]/, "")
+        sub(/[[:space:]]+$/, "")
+        print; exit
+      }
+    ' "$skill_md")
+    if [ "$tier" = "workflow" ]; then
+      workflow=$((workflow + 1))
+    else
+      total_direct=$((total_direct + 1))
+      [ -f "$d/agents/openai.yaml" ] && yaml_count=$((yaml_count + 1))
+    fi
+  done
+
+  if [ "$total_direct" -eq 0 ] && [ "$workflow" -eq 0 ]; then
+    state="EMPTY"
+    hint="no skills found in .agents/skills/ — run: sage update"
+  elif [ "$total_direct" -eq 0 ]; then
+    state="WORKFLOW-ONLY"
+    hint="$workflow workflow skill(s); no direct skills deployed"
+  elif [ "$yaml_count" -eq "$total_direct" ]; then
+    state="ACTIVE"
+    hint="$yaml_count/$total_direct direct skills isolated; $workflow workflow skill(s) reactive"
+  elif [ "$yaml_count" -eq 0 ]; then
+    state="DORMANT"
+    hint="$total_direct direct skills deployed without isolation yaml — run: sage update"
+  else
+    state="PARTIAL"
+    hint="$yaml_count/$total_direct direct skills isolated — run: sage update to refresh"
+  fi
+
+  printf "Skills (behavioral isolation): %s\n" "$state"
+  [ -n "$hint" ] && printf "  ${DIM}%s${RESET}\n" "$hint"
   echo ""
 }
 
