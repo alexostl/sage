@@ -9,7 +9,6 @@ description: >
   navigator.
 version: "1.0.0"
 modes: [fix, build, architect]
-tier: workflow
 ---
 
 <!-- sage-metadata

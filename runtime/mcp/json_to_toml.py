@@ -16,7 +16,6 @@ outside the managed block and only refreshes translated MCP server entries.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -93,30 +92,10 @@ def emit_header(source: Path | None, project_root: Path, omitted_servers: list[s
             "# [sandbox_workspace_write]",
             "# network_access = true",
             "",
-        ]
-    )
-    profile = (os.environ.get("SAGE_PROFILE") or "upstream").strip()
-    if profile == "self-host":
-        lines.extend(
-            [
-                "# Self-host profile: Codex hooks ON by default (sage update wires them).",
-                "# To opt out per-project, comment out the next two lines.",
-                "[features]",
-                "codex_hooks = true",
-                "",
-            ]
-        )
-    else:
-        lines.extend(
-            [
-                "# Experimental hooks scaffold (.codex/hooks.json is loaded when enabled):",
-                "# [features]",
-                "# codex_hooks = true",
-                "",
-            ]
-        )
-    lines.extend(
-        [
+            "# Experimental hooks scaffold (.codex/hooks.json is loaded when enabled):",
+            "# [features]",
+            "# codex_hooks = true",
+            "",
             "# Optional Codex-native skill toggles if you want per-skill overrides:",
             "# [[skills.config]]",
             '# path = ".agents/skills/example"',
