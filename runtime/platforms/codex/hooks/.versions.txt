@@ -1,0 +1,17 @@
+# Codex hook script version registry
+#
+# Append-only sha256 registry for files in this directory.
+# Format: <sha256>  <filename>
+#
+# Update protocol: when modifying any *.sh file in this directory, add
+# a NEW line with the updated hash IN THE SAME COMMIT — do not edit or
+# remove existing lines. Historical hashes let `sage update` distinguish
+# "old framework version, replace with current" from "unknown shadow
+# file, refuse overwrite".
+#
+# See: .sage/docs/decision-codex-hook-activation.md (ADR-1).
+
+02e3cf3bb6a7d81d73bf9670bb0730bc968a3907f2cbb7780c3fdec9bd60e2bc  post-bash.sh
+fb988c5d8f69048d8770ae7761bc3de6d0b75b7f18ac68930d6eb27fca3282ee  pre-bash.sh
+482665070b87a2e3bfb6e7dfc7860b6965c521afc0a5158d7513e59b9ef2ab0c  pre-prompt.sh
+90cb36b569ee53effac8f6733c391f78b5d730fedf3667ae1b4a853df3de6afd  session-start.sh
