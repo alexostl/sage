@@ -89,6 +89,45 @@ make_payload() {
     grep -q "seed.txt" "$log"
 }
 
+@test "post-tool-check.sh: claimed new untracked file IS on disk → no claim_no_op (T2.1 bugfix)" {
+    # Real-Codex T2.1 finding (2026-04-30): apply_patch creates a new
+    # file. `git diff --name-only HEAD` misses untracked files — so the
+    # M1 implementation logged a false claim_no_op even though the file
+    # was correctly written. Fix: detect via `git status --porcelain`
+    # which captures both modified-tracked AND untracked files.
+    cd "$PROJECT_ROOT"
+    mkdir -p src
+    echo "world" > src/hello.txt   # simulate apply_patch having written the file
+    cmd="$(make_patch_cmd Add src/hello.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "claim_no_op" "$log"
+    fi
+}
+
+@test "post-tool-check.sh: repo with no commits, claimed file written → no false claim_no_op" {
+    # Companion bug surface: in a fresh `git init` repo (no commits
+    # yet), `git diff --name-only HEAD` returns empty, again triggering
+    # false claim_no_op for every claimed path.
+    NOCMTREE="$(mktemp -d -t no_commits.XXXXXX)"
+    cd "$NOCMTREE"
+    git init -q -b main
+    mkdir -p src
+    echo "world" > src/hello.txt
+    cmd="$(make_patch_cmd Add src/hello.txt)"
+    payload="$(make_payload "$cmd" 0 "$NOCMTREE")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$NOCMTREE/.sage/.mcp-incidents.log"
+    found_no_op=0
+    [ -f "$log" ] && grep -q "claim_no_op" "$log" && found_no_op=1
+    rm -rf "$NOCMTREE"
+    [ "$found_no_op" -eq 0 ]
+}
+
 @test "post-tool-check.sh: tool_response exit_code != 0 → early exit, no Check A" {
     cd "$PROJECT_ROOT"
     cmd="$(make_patch_cmd Update seed.txt)"
@@ -169,4 +208,34 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
+}
+
+@test "post-tool-check.sh: hook bookkeeping logs in .sage/ are excluded from unclaimed_change" {
+    # Real-Codex T2.1a finding (2026-04-30): pre-tool-validate.sh appends to
+    # .sage/.session-mutations.log BEFORE apply_patch runs. PostToolUse then
+    # sees that file as modified-but-not-claimed → false unclaimed_change
+    # incident on every successful mutation. Fix: exclude .sage/.*.log paths
+    # from the diff-claim comparison since they are hook-generated, not
+    # agent-written.
+    cd "$PROJECT_ROOT"
+    # Simulate the hook bookkeeping side-effect.
+    mkdir -p .sage
+    printf '{"session":"prior"}\n' > .sage/.session-mutations.log
+    printf '{"prev":"warn"}\n' > .sage/.mcp-incidents.log
+    git add .
+    git commit -q -m "with bookkeeping baseline"
+    # Now agent mutates a single file in scope.
+    echo "modified" >> seed.txt
+    # And pre-tool-validate appended a new line to .session-mutations.log
+    # (simulating its own behaviour during this turn).
+    printf '{"session":"now"}\n' >> .sage/.session-mutations.log
+    cmd="$(make_patch_cmd Update seed.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    # The bookkeeping file should NOT appear as unclaimed_change.
+    found_unclaimed_log=0
+    [ -f "$log" ] && grep -q '"file":".sage/.session-mutations.log"' "$log" && found_unclaimed_log=1
+    [ "$found_unclaimed_log" -eq 0 ]
 }

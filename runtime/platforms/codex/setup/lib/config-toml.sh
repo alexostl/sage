@@ -43,6 +43,9 @@ codex_hooks = true            # required for L1 — confirms hooks loaded
 # adds a [[mcp_servers]] block here.
 
 [history]
+# 'persistence' is required by Codex 0.126.0-alpha.15 (rejects config
+# without it). "save-all" matches Codex's default behaviour.
+persistence = "save-all"
 developer_instructions = """
 Sage rules (loaded as developer instructions on every turn).
 Authoritative reference: AGENTS.md in this project root.
