@@ -180,6 +180,42 @@ EOF
     grep -q "src/sneaky.txt" "$log"
 }
 
+@test "turn-audit.sh: absolute path in session-mutations.log matches relative porcelain → no false bypass" {
+    # T2.7 follow-up (2026-04-30): the harness baseline run logged absolute
+    # claimed paths to session-mutations.log (Codex 0.126 apply_patch DSL
+    # emits absolute) but porcelain was relative → contains() never matched
+    # → 18 false bypass_mutation incidents per 5-prompt run. Fix: turn-audit
+    # normalizes claimed_paths from log against $cwd before comparing.
+    cd "$PROJECT_ROOT"
+    abs_path="$PROJECT_ROOT/seed.txt"
+    log_mutation "test-session" "turn-1" "$abs_path"
+    echo "modified" >> seed.txt
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q '"kind":"bypass_mutation".*"file":"seed.txt"' "$log"
+    fi
+}
+
+@test "turn-audit.sh: macOS /private prefix on log entry → normalized → no false bypass" {
+    cd "$PROJECT_ROOT"
+    case "$PROJECT_ROOT" in
+        /private/*) skip "PROJECT_ROOT already canonical with /private" ;;
+    esac
+    abs_path="/private${PROJECT_ROOT}/seed.txt"
+    log_mutation "test-session" "turn-1" "$abs_path"
+    echo "modified" >> seed.txt
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q '"kind":"bypass_mutation".*"file":"seed.txt"' "$log"
+    fi
+}
+
 @test "turn-audit.sh: hook bookkeeping logs are excluded from bypass_mutation" {
     # Companion fix to post-tool-check: PreToolUse appended to
     # .sage/.session-mutations.log during the session. Stop hook then

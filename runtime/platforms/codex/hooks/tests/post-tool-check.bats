@@ -210,6 +210,42 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "post-tool-check.sh: absolute apply_patch path matches relative porcelain → no false claim_no_op" {
+    # T2.7 follow-up (2026-04-30): Codex emits absolute paths in apply_patch
+    # DSL. Pre-fix, claimed_paths was absolute and porcelain was relative →
+    # contains() never matched → false claim_no_op + false unclaimed_change
+    # for the SAME file. Real harness baseline showed this on AGENTS.md.
+    cd "$PROJECT_ROOT"
+    echo "modified" >> seed.txt
+    abs_path="$PROJECT_ROOT/seed.txt"
+    cmd="$(make_patch_cmd Update "$abs_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "claim_no_op" "$log"
+        ! grep -q "unclaimed_change" "$log"
+    fi
+}
+
+@test "post-tool-check.sh: macOS /private prefix in claim → no false claim_no_op against relative porcelain" {
+    cd "$PROJECT_ROOT"
+    case "$PROJECT_ROOT" in
+        /private/*) skip "PROJECT_ROOT already canonical with /private" ;;
+    esac
+    echo "modified" >> seed.txt
+    abs_path="/private${PROJECT_ROOT}/seed.txt"
+    cmd="$(make_patch_cmd Update "$abs_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "claim_no_op" "$log"
+    fi
+}
+
 @test "post-tool-check.sh: hook bookkeeping logs in .sage/ are excluded from unclaimed_change" {
     # Real-Codex T2.1a finding (2026-04-30): pre-tool-validate.sh appends to
     # .sage/.session-mutations.log BEFORE apply_patch runs. PostToolUse then
