@@ -15,7 +15,7 @@
 # v1 spec ref: §6.1, §15.3 smoke.
 # v1 plan ref: T1.4 (Group B foundation).
 
-set -u
+set -euo pipefail
 
 # Read stdin payload (best-effort; never crash session on bad JSON).
 payload=""

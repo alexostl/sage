@@ -18,7 +18,7 @@
 # v1 spec ref: §4 Stages 1-10.
 # v1 plan ref: T1.10 (Group D).
 
-set -u
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 

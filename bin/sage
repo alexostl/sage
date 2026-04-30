@@ -1201,7 +1201,11 @@ sage_doctor() {
     local tmpdir tmp_target
     tmpdir="$(mktemp -d -t sage_doctor_baseline.XXXXXX)"
     tmp_target="$tmpdir/baseline"
-    mkdir -p "$tmp_target"
+    mkdir -p "$tmp_target/.codex" "$tmp_target/.sage"
+    # Mirror actual project's config inputs so rule-1A variant detection
+    # + constitution preset resolution match the project (R3 fix).
+    [ -f "$target/.codex/config.toml" ] && cp "$target/.codex/config.toml" "$tmp_target/.codex/config.toml"
+    [ -f "$target/.sage/constitution.md" ] && cp "$target/.sage/constitution.md" "$tmp_target/.sage/constitution.md"
     if env SAGE_FRAMEWORK="$fw" \
         "$fw/runtime/platforms/codex/setup/generate-codex.sh" \
         --target "$tmp_target" --preset "${SELECTED_PRESET:-base}" --stage 3 >/dev/null 2>&1; then
@@ -1298,13 +1302,61 @@ sage_doctor() {
     _doctor_pass "S3" "no stale active cycles"
   fi
 
-  # ── S4 — writers manifest validation (informational, lightweight) ──
+  # ── S4 — writers manifest cross-reference (closes ADR-7 C7) ──
+  # For each .sage/ file mutated in last 20 commits, match against
+  # writers manifest pattern (literal path or `<prefix>/**` glob).
+  # writers list semantics:
+  #   - empty []          → file should not exist in v1 (v2-only)
+  #   - contains "agent_via_apply_patch_when_P2_2" → agent commits OK
+  #   - hook scripts only → file should never be committed (bypass!)
   local writers_manifest="$target/runtime/platforms/codex/audit/sage-writers.yaml"
   [ -f "$writers_manifest" ] || writers_manifest="$fw/runtime/platforms/codex/audit/sage-writers.yaml"
-  if [ -f "$writers_manifest" ]; then
-    _doctor_pass "S4" "writers manifest present"
-  else
+  if [ ! -f "$writers_manifest" ]; then
     _doctor_info "S4" "writers manifest not found (audit cross-check skipped)"
+  elif ! command -v git >/dev/null 2>&1 || ! (cd "$target" && git rev-parse --git-dir >/dev/null 2>&1); then
+    _doctor_info "S4" "not a git repo; bypass-write audit skipped"
+  elif ! (cd "$target" && git rev-parse HEAD >/dev/null 2>&1); then
+    _doctor_info "S4" "no commits yet; bypass-write audit skipped"
+  else
+    local mutations bypass_files=""
+    mutations="$(cd "$target" && git log -n 20 --diff-filter=AM --name-only --pretty=format: -- '.sage/' 2>/dev/null | awk 'NF' | sort -u || true)"
+    if [ -z "$mutations" ]; then
+      _doctor_pass "S4" "no recent .sage/ mutations to audit"
+    else
+      while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        local matched_key=""
+        while IFS= read -r key; do
+          [ -z "$key" ] && continue
+          case "$key" in
+            *'/**')
+              local prefix="${key%/**}"
+              case "$f" in "$prefix"/*) matched_key="$key"; break ;; esac
+              ;;
+            *)
+              [ "$f" = "$key" ] && { matched_key="$key"; break; } ;;
+          esac
+        done < <(yq eval 'keys | .[]' "$writers_manifest" 2>/dev/null)
+        [ -z "$matched_key" ] && continue
+        local writers
+        writers="$(yq eval ".[\"$matched_key\"].writers[]" "$writers_manifest" 2>/dev/null)"
+        if [ -z "$writers" ]; then
+          bypass_files="${bypass_files}$f (v2-only), "
+        elif echo "$writers" | grep -q 'agent_via_apply_patch_when_P2_2'; then
+          continue
+        else
+          bypass_files="${bypass_files}$f (hook-only writer), "
+        fi
+      done <<< "$mutations"
+      if [ -n "$bypass_files" ]; then
+        _doctor_warn "S4" "bypass-write detected: ${bypass_files%, }" \
+          "Investigate which writer mutated these paths"
+      else
+        local n
+        n="$(echo "$mutations" | wc -l | tr -d ' ')"
+        _doctor_pass "S4" "writers manifest cross-check OK ($n .sage/ file(s) audited)"
+      fi
+    fi
   fi
 
   # ── CV1 — Codex version watch ──
@@ -1394,19 +1446,15 @@ sage_status() {
     fi
   done < <(find "$target/.sage/work" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 
-  # ── Pending gates: cycles whose manifest mentions an unresolved [A] gate ──
+  # ── Pending gates ──
+  # v1: approval-detection layer DEFERRED to v2 per spec §6.2 (Cut A,
+  # 2026-04-30). v1 has no canonical mechanism to know which cycles
+  # await [A] — UPS hook + .approval-pending token deferred. Doing
+  # keyword grep here would re-introduce the deferred surface and
+  # violate brief Hard Anti-Pattern ("no keyword classification, in
+  # any language"). v1 stance: block exists for spec §7.3 conformance,
+  # always empty, rendered with explicit deferred-to-v2 hint.
   local gates_json=""
-  while IFS= read -r -d '' cycle; do
-    local manifest="$cycle/manifest.md"
-    [ -f "$manifest" ] || continue
-    if grep -qE 'gate-pending|approval-pending|awaiting[[:space:]]*\[A\]' "$manifest" 2>/dev/null; then
-      local id
-      id="$(basename "$cycle")"
-      local entry
-      entry="$(jq -n --arg id "$id" '{id: $id, hint: "approval pending — type [A] to confirm"}')"
-      [ -z "$gates_json" ] && gates_json="$entry" || gates_json="${gates_json},${entry}"
-    fi
-  done < <(find "$target/.sage/work" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 
   # ── Last 3 decisions from .sage/decisions.md ──
   local decisions_json=""
@@ -1496,11 +1544,7 @@ $line"; fi
   echo ""
 
   echo -e "  ${BOLD}Pending gates${RESET}"
-  if [ -z "$gates_json" ]; then
-    echo -e "    ${DIM}(none)${RESET}"
-  else
-    echo "[${gates_json}]" | jq -r '.[] | "    ⏳  \(.id) — \(.hint)"'
-  fi
+  echo -e "    ${DIM}(none — approval-detection deferred to v2 per spec §6.2)${RESET}"
   echo ""
 
   echo -e "  ${BOLD}Recent decisions${RESET}"

@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
-# pre-tool-validate.sh — Codex PreToolUse hook (apply_patch matcher).
-#
-# Predicate v1 (§6.3, decision 2026-04-30): cycle-scope-only.
-#   1. Parse apply_patch DSL → claimed_paths.
-#   2. Find newest in-progress cycle.
-#   3. No cycle → deny (exit 2).
-#   4. Out-of-scope path → deny (exit 2 + list).
-#   5. All in scope → allow (exit 0) + append .session-mutations.log.
-#
-# Phase value is irrelevant in v1 (predicate is cycle-scope-only).
-# v2 expansion gated on §6.2/§6.3 promotion triggers.
-#
-# v1 spec ref: §6.3, §15.3, §15.4.
-# v1 plan ref: T1.5 (Group B foundation, ≤80 LOC ceiling).
-
-set -u
+# pre-tool-validate.sh — Codex PreToolUse(apply_patch). v1 cycle-scope-only.
+# Spec §6.3 / §15.3 / §15.4. Plan T1.5 (≤80 LOC ceiling).
+set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/json_log.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/active_init.sh"
 
-# Pre-flight — defense-in-depth (bin/sage init pre-flight should catch this).
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         # shellcheck disable=SC2016
@@ -45,16 +31,12 @@ claimed_paths=()
 while IFS= read -r line; do
     case "$line" in
         '*** Add File: '*|'*** Update File: '*|'*** Delete File: '*)
-            claimed_paths+=("${line#*File: }")
-            ;;
+            claimed_paths+=("${line#*File: }") ;;
     esac
 done <<< "$cmd"
 
-if [ "${#claimed_paths[@]}" -eq 0 ]; then
-    # Nothing to validate (empty patch / unparseable). Allow — Codex
-    # will reject empty patch on its own; not our role to mirror.
-    exit 0
-fi
+# Empty patch — Codex rejects on its own; not our role to mirror.
+[ "${#claimed_paths[@]}" -eq 0 ] && exit 0
 
 cycle_dir="$(active_init_path "$cwd")"
 if [ -z "$cycle_dir" ]; then
@@ -70,8 +52,7 @@ while IFS= read -r line; do
     [ -n "$line" ] && scope_globs+=("$line")
 done < <(yq eval '.scope[]' "$manifest" 2>/dev/null || true)
 
-# Out-of-scope detection. ${arr[@]+...} guards empty-array under set -u
-# on bash 3.2 macOS.
+# ${arr[@]+...} guards empty-array under set -u on bash 3.2 macOS.
 out_of_scope=()
 for path in "${claimed_paths[@]}"; do
     matched=0
