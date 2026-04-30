@@ -161,6 +161,46 @@ EOF
     echo "$output" | grep -qi 'CV1\|codex.*version'
 }
 
+# ─── S4 — writers manifest cross-reference (closes ADR-7 C7) ────────
+
+@test "S4 pass: no recent .sage/ mutations → no warn" {
+    # Empty git history (just the init commit, no .sage/ files yet).
+    cd "$TARGET" || return 1
+    git add -A 2>/dev/null && git -c user.email=t@t -c user.name=t commit -q -m init 2>/dev/null || true
+    run run_doctor
+    echo "$output" | grep -qi 'S4'
+    ! echo "$output" | grep -qE 'S4.*bypass'
+}
+
+@test "S4 pass: agent-allowed paths (.sage/decisions.md, .sage/work/**) committed → no bypass" {
+    cd "$TARGET" || return 1
+    mkdir -p "$TARGET/.sage/work/test-cycle"
+    echo "test" > "$TARGET/.sage/decisions.md"
+    echo "test" > "$TARGET/.sage/work/test-cycle/manifest.md"
+    git add -A 2>/dev/null && git -c user.email=t@t -c user.name=t commit -q -m "agent commit" 2>/dev/null || true
+    run run_doctor
+    ! echo "$output" | grep -qE 'S4.*bypass'
+}
+
+@test "S4 warn: hook-only file (.sage/.session-mutations.log) appears in git → bypass detected" {
+    cd "$TARGET" || return 1
+    mkdir -p "$TARGET/.sage"
+    echo '{"ts":"2026-04-30","cycle_id":"x","files":[]}' > "$TARGET/.sage/.session-mutations.log"
+    git add -A 2>/dev/null && git -c user.email=t@t -c user.name=t commit -q -m "smuggled" 2>/dev/null || true
+    run run_doctor
+    echo "$output" | grep -qi 'S4'
+    echo "$output" | grep -qiE 'bypass|session-mutations'
+}
+
+@test "S4 info: not a git repo → skipped (no fail)" {
+    # Re-create target without git init.
+    rm -rf "$TARGET/.git"
+    run run_doctor
+    echo "$output" | grep -qi 'S4'
+    # Skip path must not produce a fail entry for S4.
+    ! echo "$output" | grep -qE 'S4.*FAIL|S4.*✗'
+}
+
 # ─── Codex MCP hint removed — sanity ─────────────────────────────────
 
 @test "doctor: never mentions [mcp_servers.sage-memory] (v1 has no MCP)" {

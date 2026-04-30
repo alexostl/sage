@@ -193,7 +193,7 @@ EOF
     payload="$(make_payload "$cmd")"
     # Strip jq + yq from PATH; keep coreutils available.
     empty_path="$(mktemp -d)"
-    for tool in bash sh cat sed grep awk head tail printf mktemp date stat; do
+    for tool in bash sh cat sed grep awk head tail printf mktemp date stat dirname basename; do
         if command -v "$tool" >/dev/null 2>&1; then
             ln -sf "$(command -v "$tool")" "$empty_path/$tool" 2>/dev/null || true
         fi

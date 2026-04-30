@@ -11,7 +11,7 @@
 # v1 spec ref: §6.4, §15.3, §15.4.
 # v1 plan ref: T1.6 (Group B).
 
-set -u
+set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/json_log.sh"
