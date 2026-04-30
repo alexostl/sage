@@ -79,6 +79,14 @@ run_stage() {
     head -1 "$TARGET/.sage/constitution.md" | grep -q '^---$'
 }
 
+@test "stage9: stub heading uses '## Project Additions' (matches Stage 3 merger contract)" {
+    # Stub-merger contract gap (T2.6): the bootstrap stub must teach
+    # the user the SAME heading the Stage 3 user-overlay merger reads.
+    # If these drift, users follow the stub and get nothing merged.
+    run_stage 9
+    grep -q '^## Project Additions' "$TARGET/.sage/constitution.md"
+}
+
 @test "stage9: leaves existing .sage/constitution.md alone" {
     mkdir -p "$TARGET/.sage"
     cat > "$TARGET/.sage/constitution.md" <<EOF
