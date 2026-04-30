@@ -30,9 +30,14 @@ extends: ${preset}
 
 # Project constitution overlay
 
-Add project-specific overrides here. Rules in this file override
-the preset rules (§4 Stage 3 merge order: base → preset → this file).
-Leave empty to inherit preset defaults verbatim.
+This file is the user-overlay layer of the §4 Stage 3 merge order
+(base → preset → this file). Add lines under '## Project Additions'
+below — every non-empty line under that heading becomes an extra
+numbered project principle in the generated AGENTS.md. Leave the
+section empty (or omit it) to inherit preset defaults verbatim.
+
+## Project Additions
+
 EOF
 }
 

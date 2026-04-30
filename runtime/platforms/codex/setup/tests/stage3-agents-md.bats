@@ -101,6 +101,38 @@ EOF
     grep -qi 'All endpoints require authentication' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: user additions under '## Project Additions' merge into AGENTS.md (B3)" {
+    # Plan T2.6 done-when: generated AGENTS.md must include the user's
+    # extra rule alongside the preset overlay. Closes the contract gap
+    # T2.6 surfaced (stub heading vs merger heading mismatch).
+    mkdir -p "$TARGET/.sage"
+    cat > "$TARGET/.sage/constitution.md" <<'EOF'
+---
+extends: enterprise
+---
+
+## Project Additions
+
+Every PR must reference a JIRA ticket. UNIQUE-MARKER-T26-MERGE.
+EOF
+    PRESET=base run_stage3
+    grep -q 'UNIQUE-MARKER-T26-MERGE' "$TARGET/AGENTS.md"
+    grep -qi 'JIRA ticket' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: user additions section absent → only base+preset rules render" {
+    mkdir -p "$TARGET/.sage"
+    cat > "$TARGET/.sage/constitution.md" <<'EOF'
+---
+extends: enterprise
+---
+EOF
+    PRESET=base run_stage3
+    # No user additions section, no extra principles beyond preset.
+    ! grep -qi 'JIRA ticket' "$TARGET/AGENTS.md"
+    ! grep -q 'UNIQUE-MARKER-T26-MERGE' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: Rule 1A renders 'v1 filesystem variant' when no [[mcp_servers]]" {
     # No .codex/config.toml at all → fallback variant.
     PRESET=base run_stage3
