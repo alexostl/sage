@@ -217,3 +217,40 @@ EOF
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
 }
+
+@test "pre-tool-validate.sh: absolute apply_patch path → normalized to relative for scope check + log" {
+    # T2.7 follow-up (2026-04-30): real Codex 0.126 emits ABSOLUTE paths
+    # in apply_patch DSL. Pre-T2.7 fix, scope check failed (relative globs
+    # didn't match absolute paths) AND session-mutations.log stored absolute
+    # paths that turn-audit later compared against relative porcelain →
+    # 18 false bypass_mutation incidents per 5-prompt harness run.
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    abs_path="$PROJECT_ROOT/src/foo.txt"
+    cmd="$(make_patch_cmd Add "$abs_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    # session-mutations.log entry must contain RELATIVE path "src/foo.txt".
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"src/foo.txt"' "$log"
+    ! grep -q "$abs_path" "$log"
+}
+
+@test "pre-tool-validate.sh: macOS /private prefix on apply_patch path → stripped before scope check" {
+    # macOS /var → /private/var symlink: apply_patch DSL may carry the
+    # /private prefix while the cycle scope globs are project-relative.
+    # Normalization strips both variants of the cwd prefix.
+    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+    abs_path="/private${PROJECT_ROOT}/AGENTS.md"
+    case "$PROJECT_ROOT" in
+        /private/*) skip "PROJECT_ROOT already canonical with /private — case covered by sibling test" ;;
+    esac
+    cmd="$(make_patch_cmd Update "$abs_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"AGENTS.md"' "$log"
+}

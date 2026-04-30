@@ -17,6 +17,8 @@ set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/json_log.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/path_normalize.sh"
 
 if ! command -v jq >/dev/null 2>&1; then
     exit 0
@@ -61,7 +63,7 @@ if [ -f "$mutations_log" ]; then
         match="$(printf '%s' "$entry" | jq -r --arg sid "$session_id" \
             'select(.session_id == $sid) | .files[]?' 2>/dev/null || true)"
         while IFS= read -r f; do
-            [ -n "$f" ] && claimed_paths+=("$f")
+            [ -n "$f" ] && claimed_paths+=("$(normalize_path "$f" "$cwd")")
         done <<< "$match"
     done < "$mutations_log"
 fi

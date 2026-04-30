@@ -7,6 +7,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/json_log.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/active_init.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/path_normalize.sh"
 
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -31,7 +33,7 @@ claimed_paths=()
 while IFS= read -r line; do
     case "$line" in
         '*** Add File: '*|'*** Update File: '*|'*** Delete File: '*)
-            claimed_paths+=("${line#*File: }") ;;
+            claimed_paths+=("$(normalize_path "${line#*File: }" "$cwd")") ;;
     esac
 done <<< "$cmd"
 

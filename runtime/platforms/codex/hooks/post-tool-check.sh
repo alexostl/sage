@@ -15,6 +15,8 @@ set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/json_log.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/path_normalize.sh"
 
 # Pre-flight: jq required to read payload. yq is optional (Check C
 # degrades). If jq missing, log skip + exit 0 — never block.
@@ -42,7 +44,7 @@ claimed_paths=()
 while IFS= read -r line; do
     case "$line" in
         '*** Add File: '*|'*** Update File: '*|'*** Delete File: '*)
-            claimed_paths+=("${line#*File: }")
+            claimed_paths+=("$(normalize_path "${line#*File: }" "$cwd")")
             ;;
     esac
 done <<< "$cmd"
