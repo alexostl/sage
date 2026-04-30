@@ -749,7 +749,23 @@ run_generators() {
 
   if platform_has "codex"; then
     echo ""
-    bash "$sage_path/runtime/platforms/codex/setup/generate-codex.sh" "$target"
+    # Pre-flight: jq + yq required by Codex hooks (per spec §6.3 / §7.1).
+    # Without them, hooks silently degrade — fail fast at install time.
+    local _missing=""
+    command -v jq >/dev/null 2>&1 || _missing="${_missing} jq"
+    command -v yq >/dev/null 2>&1 || _missing="${_missing} yq"
+    if [ -n "$_missing" ]; then
+      echo -e "  ${RED}❌ Missing required tools for Codex hooks:${RESET}${_missing}"
+      case "$(uname -s)" in
+        Darwin) echo -e "  ${DIM}Install:${RESET} brew install$_missing" ;;
+        Linux)  echo -e "  ${DIM}Install:${RESET} apt-get install$_missing  (or your distro's package manager)" ;;
+        *)      echo -e "  ${DIM}Install:${RESET} install$_missing via your package manager" ;;
+      esac
+      exit 1
+    fi
+    SAGE_FRAMEWORK="$sage_path" bash \
+      "$sage_path/runtime/platforms/codex/setup/generate-codex.sh" \
+      --target "$target" --preset "${SELECTED_PRESET:-base}"
   fi
 
   unset SAGE_FRAMEWORK_DIR
@@ -1238,6 +1254,412 @@ sage_remove() {
   skill_manager remove "$@"
 }
 
+# ═══════════════════════════════════════════════════════════════
+# COMMAND: doctor (Codex port diagnostic, read-only per spec §7.2)
+# ═══════════════════════════════════════════════════════════════
+# Each check prints one line: ✓ / ⚠ / ✗  <id>  <message>
+# Followed (warn/fail only) by:           Fix: <command>
+#
+# The only file `sage doctor` writes is `.sage/.doctor-cursor`.
+# Exit 0 when no fail; non-zero when any fail.
+sage_doctor() {
+  local target
+  target="$(pwd)"
+
+  if [ ! -d "$target/.sage" ] && [ ! -d "$target/.codex" ]; then
+    echo ""
+    echo -e "  ${RED}❌ No Sage/Codex layout found in this directory.${RESET}"
+    echo "  Run 'sage init --platform codex' first."
+    exit 1
+  fi
+
+  echo ""
+  echo -e "  ${BOLD}Sage doctor — Codex port checks${RESET}"
+  echo ""
+
+  local pass_n=0 warn_n=0 fail_n=0
+
+  _doctor_pass() {
+    echo -e "    ${GREEN}✓${RESET}  $1  ${DIM}$2${RESET}"
+    pass_n=$((pass_n + 1))
+  }
+  _doctor_warn() {
+    echo -e "    ${YELLOW}⚠${RESET}  $1  $2"
+    [ -n "${3:-}" ] && echo -e "         ${DIM}Fix:${RESET} $3"
+    warn_n=$((warn_n + 1))
+  }
+  _doctor_fail() {
+    echo -e "    ${RED}✗${RESET}  $1  $2"
+    [ -n "${3:-}" ] && echo -e "         ${DIM}Fix:${RESET} $3"
+    fail_n=$((fail_n + 1))
+  }
+  _doctor_info() {
+    echo -e "    ${CYAN}↻${RESET}  $1  $2"
+  }
+
+  # ── E1 — Codex CLI present + version ──
+  local codex_ver=""
+  if command -v codex >/dev/null 2>&1; then
+    codex_ver="$(codex --version 2>/dev/null | head -1)"
+    if [ -n "$codex_ver" ]; then
+      _doctor_pass "E1" "Codex CLI present ($codex_ver)"
+    else
+      _doctor_warn "E1" "Codex CLI present but --version returned nothing" \
+        "codex --version"
+    fi
+  else
+    _doctor_fail "E1" "Codex CLI not found on PATH" \
+      "npm i -g @openai/codex (need ≥ 0.126.0-alpha.15)"
+  fi
+
+  # ── E2 — .codex/config.toml has Sage managed block ──
+  if [ -f "$target/.codex/config.toml" ]; then
+    if grep -q '# >>> SAGE MANAGED BLOCK START' "$target/.codex/config.toml"; then
+      _doctor_pass "E2" ".codex/config.toml has Sage managed block"
+    else
+      _doctor_fail "E2" ".codex/config.toml missing Sage managed block" \
+        "bin/sage update --platform codex"
+    fi
+  else
+    _doctor_fail "E2" ".codex/config.toml absent" \
+      "bin/sage init --platform codex"
+  fi
+
+  # ── E3 — N/A in v1 (MCP deferred) ──
+  _doctor_info "E3" "MCP server reachable — N/A in v1 (deferred per §2 / §8)"
+
+  # ── E4 — Trust state heuristic ──
+  if [ -f "$target/.codex/config.toml" ] && \
+     grep -q '^developer_instructions' "$target/.codex/config.toml"; then
+    _doctor_pass "E4" "developer_instructions block present (trust heuristic OK)"
+  else
+    _doctor_warn "E4" "developer_instructions not detected — project may not be trusted" \
+      "Trust this project in Codex (CLI/UI), then run again"
+  fi
+
+  # ── M1 — AGENTS.md matches generated baseline ──
+  local fw="${SAGE_FRAMEWORK:-}"
+  if [ -z "$fw" ] || [ ! -d "$fw" ]; then
+    [ -d "$target/sage" ] && fw="$target/sage"
+  fi
+  if [ -f "$target/AGENTS.md" ] && [ -n "$fw" ] && [ -d "$fw" ]; then
+    local tmpdir tmp_target
+    tmpdir="$(mktemp -d -t sage_doctor_baseline.XXXXXX)"
+    tmp_target="$tmpdir/baseline"
+    mkdir -p "$tmp_target"
+    if env SAGE_FRAMEWORK="$fw" \
+        "$fw/runtime/platforms/codex/setup/generate-codex.sh" \
+        --target "$tmp_target" --preset "${SELECTED_PRESET:-base}" --stage 3 >/dev/null 2>&1; then
+      if diff -q "$tmp_target/AGENTS.md" "$target/AGENTS.md" >/dev/null 2>&1; then
+        _doctor_pass "M1" "AGENTS.md matches generated baseline"
+      else
+        _doctor_warn "M1" "AGENTS.md drifted from Sage baseline" \
+          "bin/sage update --platform codex"
+      fi
+    else
+      _doctor_warn "M1" "could not regenerate baseline (skipping comparison)" ""
+    fi
+    rm -rf "$tmpdir"
+  else
+    _doctor_warn "M1" "AGENTS.md or framework source missing" "bin/sage init --platform codex"
+  fi
+
+  # ── M2 — hooks present + executable; jq + yq on PATH ──
+  local m2_fail=0
+  for h in session-init pre-tool-validate post-tool-check turn-audit; do
+    if [ ! -x "$target/.codex/hooks/$h.sh" ]; then
+      _doctor_fail "M2" "hook missing/non-executable: .codex/hooks/$h.sh" \
+        "bin/sage update --platform codex"
+      m2_fail=1
+    fi
+  done
+  for tool in jq yq; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      case "$(uname -s)" in
+        Darwin) _doctor_fail "M2" "missing tool: $tool" "brew install $tool" ;;
+        Linux)  _doctor_fail "M2" "missing tool: $tool" "apt-get install $tool" ;;
+        *)      _doctor_fail "M2" "missing tool: $tool" "install $tool via your package manager" ;;
+      esac
+      m2_fail=1
+    fi
+  done
+  [ "$m2_fail" -eq 0 ] && _doctor_pass "M2" "4 hooks executable; jq + yq on PATH"
+
+  # ── M3 — sandbox-write hint (v1: hint-only) ──
+  _doctor_info "M3" "Codex sandbox must allow .sage/ writes (hint-only in v1)"
+
+  # ── M4 — N/A in v1 ──
+  _doctor_info "M4" "Mid-session MCP liveness — N/A in v1 (deferred per §2 / §8)"
+
+  # ── S1 — .mcp-incidents.log unread lines vs cursor ──
+  local incidents_log="$target/.sage/.mcp-incidents.log"
+  local cursor_file="$target/.sage/.doctor-cursor"
+  if [ -f "$incidents_log" ]; then
+    local cursor_ts=0
+    if [ -f "$cursor_file" ]; then
+      cursor_ts="$(cat "$cursor_file" 2>/dev/null | tr -d '[:space:]')"
+      [ -z "$cursor_ts" ] && cursor_ts=0
+    fi
+    local log_mtime
+    log_mtime="$(stat -f '%m' "$incidents_log" 2>/dev/null || stat -c '%Y' "$incidents_log" 2>/dev/null || echo 0)"
+    if [ "$log_mtime" -gt "$cursor_ts" ]; then
+      local n_unread
+      n_unread="$(wc -l < "$incidents_log" | tr -d ' ')"
+      _doctor_warn "S1" "$n_unread incident(s) in .sage/.mcp-incidents.log since last doctor run" \
+        "Review with: cat .sage/.mcp-incidents.log"
+    else
+      _doctor_pass "S1" "incidents log clean since last doctor run"
+    fi
+  else
+    _doctor_pass "S1" "no incidents log (clean state)"
+  fi
+
+  # ── S2 — N/A in v1 ──
+  _doctor_info "S2" "Stale .approval-pending — N/A in v1 (UPS hook deferred)"
+
+  # ── S3 — stale active cycles ──
+  local now stale_cycles=""
+  now="$(date +%s)"
+  local week_secs=$((7 * 86400))
+  if [ -d "$target/.sage/work" ]; then
+    local cycle
+    while IFS= read -r -d '' cycle; do
+      local manifest="$cycle/manifest.md"
+      [ -f "$manifest" ] || continue
+      grep -q '^status:[[:space:]]*in-progress' "$manifest" 2>/dev/null || continue
+      local mtime
+      mtime="$(stat -f '%m' "$manifest" 2>/dev/null || stat -c '%Y' "$manifest" 2>/dev/null || echo "$now")"
+      local age=$((now - mtime))
+      if [ "$age" -gt "$week_secs" ]; then
+        stale_cycles="${stale_cycles}$(basename "$cycle"), "
+      fi
+    done < <(find "$target/.sage/work" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+  fi
+  if [ -n "$stale_cycles" ]; then
+    stale_cycles="${stale_cycles%, }"
+    _doctor_warn "S3" "stale in-progress cycle(s) > 7d: $stale_cycles" \
+      "Resume or close: /sage:continue or /sage:reflect"
+  else
+    _doctor_pass "S3" "no stale active cycles"
+  fi
+
+  # ── S4 — writers manifest validation (informational, lightweight) ──
+  local writers_manifest="$target/runtime/platforms/codex/audit/sage-writers.yaml"
+  [ -f "$writers_manifest" ] || writers_manifest="$fw/runtime/platforms/codex/audit/sage-writers.yaml"
+  if [ -f "$writers_manifest" ]; then
+    _doctor_pass "S4" "writers manifest present"
+  else
+    _doctor_info "S4" "writers manifest not found (audit cross-check skipped)"
+  fi
+
+  # ── CV1 — Codex version watch ──
+  local validated_file="$target/.sage/.codex-validated-version"
+  if [ -n "$codex_ver" ] && [ -f "$validated_file" ]; then
+    local validated
+    validated="$(cat "$validated_file" 2>/dev/null)"
+    if [ "$validated" = "$codex_ver" ]; then
+      _doctor_pass "CV1" "Codex version matches validated record ($validated)"
+    else
+      _doctor_warn "CV1" "Codex version changed: $validated → $codex_ver" \
+        "Re-validate: /sage:learn or update .sage/.codex-validated-version"
+    fi
+  else
+    _doctor_info "CV1" "no validated version recorded yet (informational)"
+  fi
+
+  # ── Summary + cursor write ──
+  echo ""
+  echo -e "  ${BOLD}Summary:${RESET} ${GREEN}$pass_n ok${RESET}, ${YELLOW}$warn_n warn${RESET}, ${RED}$fail_n fail${RESET}"
+  echo ""
+
+  # Update doctor cursor (the only file doctor writes).
+  mkdir -p "$target/.sage"
+  date +%s > "$target/.sage/.doctor-cursor"
+
+  [ "$fail_n" -eq 0 ]
+}
+
+# ═══════════════════════════════════════════════════════════════
+# COMMAND: status (disk-direct, no MCP — per spec §7.3 + ADR-9 v1)
+# ═══════════════════════════════════════════════════════════════
+# Plain text by default; --json for scriptable form.
+# 4 blocks: active cycles | pending gates | recent decisions | health.
+sage_status() {
+  local target
+  target="$(pwd)"
+  local json_mode=0
+
+  for arg in "$@"; do
+    case "$arg" in
+      --json) json_mode=1 ;;
+      *) ;;
+    esac
+  done
+
+  if [ ! -d "$target/.sage" ]; then
+    if [ "$json_mode" -eq 1 ]; then
+      printf '{"error":"no .sage/ directory","cycles":[],"gates":[],"decisions":[],"health":{}}\n'
+    else
+      echo ""
+      echo -e "  ${RED}❌ No .sage/ directory in this project.${RESET}"
+      echo "  Run 'sage init' first."
+    fi
+    exit 1
+  fi
+
+  # ── Read cycles from .sage/work/<id>/manifest.md ──
+  # Each cycle: id (dir name) + frontmatter (title, workflow, phase, status, updated).
+  local cycles_json=""
+  local cycle
+  while IFS= read -r -d '' cycle; do
+    local manifest="$cycle/manifest.md"
+    [ -f "$manifest" ] || continue
+    local id title workflow phase status updated
+    id="$(basename "$cycle")"
+    title="$(awk -F': *' '/^title:/{sub(/^title: */,""); gsub(/^"|"$/,""); print; exit}' "$manifest")"
+    workflow="$(awk -F': *' '/^workflow:/{sub(/^workflow: */,""); print; exit}' "$manifest")"
+    phase="$(awk -F': *' '/^phase:/{sub(/^phase: */,""); print; exit}' "$manifest")"
+    status="$(awk -F': *' '/^status:/{sub(/^status: */,""); print; exit}' "$manifest")"
+    updated="$(awk -F': *' '/^updated:/{sub(/^updated: */,""); print; exit}' "$manifest")"
+    # Only surface in-progress cycles in v1 (per §7.3 "active cycles").
+    case "$status" in
+      in-progress|in_progress|active|"") ;;
+      *) continue ;;
+    esac
+    [ -z "$status" ] && status="(none)"
+    local entry
+    entry="$(jq -n \
+      --arg id "$id" --arg title "$title" --arg workflow "$workflow" \
+      --arg phase "$phase" --arg status "$status" --arg updated "$updated" \
+      '{id: $id, title: $title, workflow: $workflow, phase: $phase, status: $status, updated: $updated}')"
+    if [ -z "$cycles_json" ]; then
+      cycles_json="$entry"
+    else
+      cycles_json="${cycles_json},${entry}"
+    fi
+  done < <(find "$target/.sage/work" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+
+  # ── Pending gates: cycles whose manifest mentions an unresolved [A] gate ──
+  local gates_json=""
+  while IFS= read -r -d '' cycle; do
+    local manifest="$cycle/manifest.md"
+    [ -f "$manifest" ] || continue
+    if grep -qE 'gate-pending|approval-pending|awaiting[[:space:]]*\[A\]' "$manifest" 2>/dev/null; then
+      local id
+      id="$(basename "$cycle")"
+      local entry
+      entry="$(jq -n --arg id "$id" '{id: $id, hint: "approval pending — type [A] to confirm"}')"
+      [ -z "$gates_json" ] && gates_json="$entry" || gates_json="${gates_json},${entry}"
+    fi
+  done < <(find "$target/.sage/work" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
+
+  # ── Last 3 decisions from .sage/decisions.md ──
+  local decisions_json=""
+  if [ -f "$target/.sage/decisions.md" ]; then
+    # Each entry starts with `### YYYY-MM-DD — Title` and ends at the next `### ` or EOF.
+    local tmp
+    tmp="$(mktemp)"
+    awk '
+      /^### / { count++; if (count > 3) exit; print "---ENTRY---"; print; next }
+      count > 0 && count <= 3 { print }
+    ' "$target/.sage/decisions.md" > "$tmp"
+    local block date_str title_str body
+    block=""
+    while IFS= read -r line; do
+      if [ "$line" = "---ENTRY---" ]; then
+        if [ -n "$block" ]; then
+          # Parse first line of block: "### YYYY-MM-DD — Title"
+          date_str="$(echo "$block" | head -1 | awk '{print $2}')"
+          title_str="$(echo "$block" | head -1 | sed 's/^### [0-9-]* — *//')"
+          body="$(echo "$block" | tail -n +2 | sed '/^[[:space:]]*$/d' | head -3)"
+          local entry
+          entry="$(jq -n --arg date "$date_str" --arg title "$title_str" --arg body "$body" \
+            '{date: $date, title: $title, body: $body}')"
+          [ -z "$decisions_json" ] && decisions_json="$entry" || decisions_json="${decisions_json},${entry}"
+        fi
+        block=""
+      else
+        if [ -z "$block" ]; then block="$line"; else block="$block
+$line"; fi
+      fi
+    done < "$tmp"
+    # Last block.
+    if [ -n "$block" ]; then
+      date_str="$(echo "$block" | head -1 | awk '{print $2}')"
+      title_str="$(echo "$block" | head -1 | sed 's/^### [0-9-]* — *//')"
+      body="$(echo "$block" | tail -n +2 | sed '/^[[:space:]]*$/d' | head -3)"
+      local entry
+      entry="$(jq -n --arg date "$date_str" --arg title "$title_str" --arg body "$body" \
+        '{date: $date, title: $title, body: $body}')"
+      [ -z "$decisions_json" ] && decisions_json="$entry" || decisions_json="${decisions_json},${entry}"
+    fi
+    rm -f "$tmp"
+  fi
+
+  # ── Health summary: short doctor (just counts) ──
+  # Re-derive from the same checks as sage_doctor would, in lightweight form.
+  local h_pass=0 h_warn=0 h_fail=0
+  command -v codex >/dev/null 2>&1 && h_pass=$((h_pass + 1)) || h_fail=$((h_fail + 1))
+  if [ -f "$target/.codex/config.toml" ] && \
+     grep -q '# >>> SAGE MANAGED BLOCK START' "$target/.codex/config.toml"; then
+    h_pass=$((h_pass + 1))
+  else
+    h_fail=$((h_fail + 1))
+  fi
+  for h in session-init pre-tool-validate post-tool-check turn-audit; do
+    if [ -x "$target/.codex/hooks/$h.sh" ]; then
+      h_pass=$((h_pass + 1))
+    else
+      h_fail=$((h_fail + 1))
+    fi
+  done
+  for tool in jq yq; do
+    command -v "$tool" >/dev/null 2>&1 && h_pass=$((h_pass + 1)) || h_fail=$((h_fail + 1))
+  done
+
+  if [ "$json_mode" -eq 1 ]; then
+    jq -n \
+      --argjson cycles "[${cycles_json}]" \
+      --argjson gates "[${gates_json}]" \
+      --argjson decisions "[${decisions_json}]" \
+      --argjson health "{\"pass\":$h_pass,\"warn\":$h_warn,\"fail\":$h_fail}" \
+      '{cycles: $cycles, gates: $gates, decisions: $decisions, health: $health}'
+    return 0
+  fi
+
+  # ── Plain text output ──
+  echo ""
+  echo -e "  ${BOLD}Sage status${RESET}"
+  echo ""
+
+  echo -e "  ${BOLD}Active cycles${RESET}"
+  if [ -z "$cycles_json" ]; then
+    echo -e "    ${DIM}(none)${RESET}"
+  else
+    echo "[${cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)"'
+  fi
+  echo ""
+
+  echo -e "  ${BOLD}Pending gates${RESET}"
+  if [ -z "$gates_json" ]; then
+    echo -e "    ${DIM}(none)${RESET}"
+  else
+    echo "[${gates_json}]" | jq -r '.[] | "    ⏳  \(.id) — \(.hint)"'
+  fi
+  echo ""
+
+  echo -e "  ${BOLD}Recent decisions${RESET}"
+  if [ -z "$decisions_json" ]; then
+    echo -e "    ${DIM}(none)${RESET}"
+  else
+    echo "[${decisions_json}]" | jq -r '.[] | "    • \(.date) — \(.title)"'
+  fi
+  echo ""
+
+  echo -e "  ${BOLD}Health${RESET}  ${GREEN}$h_pass ok${RESET}, ${YELLOW}$h_warn warn${RESET}, ${RED}$h_fail fail${RESET}  ${DIM}(run 'sage doctor' for details)${RESET}"
+  echo ""
+}
+
 sage_skills() {
   skill_manager list "$@"
 }
@@ -1268,13 +1690,9 @@ sage_setup() {
   echo ""
 
   # Detect platform
-  if [ -d ".codex" ] || [ -f "$HOME/.codex/config.toml" ]; then
-    echo -e "  ${CYAN}Codex${RESET} — add to .codex/config.toml or ~/.codex/config.toml:"
-    echo ""
-    echo '  [mcp_servers.sage-memory]'
-    echo '  command = "uvx"'
-    echo '  args = ["sage-memory"]'
-  elif [ -d ".claude" ] || [ -f "$HOME/.claude.json" ]; then
+  # Codex MCP hint removed in v1 (spec §7.1): v1 ships no MCP server
+  # per §2 / §8 decision 2026-04-30. Returns when v2 reactivates MCP.
+  if [ -d ".claude" ] || [ -f "$HOME/.claude.json" ]; then
     echo -e "  ${CYAN}Claude Code${RESET} — add to ~/.claude.json:"
     echo ""
     echo '  {'
@@ -1384,6 +1802,8 @@ sage_help() {
   echo "  sage update                   Regenerate platform files"
   echo "  sage upgrade                  Update Sage to the latest version"
   echo "  sage learn [path]             Learn a codebase or module"
+  echo "  sage doctor                   Diagnose Codex port (read-only)"
+  echo "  sage status [--json]          Show active cycles, pending gates, decisions, health"
   echo "  sage setup memory             Configure persistent memory"
   echo ""
   echo "Skill management (powered by skills.sh):"
@@ -1498,6 +1918,8 @@ case "$COMMAND" in
   update)           sage_update ;;
   upgrade)          sage_upgrade ;;
   install-hooks)    sage_install_hooks ;;
+  doctor)           sage_doctor "$@" ;;
+  status)           sage_status "$@" ;;
   learn)            sage_learn "$@" ;;
   setup)            sage_setup "$@" ;;
   find)             sage_find "$@" ;;
