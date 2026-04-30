@@ -183,10 +183,15 @@ EOF
 }
 
 @test "S4 warn: hook-only file (.sage/.session-mutations.log) appears in git → bypass detected" {
+    # Post-BUG-F1-4 (2026-04-30): bin/sage init now gitignores hook-only
+    # writers, so plain `git add -A` no longer reaches them. The doctor S4
+    # path remains valuable as defense-in-depth: catches force-added files
+    # or cases where the user removed the gitignore sentinel block.
     cd "$TARGET" || return 1
     mkdir -p "$TARGET/.sage"
     echo '{"ts":"2026-04-30","cycle_id":"x","files":[]}' > "$TARGET/.sage/.session-mutations.log"
-    git add -A 2>/dev/null && git -c user.email=t@t -c user.name=t commit -q -m "smuggled" 2>/dev/null || true
+    git add -f "$TARGET/.sage/.session-mutations.log" 2>/dev/null
+    git -c user.email=t@t -c user.name=t commit -q -m "smuggled" 2>/dev/null || true
     run run_doctor
     echo "$output" | grep -qi 'S4'
     echo "$output" | grep -qiE 'bypass|session-mutations'

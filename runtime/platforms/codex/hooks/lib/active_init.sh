@@ -11,6 +11,18 @@
 #
 # v1 spec ref: §6.6 (cross-script common helpers).
 # v1 plan ref: T1.2 (Group A foundation).
+# F-1 fix ref: BUG-F1-2 (yq exits non-zero when markdown body contains
+# YAML-like content like `- brief.md: exists`; we extract frontmatter
+# explicitly so yq sees only the YAML doc, never the body).
+
+manifest_yaml() {
+    local manifest="$1"
+    if [ -f "$manifest" ] && [ "$(head -1 "$manifest" 2>/dev/null)" = "---" ]; then
+        awk 'NR==1 && /^---$/{next} /^---$/{exit} {print}' "$manifest"
+    else
+        cat "$manifest" 2>/dev/null
+    fi
+}
 
 active_init_path() {
     local project_root="$1"
@@ -26,7 +38,7 @@ active_init_path() {
     for manifest in "$work_dir"/*/manifest.md; do
         [ -f "$manifest" ] || continue
         local status
-        status=$(yq eval '.status // ""' "$manifest" 2>/dev/null) || continue
+        status=$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null) || continue
         [ "$status" = "in-progress" ] || continue
         local mtime
         mtime=$(stat -f '%m' "$manifest" 2>/dev/null || stat -c '%Y' "$manifest" 2>/dev/null) || continue
