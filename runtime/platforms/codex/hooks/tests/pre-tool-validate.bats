@@ -237,6 +237,183 @@ EOF
     ! grep -q "$abs_path" "$log"
 }
 
+@test "pre-tool-validate.sh: BUG-F1-1 — bootstrap exception: fresh cycle creation with manifest.md among paths → ALLOW" {
+    # F-1 Phase 1 BUG-F1-1 (first PreToolUse block in T1):
+    # Agent's first apply_patch on a fresh /sage:build creates the cycle dir,
+    # including manifest.md. No in-progress manifest exists yet → active_init
+    # returns empty → hook rejects. Chicken-egg: the manifest the predicate
+    # needs is the file the agent is creating.
+    #
+    # Fix: bootstrap exception when ALL claimed paths are confined to a single
+    # new .sage/work/<id>/ directory (id matches YYYYMMDD-<slug>) + decisions.md,
+    # AND manifest.md is among the created paths, AND the cycle dir does NOT
+    # yet exist on disk.
+    cycle="20260101-bootstrap"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/%s/brief.md\n+content\n*** Add File: .sage/work/%s/spec.md\n+content\n*** Add File: .sage/work/%s/manifest.md\n+content\n*** Update File: .sage/decisions.md\n@@\n line1\n+ new entry\n*** End Patch\n' "$cycle" "$cycle" "$cycle")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: BUG-F1-1 — bootstrap rejected when no manifest.md among created paths" {
+    # If the patch creates a cycle dir but does NOT include manifest.md,
+    # the agent isn't actually establishing a cycle — bootstrap exception
+    # must NOT fire. Fall through to the normal "no active cycle" reject.
+    cycle="20260101-bootstrap"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/%s/brief.md\n+content\n*** Add File: .sage/work/%s/spec.md\n+content\n*** End Patch\n' "$cycle" "$cycle")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active cycle"
+}
+
+@test "pre-tool-validate.sh: BUG-F1-1 — bootstrap rejected when paths escape the new cycle dir" {
+    # Bootstrap exception requires paths CONFINED to one new cycle dir + decisions.md.
+    # If a patch claims to create a cycle but also writes outside, reject.
+    cycle="20260101-bootstrap"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/%s/manifest.md\n+content\n*** Add File: src/random_file.sh\n+content\n*** End Patch\n' "$cycle")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active cycle"
+}
+
+@test "pre-tool-validate.sh: BUG-F1-1 — bootstrap rejected when cycle id has wrong shape" {
+    # Bootstrap shape requires id matches YYYYMMDD-<slug>. A bare-word cycle id
+    # is suspicious and must not match.
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/random/manifest.md\n+content\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active cycle"
+}
+
+@test "pre-tool-validate.sh: BUG-F1-3 — absolute scope glob in manifest + relative claimed path → ALLOW" {
+    # F-1 Phase 1 BUG-F1-3 (third PreToolUse block in T1):
+    # When the manifest's scope[] contains ABSOLUTE paths (the natural format an
+    # agent who saw absolute paths during T2 might emit) and the agent later
+    # supplies a RELATIVE apply_patch path, the case glob match fails because
+    # one side is absolute and the other is relative.
+    #
+    # Fix: pre-tool-validate.sh must normalize scope_globs through normalize_path
+    # the same way it normalizes claimed_paths.
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+scope:
+  - "$PROJECT_ROOT/.sage/work/20260101-alpha/*"
+  - "$PROJECT_ROOT/scripts/health-check.sh"
+---
+# 20260101-alpha
+EOF
+    cmd="$(make_patch_cmd Add scripts/health-check.sh)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: BUG-F1-3 — absolute scope + truly out-of-scope relative path still rejected" {
+    # Regression guard: scope normalization must not make rejection paths leak.
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+scope:
+  - "$PROJECT_ROOT/scripts/*"
+---
+# 20260101-alpha
+EOF
+    cmd="$(make_patch_cmd Add docs/leak.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "docs/leak.md"
+}
+
+@test "pre-tool-validate.sh: BUG-F1-5 — manifest with empty scope still allows cycle-self files (.sage/work/<id>/**)" {
+    # F-1 re-run #1 surfaced this: agents emit manifests without `scope:` field.
+    # Predicate must implicitly allow the cycle's OWN dir + .sage/decisions.md
+    # so spec.md / plan.md / manifest.md updates inside the cycle never block.
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+---
+EOF
+    cmd="$(make_patch_cmd Update "$cycle_dir/spec.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: BUG-F1-5 — .sage/decisions.md always implicitly in-scope" {
+    # decisions.md is the shared reasoning log — every cycle close writes to it.
+    # Must be writable regardless of manifest's `scope:` contents.
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+scope:
+  - "scripts/health-check.sh"
+---
+EOF
+    cmd="$(make_patch_cmd Update "$PROJECT_ROOT/.sage/decisions.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: BUG-F1-5 — narrowed scope still allows cycle-self files (close-cycle case)" {
+    # F-1 re-run T5: scope was narrowed to `scripts/health-check.sh`,
+    # then agent tries to flip plan.md/manifest.md status to completed.
+    # Without implicit scope-self, this blocks. With it, cycle close works.
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+scope:
+  - "scripts/health-check.sh"
+---
+EOF
+    cmd="$(make_patch_cmd Update "$cycle_dir/plan.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: BUG-F1-5 — cross-cycle path still rejected (no over-broad allow)" {
+    # Implicit scope-self only covers the ACTIVE cycle's dir, not other cycles.
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    other_dir="$PROJECT_ROOT/.sage/work/20260102-beta"
+    mkdir -p "$cycle_dir" "$other_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+scope:
+  - "scripts/*"
+---
+EOF
+    cmd="$(make_patch_cmd Update "$other_dir/spec.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"outside cycle scope"* ]]
+}
+
 @test "pre-tool-validate.sh: macOS /private prefix on apply_patch path → stripped before scope check" {
     # macOS /var → /private/var symlink: apply_patch DSL may carry the
     # /private prefix while the cycle scope globs are project-relative.

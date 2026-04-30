@@ -41,12 +41,44 @@ section empty (or omit it) to inherit preset defaults verbatim.
 EOF
 }
 
+# Hook-only writers — Sage emits these locally; they MUST stay out of git
+# (BUG-F1-4: doctor S4 false-positive on hook-only logs in git history).
+# Block sentinels make the addition idempotent and user-removable.
+_HOOK_GITIGNORE_OPEN='# Sage hook artifacts (managed by `bin/sage init` — remove this block to commit hook logs)'
+_HOOK_GITIGNORE_CLOSE='# end Sage hook artifacts'
+_HOOK_GITIGNORE_ENTRIES='.sage/.mcp-incidents.log
+.sage/.session-mutations.log
+.sage/.skipped-checks.log
+.sage/.approval-pending
+.sage/.codex-validated-version'
+
+ensure_hook_gitignore() {
+    local target="$1"
+    local gi="$target/.gitignore"
+    if [ -f "$gi" ] && grep -qF "$_HOOK_GITIGNORE_OPEN" "$gi" 2>/dev/null; then
+        printf 'present'
+        return 0
+    fi
+    if [ ! -f "$gi" ]; then
+        : > "$gi"
+    elif [ -s "$gi" ]; then
+        printf '\n' >> "$gi"
+    fi
+    {
+        printf '%s\n' "$_HOOK_GITIGNORE_OPEN"
+        printf '%s\n' "$_HOOK_GITIGNORE_ENTRIES"
+        printf '%s\n' "$_HOOK_GITIGNORE_CLOSE"
+    } >> "$gi"
+    printf 'added'
+}
+
 bootstrap_sage() {
     local target="$1"
     local preset="$2"
 
     local skeleton_created=0
     local constitution_created=0
+    local gitignore_state
 
     if [ ! -d "$target/.sage" ]; then
         mkdir -p \
@@ -69,10 +101,13 @@ bootstrap_sage() {
         constitution_created=1
     fi
 
+    gitignore_state="$(ensure_hook_gitignore "$target")"
+
     cat <<EOF
 [stage 9] bootstrap .sage/
   skeleton_created=$skeleton_created
   constitution_stub_created=$constitution_created
+  hook_gitignore=$gitignore_state
   preset=$preset
   dst=$target/.sage
 EOF

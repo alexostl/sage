@@ -101,6 +101,45 @@ EOF
     grep -qE '^extends:[[:space:]]*enterprise$' "$TARGET/.sage/constitution.md"
 }
 
+# ─── Stage 9 — BUG-F1-4 gitignore for hook-only writers ─────────────
+
+@test "stage9: BUG-F1-4 — fresh init creates .gitignore with hook-only writer entries" {
+    # F-1 Phase 1 BUG-F1-4: doctor S4 flagged .sage/.mcp-incidents.log and
+    # .sage/.session-mutations.log as bypass writes when they appeared in git
+    # history. Root cause: missing .gitignore entries → `git add -A` swept
+    # them in. Fix: stage 9 ensures these are gitignored.
+    run run_stage 9
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/.gitignore" ]
+    grep -q '^\.sage/\.mcp-incidents\.log$' "$TARGET/.gitignore"
+    grep -q '^\.sage/\.session-mutations\.log$' "$TARGET/.gitignore"
+    grep -q '^\.sage/\.skipped-checks\.log$' "$TARGET/.gitignore"
+}
+
+@test "stage9: BUG-F1-4 — existing .gitignore gets sentinel block appended; user lines preserved" {
+    cat > "$TARGET/.gitignore" <<'EOF'
+# user-managed
+node_modules/
+*.log
+EOF
+    run_stage 9
+    grep -q '^# Sage hook artifacts' "$TARGET/.gitignore"
+    grep -q '^# end Sage hook artifacts' "$TARGET/.gitignore"
+    grep -q '^node_modules/$' "$TARGET/.gitignore"
+    grep -q '^\*\.log$' "$TARGET/.gitignore"
+    grep -q '^# user-managed$' "$TARGET/.gitignore"
+}
+
+@test "stage9: BUG-F1-4 — re-running init is idempotent (no duplicate sentinel block)" {
+    run_stage 9
+    run_stage 9
+    local count
+    count="$(grep -c '^# Sage hook artifacts' "$TARGET/.gitignore" || true)"
+    [ "$count" = "1" ]
+    count="$(grep -c '^\.sage/\.mcp-incidents\.log$' "$TARGET/.gitignore" || true)"
+    [ "$count" = "1" ]
+}
+
 # ─── Stage 9a ─ gates scripts deploy ─────────────────────────────────
 
 @test "stage9a: deploys all gates scripts from framework" {

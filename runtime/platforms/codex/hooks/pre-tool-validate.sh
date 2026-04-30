@@ -9,6 +9,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/active_init.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/path_normalize.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/bootstrap_check.sh"
 
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -42,33 +44,34 @@ done <<< "$cmd"
 
 cycle_dir="$(active_init_path "$cwd")"
 if [ -z "$cycle_dir" ]; then
-    # shellcheck disable=SC2016
-    printf 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.\n' >&2
-    exit 2
-fi
-
-cycle_id="$(basename "$cycle_dir")"
-manifest="$cycle_dir/manifest.md"
-scope_globs=()
-while IFS= read -r line; do
-    [ -n "$line" ] && scope_globs+=("$line")
-done < <(yq eval '.scope[]' "$manifest" 2>/dev/null || true)
-
-# ${arr[@]+...} guards empty-array under set -u on bash 3.2 macOS.
-out_of_scope=()
-for path in "${claimed_paths[@]}"; do
-    matched=0
-    for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
-        # shellcheck disable=SC2254
-        case "$path" in $glob) matched=1; break ;; esac
+    if ! cycle_id="$(bootstrap_cycle_id "$cwd" "${claimed_paths[@]}")"; then
+        # shellcheck disable=SC2016
+        printf 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.\n' >&2
+        exit 2
+    fi
+else
+    cycle_id="$(basename "$cycle_dir")"
+    manifest="$cycle_dir/manifest.md"
+    # F-1 BUG-F1-5: implicit allow for cycle-self dir + decisions.md.
+    scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
+    while IFS= read -r line; do
+        [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
+    done < <(manifest_yaml "$manifest" | yq eval '.scope[]' - 2>/dev/null || true)
+    # ${arr[@]+...} guards empty-array under set -u on bash 3.2 macOS.
+    out_of_scope=()
+    for path in "${claimed_paths[@]}"; do
+        matched=0
+        for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
+            # shellcheck disable=SC2254
+            case "$path" in $glob) matched=1; break ;; esac
+        done
+        [ "$matched" -eq 0 ] && out_of_scope+=("$path")
     done
-    [ "$matched" -eq 0 ] && out_of_scope+=("$path")
-done
-
-if [ "${#out_of_scope[@]}" -gt 0 ]; then
-    printf 'Sage: paths outside cycle scope: %s. Active cycle: %s. Allowed scope: %s.\n' \
-        "${out_of_scope[*]}" "$cycle_id" "${scope_globs[*]:-(none)}" >&2
-    exit 2
+    if [ "${#out_of_scope[@]}" -gt 0 ]; then
+        printf 'Sage: paths outside cycle scope: %s. Active cycle: %s. Allowed scope: %s.\n' \
+            "${out_of_scope[*]}" "$cycle_id" "${scope_globs[*]:-(none)}" >&2
+        exit 2
+    fi
 fi
 
 # Allow — log session mutation for ADR-7 audit.

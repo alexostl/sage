@@ -108,3 +108,58 @@ EOF
     result="$(active_init_path "$PROJECT_ROOT")"
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260102-good" ]
 }
+
+@test "active_init_path: BUG-F1-2 — manifest with realistic markdown body containing YAML-like content → still detected" {
+    # F-1 Phase 1 BUG-F1-2 (re-introduced after first retraction was wrong):
+    # yq parses multi-doc YAML; when the markdown body after the closing
+    # `---` contains content that LOOKS like YAML mapping (e.g. `**Artifacts:**`
+    # followed by `- brief.md: exists`), yq emits the correct frontmatter
+    # values to stdout but then exits non-zero on the body. The `|| continue`
+    # in active_init then discards the cycle.
+    # Fix: extract frontmatter via manifest_yaml() before piping to yq, so
+    # yq never sees the markdown body.
+    # shellcheck disable=SC1090
+    source "$LIB"
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-realistic"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-realistic"
+status: in-progress
+phase: plan
+---
+
+# Cycle: Realistic Manifest
+
+## State
+
+**Current phase:** plan — implementation pending.
+**Artifacts:**
+- brief.md: exists
+- spec.md: exists
+- plan.md: exists
+- implementation: not-started
+
+## Decisions so far
+
+- Standard scope chosen by user.
+EOF
+    result="$(active_init_path "$PROJECT_ROOT")"
+    [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-realistic" ]
+}
+
+@test "active_init_path: BUG-F1-2 regression — flat YAML manifest (no fences) still detected" {
+    # Some manifests in the wild use flat YAML (no `---` delimiters).
+    # The frontmatter extractor's fallback path must keep working.
+    # shellcheck disable=SC1090
+    source "$LIB"
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-flat"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+cycle_id: "20260101-flat"
+status: in-progress
+phase: plan
+EOF
+    result="$(active_init_path "$PROJECT_ROOT")"
+    [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-flat" ]
+}
