@@ -116,7 +116,7 @@ deploy_hooks() {
         chmod 0755 "$dst_dir/$hook.sh"
     done
 
-    # 2) lib/ helpers (json_log.sh + active_init.sh).
+    # 2) lib/ helpers (json_log.sh, active_init.sh, path_normalize.sh).
     if [ -d "$src_dir/lib" ]; then
         local libfile
         for libfile in "$src_dir/lib"/*.sh; do

@@ -99,10 +99,11 @@ run_stage() {
     done
 }
 
-@test "stage6: deploys lib/ subdir (json_log.sh + active_init.sh)" {
+@test "stage6: deploys lib/ subdir (json_log.sh + active_init.sh + path_normalize.sh)" {
     run_stage 6
     [ -f "$TARGET/.codex/hooks/lib/json_log.sh" ]
     [ -f "$TARGET/.codex/hooks/lib/active_init.sh" ]
+    [ -f "$TARGET/.codex/hooks/lib/path_normalize.sh" ]
 }
 
 @test "stage6: deployed scripts are byte-identical to source" {
