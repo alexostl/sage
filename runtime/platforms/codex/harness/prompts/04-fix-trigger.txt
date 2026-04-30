@@ -1,0 +1,1 @@
+There is a typo somewhere in AGENTS.md — find it and fix it.

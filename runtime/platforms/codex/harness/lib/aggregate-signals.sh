@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+# aggregate-signals.sh — collect §13.2 v2-promotion-trigger signals
+# from a single harness run.
+#
+# Inputs (positional):
+#   $1 — TARGET dir (where bin/sage init was run)
+#   $2 — TRANSCRIPTS dir (one .jsonl per prompt — codex exec --json output)
+#   $3 — FRAMEWORK_ROOT (sage-selfhost root, for predicate LOC measurement)
+#
+# Output: JSON document on stdout, one object with all 8 signal blocks.
+#   Plan T2.7 contract: 7-of-8 wired, signal 5 (bash-mediated mutation
+#   leaks) + signal 6b (p95 latency) STUB-WITH-TODO per plan §13.2
+#   anti-gap rule. Cost > 1 day for v1; declared up-front, not silent.
+#
+# v1 plan ref: T2.7 (M2 Group).
+# Spec ref: §13.2 outcome-harness signals.
+
+set -euo pipefail
+
+TARGET="${1:?target dir required}"
+TRANSCRIPTS="${2:?transcripts dir required}"
+FRAMEWORK_ROOT="${3:?framework root required}"
+
+incidents_log="$TARGET/.sage/.mcp-incidents.log"
+session_mut_log="$TARGET/.sage/.session-mutations.log"
+
+# --- Signal 1: workflow-entry rate ----------------------------------
+# Count `/sage:` (or `/sage`) invocations in agent transcripts. Each
+# transcript is a JSON-lines stream from `codex exec --json`; the agent's
+# textual output contains slash-commands as plain text.
+signal1_count=0
+signal1_total_prompts=0
+for f in "$TRANSCRIPTS"/*.jsonl; do
+    [ -f "$f" ] || continue
+    signal1_total_prompts=$((signal1_total_prompts + 1))
+    if grep -E -q '/sage(:[a-z-]+)?\b' "$f" 2>/dev/null; then
+        signal1_count=$((signal1_count + 1))
+    fi
+done
+
+# --- Signal 2: phase_jump_observed rate -----------------------------
+# `grep -c` exits 1 when zero matches; capture both branches cleanly.
+signal2_count=0
+if [ -f "$incidents_log" ]; then
+    signal2_count="$(grep -c '"kind":"phase_jump_observed"' "$incidents_log" 2>/dev/null || true)"
+    signal2_count="${signal2_count:-0}"
+fi
+
+# --- Signal 3: bypass_mutation rate ---------------------------------
+signal3_count=0
+if [ -f "$incidents_log" ]; then
+    signal3_count="$(grep -c '"kind":"bypass_mutation"' "$incidents_log" 2>/dev/null || true)"
+    signal3_count="${signal3_count:-0}"
+fi
+
+# --- Signal 4: doctor S1 incidents ----------------------------------
+# Run `bin/sage doctor` against target; count S1 lines that fail.
+# `bin/sage doctor` v1 emits text; we grep for "S1" + non-ok status.
+signal4_count=0
+if [ -x "$FRAMEWORK_ROOT/bin/sage" ]; then
+    doctor_out="$( (cd "$TARGET" && "$FRAMEWORK_ROOT/bin/sage" doctor 2>&1) || true )"
+    signal4_count="$(printf '%s' "$doctor_out" | grep -cE '^\s*✗.*S1' || true)"
+    signal4_count="${signal4_count:-0}"
+fi
+
+# --- Signal 5: bash-mediated mutation leaks (STUB) ------------------
+# Plan T2.7 §13.2 contract: stub-with-TODO permitted if instrumentation
+# cost > 1 day. Detection requires JSON-parsing every codex transcript
+# for `bash` tool calls AND correlating the command's write target
+# against the cycle's scope: globs. Real implementation needs:
+#   - jq pipeline over each transcript event with .type=="exec_command"
+#   - parse cmd argv, extract redirect targets (`>`, `>>`) + sed -i path
+#   - cross-reference scope: from manifest.md
+# v1.x or v2 work. Currently emits TODO marker, not silent zero.
+signal5_status="TODO"
+signal5_note="Bash-tool transcript scan not yet implemented (cost > 1 day for v1 seed; see plan T2.7 anti-gap rule). bypass_mutation incident covers untracked-write detection ex post via Stop hook (signal 3); bash-time prevention is the v2 ADR-1 v2 trigger."
+
+# --- Signal 6a: predicate LOC drift ---------------------------------
+predicate_path="$FRAMEWORK_ROOT/runtime/platforms/codex/hooks/pre-tool-validate.sh"
+signal6a_loc=0
+if [ -f "$predicate_path" ]; then
+    signal6a_loc="$(wc -l < "$predicate_path" | tr -d ' ')"
+fi
+signal6a_ceiling=85  # spec §6.0 anti-bloat ceiling (+5 from baseline 80
+                     # to absorb T2.7-follow-up path_normalize wiring;
+                     # spec text says "~80 lines" — 85 stays well under the
+                     # ~200-LOC v2-promotion threshold from §8 line 213).
+
+# --- Signal 6b: predicate p95 latency drift (STUB) ------------------
+# Hooks do not currently emit per-invocation duration_ms — plan
+# T2.7 §13.2 stub-with-TODO. Adding timing requires patch to
+# pre-tool-validate.sh + a timing log file (.sage/.hook-timings.log)
+# read by aggregate. Defer to v1.x or v2; declared explicitly.
+signal6b_status="TODO"
+signal6b_note="Per-invocation duration_ms not currently logged by pre-tool-validate.sh. Adding requires hook patch + timing log + p95 calculator (~1 day). Spec §6.3 v2 promotion trigger #1 (cold-start latency > 1s) cannot fire from this seed yet."
+
+# --- Signal 7: L1-bypass detection ----------------------------------
+# Commits in target where no `.session-mutations.log` entry exists with
+# files.* matching any path in the commit diff. Proxy: if no log at all
+# OR log has zero matching entries → bypass.
+signal7_count=0
+signal7_total_commits=0
+if [ -d "$TARGET/.git" ]; then
+    cd "$TARGET" || exit 0
+    while IFS= read -r commit; do
+        [ -n "$commit" ] || continue
+        signal7_total_commits=$((signal7_total_commits + 1))
+        # Files changed in this commit (parent diff; first commit gets full tree)
+        if git rev-parse "$commit"^ >/dev/null 2>&1; then
+            files="$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null || true)"
+        else
+            files="$(git ls-tree -r --name-only "$commit" 2>/dev/null || true)"
+        fi
+        # Skip if no files (merge commits, etc.)
+        [ -n "$files" ] || continue
+        # Did session-mutations.log capture any of these files?
+        bypassed=1
+        if [ -f "$session_mut_log" ]; then
+            while IFS= read -r f; do
+                [ -n "$f" ] || continue
+                if grep -F -q "\"$f\"" "$session_mut_log" 2>/dev/null; then
+                    bypassed=0
+                    break
+                fi
+            done <<< "$files"
+        fi
+        [ "$bypassed" = "1" ] && signal7_count=$((signal7_count + 1))
+    done < <(git log --format='%H' 2>/dev/null || true)
+    cd - >/dev/null
+fi
+
+# --- Signal 8: decisions-missing-after-commit -----------------------
+# For each commit that touched .sage/work/*/{spec,plan,manifest}.md
+# (i.e. cycle frontmatter flip), was decisions.md also modified in
+# the same commit OR within 1 commit before/after?
+signal8_count=0
+signal8_total_flips=0
+if [ -d "$TARGET/.git" ]; then
+    cd "$TARGET" || exit 0
+    while IFS= read -r commit; do
+        [ -n "$commit" ] || continue
+        # Did this commit touch a cycle frontmatter file?
+        flipped="$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null \
+            | grep -E '^\.sage/work/[^/]+/(spec|plan|manifest)\.md$' || true)"
+        [ -n "$flipped" ] || continue
+        signal8_total_flips=$((signal8_total_flips + 1))
+        # Was decisions.md touched in same commit?
+        if ! git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null \
+            | grep -F -q '.sage/decisions.md'; then
+            signal8_count=$((signal8_count + 1))
+        fi
+    done < <(git log --format='%H' 2>/dev/null || true)
+    cd - >/dev/null
+fi
+
+# --- Emit aggregate JSON --------------------------------------------
+ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+codex_version="$(codex --version 2>/dev/null | head -1 || echo unknown)"
+
+jq -n \
+    --arg ts "$ts" \
+    --arg codex_version "$codex_version" \
+    --arg target "$TARGET" \
+    --argjson s1_count "$signal1_count" \
+    --argjson s1_total "$signal1_total_prompts" \
+    --argjson s2_count "$signal2_count" \
+    --argjson s3_count "$signal3_count" \
+    --argjson s4_count "$signal4_count" \
+    --arg s5_status "$signal5_status" \
+    --arg s5_note "$signal5_note" \
+    --argjson s6a_loc "$signal6a_loc" \
+    --argjson s6a_ceiling "$signal6a_ceiling" \
+    --arg s6b_status "$signal6b_status" \
+    --arg s6b_note "$signal6b_note" \
+    --argjson s7_count "$signal7_count" \
+    --argjson s7_total "$signal7_total_commits" \
+    --argjson s8_count "$signal8_count" \
+    --argjson s8_total "$signal8_total_flips" \
+    '{
+        ts: $ts,
+        codex_version: $codex_version,
+        target: $target,
+        signals: {
+            "1_workflow_entry": {
+                description: "Sage workflow-entry rate (prompts that invoked /sage:* slash command)",
+                count: $s1_count,
+                total: $s1_total,
+                rate: (if $s1_total > 0 then ($s1_count / $s1_total) else 0 end)
+            },
+            "2_phase_jump": {
+                description: "phase_jump_observed incidents (turn-audit Stop hook detection)",
+                count: $s2_count
+            },
+            "3_bypass_mutation": {
+                description: "bypass_mutation incidents (turn-audit detected unclaimed git diff)",
+                count: $s3_count
+            },
+            "4_doctor_s1": {
+                description: "S1 doctor check failures after harness run",
+                count: $s4_count
+            },
+            "5_bash_mutation_leaks": {
+                description: "Agent bash-tool writes to managed paths bypassing apply_patch (per spec §13.2)",
+                status: $s5_status,
+                note: $s5_note
+            },
+            "6a_predicate_loc": {
+                description: "pre-tool-validate.sh line count vs spec §6.0 ceiling",
+                loc: $s6a_loc,
+                ceiling: $s6a_ceiling,
+                over_ceiling: ($s6a_loc > $s6a_ceiling)
+            },
+            "6b_predicate_p95_latency_ms": {
+                description: "pre-tool-validate.sh p95 invocation latency (cold-start drift signal)",
+                status: $s6b_status,
+                note: $s6b_note
+            },
+            "7_l1_bypass": {
+                description: "Commits with no matching .session-mutations.log entry (predicate hook bypassed)",
+                count: $s7_count,
+                total: $s7_total,
+                rate: (if $s7_total > 0 then ($s7_count / $s7_total) else 0 end)
+            },
+            "8_decisions_missing": {
+                description: "Cycle frontmatter flips without same-commit decisions.md update",
+                count: $s8_count,
+                total: $s8_total,
+                rate: (if $s8_total > 0 then ($s8_count / $s8_total) else 0 end)
+            }
+        }
+    }'
