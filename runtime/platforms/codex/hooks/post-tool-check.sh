@@ -65,12 +65,28 @@ emit_incident() {
 }
 
 # Step 2 — Check A (diff-claim mismatch).
+# Use `git status --porcelain -uall` (not `git diff --name-only HEAD`):
+#   - Porcelain reports untracked files (new apply_patch additions are
+#     untracked until staged) — diff misses them.
+#   - Porcelain works in repos with no commits yet — `HEAD` is undefined
+#     in a fresh `git init` repo, so diff returns empty for every claim.
+#   - `-uall` expands untracked directories into individual files (default
+#     `normal` collapses `src/foo.txt` into `src/`, breaking path match).
+# Format: "XY <path>" — strip the first 3 chars (status flags + space).
 cd "$cwd" || exit 0
 actual_paths=()
 if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
     while IFS= read -r line; do
-        [ -n "$line" ] && actual_paths+=("$line")
-    done < <(git diff --name-only HEAD 2>/dev/null || true)
+        [ -n "$line" ] || continue
+        path="${line:3}"
+        # Exclude hook bookkeeping (PreToolUse writes .session-mutations.log
+        # before apply_patch runs; this hook writes .mcp-incidents.log;
+        # other libs write .skipped-checks.log). They show up in porcelain
+        # but are NOT agent mutations — surfacing them as unclaimed_change
+        # creates self-flagging noise on every turn.
+        case "$path" in .sage/.*.log) continue ;; esac
+        actual_paths+=("$path")
+    done < <(git status --porcelain -uall 2>/dev/null || true)
 fi
 
 contains() {

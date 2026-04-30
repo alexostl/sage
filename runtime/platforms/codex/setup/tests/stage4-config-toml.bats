@@ -60,6 +60,15 @@ run_stage4() {
     grep -qE '^developer_instructions[[:space:]]*=' "$TARGET/.codex/config.toml"
 }
 
+@test "stage4: [history] block has 'persistence' field (Codex 0.126 requires it)" {
+    # T2.1 finding (2026-04-30): Codex 0.126.0-alpha.15 rejects config
+    # with [history] block missing 'persistence' field (error: "missing
+    # field persistence"). M1 tests passed because they parsed TOML
+    # statically, but real Codex CLI use exposed this runtime requirement.
+    PRESET=base run_stage4
+    grep -qE '^persistence[[:space:]]*=' "$TARGET/.codex/config.toml"
+}
+
 @test "stage4: config.toml parses as valid TOML (yq -p toml)" {
     PRESET=base run_stage4
     yq -p toml eval '.' "$TARGET/.codex/config.toml" >/dev/null
