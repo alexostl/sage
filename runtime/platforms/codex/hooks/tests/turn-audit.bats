@@ -161,3 +161,43 @@ EOF
     [ -f "$log" ]
     grep -q "bypass_mutation" "$log"
 }
+
+@test "turn-audit.sh: untracked file written by bash (no apply_patch) → bypass_mutation incident" {
+    # Real-Codex T2.1 finding (2026-04-30): turn-audit used `git diff
+    # --name-only HEAD` which misses untracked files. An agent that
+    # writes a NEW file via `bash echo > foo` (bypass apply_patch) was
+    # NOT detected — bypass_mutation never fired for untracked. Fix:
+    # use `git status --porcelain -uall` (same as post-tool-check Check A).
+    cd "$PROJECT_ROOT"
+    mkdir -p src
+    echo "bypass-content" > src/sneaky.txt
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "bypass_mutation" "$log"
+    grep -q "src/sneaky.txt" "$log"
+}
+
+@test "turn-audit.sh: hook bookkeeping logs are excluded from bypass_mutation" {
+    # Companion fix to post-tool-check: PreToolUse appended to
+    # .sage/.session-mutations.log during the session. Stop hook then
+    # sees the file in porcelain but not claimed → false bypass_mutation.
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage
+    printf '{"session":"test-session","files":["seed.txt"]}\n' > .sage/.session-mutations.log
+    git add .sage/.session-mutations.log
+    git commit -q -m "with bookkeeping baseline"
+    # During the session, hook appended a new line.
+    printf '{"session":"test-session","files":["seed.txt"]}\n' >> .sage/.session-mutations.log
+    log_mutation "test-session" "turn-1" "seed.txt"
+    echo "modified" >> seed.txt
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    found_bypass_log=0
+    [ -f "$log" ] && grep -q '"file":".sage/.session-mutations.log"' "$log" && found_bypass_log=1
+    [ "$found_bypass_log" -eq 0 ]
+}

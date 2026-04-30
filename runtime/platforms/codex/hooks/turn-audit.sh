@@ -66,13 +66,22 @@ if [ -f "$mutations_log" ]; then
     done < "$mutations_log"
 fi
 
-# Collect git-diff'd paths.
+# Collect actual mutated paths via `git status --porcelain -uall` (same
+# rationale as post-tool-check Check A): catches untracked files (a
+# `bash echo > foo` bypass writes an untracked file — `git diff HEAD`
+# misses it, so bypass_mutation never fired) and works in repos with
+# no commits yet.
 actual_paths=()
 cd "$cwd" || exit 0
 if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
-    while IFS= read -r p; do
-        [ -n "$p" ] && actual_paths+=("$p")
-    done < <(git diff --name-only HEAD 2>/dev/null || true)
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        p="${line:3}"
+        # Exclude hook bookkeeping (we appended to .session-mutations.log
+        # ourselves; .mcp-incidents.log is this hook's own output).
+        case "$p" in .sage/.*.log) continue ;; esac
+        actual_paths+=("$p")
+    done < <(git status --porcelain -uall 2>/dev/null || true)
 fi
 
 contains() {
