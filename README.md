@@ -234,37 +234,15 @@ Run in your terminal:
 | `sage skills` | List installed skills |
 | `sage update [target]` | Update community skills to latest |
 
-### Repo hooks
+### Codex lifecycle hooks
 
-This repo ships a `pre-commit` hook at `.githooks/pre-commit` that
-gates Standard+ implementation commits on a valid `verification.md`
-(see `.sage/work/<slug>/verification.md` and the template at
-`.agents/skills/sage:build/templates/verification-template.md`). Git
-does not auto-wire repo-bundled hooks for new clones, so run once
-after cloning:
+The Codex port uses Codex-native lifecycle hooks generated under
+`.codex/hooks/`: `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop`.
+Run `sage init --platform codex` or `sage update` to regenerate them.
 
-    sage install-hooks
-
-The command sets `core.hooksPath = .githooks` for this clone, is
-idempotent, and never overwrites a custom `core.hooksPath` value.
-**`sage init` and `sage update` auto-wire hooks too** — the standalone
-command is only needed on existing clones that pre-date the L5 hook.
-A standalone `bin/sage-install-hooks` script is also kept for muscle
-memory; it delegates to `sage install-hooks`.
-
-If `core.hooksPath` is unset on a Sage-managed clone, every other
-`sage` subcommand prints a one-line nudge to stderr (silenceable with
-`SAGE_HOOKS_QUIET=1`).
-
-**Worktrees:** `git config core.hooksPath` is per-worktree by default,
-so users with multiple worktrees of the same repo need to wire each
-one (run `sage install-hooks` in each worktree, or set the value
-globally with `git config --global core.hooksPath .githooks`).
-
-Spec/plan-only commits and lightweight-scope initiatives are not
-gated. To close an initiative atomically (commit on inner branch +
-merge to integration + push + record in decisions.md), use
-`bin/sage-close <slug>`.
+Sage no longer ships the legacy git `pre-commit` close-out model or its
+standalone wiring/closeout commands. Workflow scope, artifact order, recovery,
+and audit checks now live in the Codex hook layer.
 
 ## How Sage Works
 

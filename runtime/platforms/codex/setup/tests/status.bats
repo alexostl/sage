@@ -117,10 +117,10 @@ EOF
     seed_cycles
     local pre post
     pre="$(find "$TARGET" -type f ! -path '*/.git/*' ! -path "$TARGET/.sage/.doctor-cursor" \
-        -exec stat -f '%m %z %N' {} \; 2>/dev/null | sort)"
+        -exec sh -c 'stat -c '''%Y %s %n''' "$1" 2>/dev/null || stat -f '''%m %z %N''' "$1"' _ {} \; 2>/dev/null | sort)"
     run_status >/dev/null 2>&1 || true
     post="$(find "$TARGET" -type f ! -path '*/.git/*' ! -path "$TARGET/.sage/.doctor-cursor" \
-        -exec stat -f '%m %z %N' {} \; 2>/dev/null | sort)"
+        -exec sh -c 'stat -c '''%Y %s %n''' "$1" 2>/dev/null || stat -f '''%m %z %N''' "$1"' _ {} \; 2>/dev/null | sort)"
     [ "$pre" = "$post" ]
 }
 
@@ -158,6 +158,9 @@ EOF
     echo "$output" | grep -q '20260501-paused'
     echo "$output" | grep -q '20260502-intake'
     echo "$output" | grep -qi 'continue\|resume'
+    echo "$output" | grep -qi 'parked'
+    echo "$output" | grep -qi 'manifest-only'
+    echo "$output" | grep -qi 'no active implementation'
 }
 
 @test "status: prints 'Pending gates' block" {

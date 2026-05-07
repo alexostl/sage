@@ -35,9 +35,17 @@ cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
 
 claimed_paths=()
+claimed_ops=()
 while IFS= read -r line; do
     case "$line" in
-        '*** Add File: '*|'*** Update File: '*|'*** Delete File: '*)
+        '*** Add File: '*)
+            claimed_ops+=("Add")
+            claimed_paths+=("$(normalize_path "${line#*File: }" "$cwd")") ;;
+        '*** Update File: '*)
+            claimed_ops+=("Update")
+            claimed_paths+=("$(normalize_path "${line#*File: }" "$cwd")") ;;
+        '*** Delete File: '*)
+            claimed_ops+=("Delete")
             claimed_paths+=("$(normalize_path "${line#*File: }" "$cwd")") ;;
     esac
 done <<< "$cmd"
@@ -47,6 +55,11 @@ done <<< "$cmd"
 cycle_dir="$(active_init_path "$cwd")"
 if [ -z "$cycle_dir" ]; then
     if ! cycle_id="$(bootstrap_cycle_id "$cwd" "${claimed_paths[@]}")"; then
+        resumable="$(resumable_cycles_summary "$cwd" || true)"
+        if [ -n "$resumable" ]; then
+            printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly `sage continue` the right cycle or start a new workflow.\n' "$resumable" >&2
+            exit 2
+        fi
         # shellcheck disable=SC2016
         printf 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.\n' >&2
         exit 2
@@ -57,7 +70,7 @@ else
     scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
     while IFS= read -r line; do
         [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-    done < <(manifest_yaml "$manifest" | yq eval '.scope[]' - 2>/dev/null || true)
+    done < <(manifest_yaml "$manifest" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true)
     out_of_scope=()
     for path in "${claimed_paths[@]}"; do
         matched=0
@@ -71,7 +84,7 @@ else
             scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
             while IFS= read -r line; do
                 [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-            done < <(manifest_yaml "$manifest" | yq eval '.scope[]' - 2>/dev/null || true)
+            done < <(manifest_yaml "$manifest" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true)
             out_of_scope=()
             for path in "${claimed_paths[@]}"; do
                 matched=0
@@ -86,6 +99,32 @@ else
         printf 'Sage: BLOCKING outside cycle scope: %s. Active cycle: %s. Allowed scope: %s. Next legal move: update the approved manifest scope/plan first, or create a minimal intake cycle if this is separate work.\n' \
             "${out_of_scope[*]}" "$cycle_id" "${scope_globs[*]:-(none)}" >&2
         exit 2
+    fi
+
+    risky_paths=()
+    reclass_ack="$(manifest_yaml "$manifest" | yq eval -r '.semantic_reclassification // .scope_change_checkpoint // .risk_checkpoint // ""' - 2>/dev/null || true)"
+    for i in "${!claimed_paths[@]}"; do
+        path="${claimed_paths[$i]}"
+        op="${claimed_ops[$i]}"
+        case "$path" in
+            ".sage/work/$cycle_id/"*|".sage/decisions.md") continue ;;
+        esac
+        risky=0
+        [ "$op" = "Delete" ] && risky=1
+        case "$path" in
+            .gitignore|.github/workflows/*|README.md|bin/*|*.bats|tests/*|*/tests/*)
+                risky=1 ;;
+        esac
+        [ "$risky" -eq 1 ] && risky_paths+=("$path")
+    done
+    if [ "${#risky_paths[@]}" -gt 0 ]; then
+        case "$reclass_ack" in
+            accepted|approved|true|yes) ;;
+            *)
+                printf 'Sage: BLOCKING risky scope mutation without semantic reclassification checkpoint: %s. Active cycle: %s. Repo-control files, public docs, CLI entrypoints, deletions, and tests require manifest frontmatter `semantic_reclassification: accepted` after an approved plan/scope review.\n' \
+                    "${risky_paths[*]}" "$cycle_id" >&2
+                exit 2 ;;
+        esac
     fi
 
     if moderate_fix_artifacts_missing "$cycle_dir" "$manifest" "$cwd/.sage/.session-mutations.log" "$session_id" "$cycle_id" "${claimed_paths[@]}"; then

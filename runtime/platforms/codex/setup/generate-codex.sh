@@ -226,15 +226,15 @@ stage_10_sanity_sweep() {
     local fail=0
     local msg=""
 
-    # Check 1: AGENTS.md exists, non-empty, has constitution block.
+    # Check 1: AGENTS.md exists, non-empty, has the compact Sage kernel.
     if [ ! -s "$TARGET/AGENTS.md" ]; then
         msg+="$msg
   - AGENTS.md missing or empty"
         fail=1
     else
-        if ! grep -qi 'constitution' "$TARGET/AGENTS.md"; then
+        if ! grep -q '^## Operating Kernel' "$TARGET/AGENTS.md"; then
             msg+="
-  - AGENTS.md has no constitution block"
+  - AGENTS.md has no operating kernel block"
             fail=1
         fi
         # SAGE-MANAGED-END marker (prefix-managed pattern).
@@ -245,15 +245,16 @@ stage_10_sanity_sweep() {
         fi
     fi
 
-    # Check 2 (v1): Rule 1A filesystem-fallback variant present when no MCP.
+    # Check 2: Rule 1A keeps Sage Memory discovery before filesystem fallback.
     # Anchor the [[mcp_servers]] match to start-of-line to avoid matching
     # the comment ("# v1 ships NO [[mcp_servers]] block...") in the
     # generated config.toml — TOML table headers must be on their own line.
     if [ -f "$TARGET/.codex/config.toml" ] && [ -f "$TARGET/AGENTS.md" ]; then
         if ! grep -qE '^[[:space:]]*\[\[mcp_servers\]\]' "$TARGET/.codex/config.toml" 2>/dev/null; then
-            if ! grep -q 'v1 filesystem variant' "$TARGET/AGENTS.md"; then
+            if ! grep -q 'Discover available Sage Memory tools' "$TARGET/AGENTS.md" || \
+               ! grep -q 'Fall back to `.sage-memory/` files only when MCP tools are unavailable' "$TARGET/AGENTS.md"; then
                 msg+="
-  - AGENTS.md missing 'v1 filesystem variant' (Rule 1A fallback)"
+  - AGENTS.md missing Sage Memory discovery/fallback Rule 1A wording"
                 fail=1
             fi
         fi

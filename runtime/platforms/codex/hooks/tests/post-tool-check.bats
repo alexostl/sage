@@ -210,6 +210,49 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "post-tool-check.sh: completing manifest plus implementation file logs post_completion_mutation" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage/work/20260101-alpha src
+    cat > .sage/work/20260101-alpha/manifest.md <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: completed
+---
+EOF
+    echo "changed" > src/late.sh
+    git add .sage/work/20260101-alpha/manifest.md src/late.sh
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: completed\n*** Add File: src/late.sh\n+changed\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "post_completion_mutation" "$log"
+    grep -q "src/late.sh" "$log"
+}
+
+@test "post-tool-check.sh: explicit closeout_epilogue marker suppresses post_completion_mutation" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage/work/20260101-alpha src
+    cat > .sage/work/20260101-alpha/manifest.md <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: completed
+closeout_epilogue: allowed
+---
+EOF
+    echo "changed" > src/late.sh
+    git add .sage/work/20260101-alpha/manifest.md src/late.sh
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: completed\n*** Add File: src/late.sh\n+changed\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "post_completion_mutation" "$log"
+    fi
+}
+
 @test "post-tool-check.sh: absolute apply_patch path matches relative porcelain → no false claim_no_op" {
     # T2.7 follow-up (2026-04-30): Codex emits absolute paths in apply_patch
     # DSL. Pre-fix, claimed_paths was absolute and porcelain was relative →

@@ -5,7 +5,8 @@
 #   - Block-managed pattern with paired markers START/END.
 #   - [features] codex_hooks = true MUST be inside managed block.
 #   - v1: NO [[mcp_servers]] (§8 deferred entirely).
-#   - [history] developer_instructions present (Tier B, second surface).
+#   - developer_instructions present as a top-level key before [history].
+#   - [history] contains history settings only.
 #   - Re-run preserves user content outside markers.
 #   - Missing markers → backup user file + regenerate.
 #
@@ -54,10 +55,23 @@ run_stage4() {
     ! grep -qE '^\[\[mcp_servers\]\]' "$TARGET/.codex/config.toml"
 }
 
-@test "stage4: config.toml contains [history] developer_instructions field" {
+@test "stage4: config.toml contains top-level developer_instructions field" {
+    PRESET=base run_stage4
+    grep -qE '^developer_instructions[[:space:]]*=' "$TARGET/.codex/config.toml"
+}
+
+@test "stage4: [history] block does not contain developer_instructions" {
     PRESET=base run_stage4
     grep -q '^\[history\]' "$TARGET/.codex/config.toml"
-    grep -qE '^developer_instructions[[:space:]]*=' "$TARGET/.codex/config.toml"
+    if awk '
+        /^\[history\][[:space:]]*$/ { in_history=1; next }
+        /^\[/ { in_history=0 }
+        in_history && /^developer_instructions[[:space:]]*=/ { found=1 }
+        END { exit found ? 0 : 1 }
+    ' "$TARGET/.codex/config.toml"; then
+        echo "developer_instructions must not be inside [history]"
+        return 1
+    fi
 }
 
 @test "stage4: [history] block has 'persistence' field (Codex 0.126 requires it)" {
@@ -72,6 +86,19 @@ run_stage4() {
 @test "stage4: config.toml parses as valid TOML (yq -p toml)" {
     PRESET=base run_stage4
     yq -p toml eval '.' "$TARGET/.codex/config.toml" >/dev/null
+}
+
+@test "stage4: config.toml parses with strict tomllib when available" {
+    command -v python3 >/dev/null 2>&1 || skip "python3 not available"
+    python3 -c 'import tomllib' >/dev/null 2>&1 || skip "python3 tomllib not available"
+    PRESET=base run_stage4
+    python3 - "$TARGET/.codex/config.toml" <<'PY'
+import pathlib
+import sys
+import tomllib
+
+tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
+PY
 }
 
 @test "stage4: re-run preserves user content above START marker" {
@@ -104,6 +131,58 @@ EOF
     PRESET=base run_stage4
     grep -q 'my_postlude' "$TARGET/.codex/config.toml"
     grep -q 'favorite_color = "purple"' "$TARGET/.codex/config.toml"
+}
+
+@test "stage4: re-run removes legacy postlude [features] fallback with only codex_hooks" {
+    PRESET=base run_stage4
+    cat >> "$TARGET/.codex/config.toml" <<'EOF'
+
+# legacy fallback from older Sage installs
+[features]
+codex_hooks = true
+EOF
+    PRESET=base run run_stage4
+    [ "$status" -eq 0 ]
+    [ "$(grep -c '^\[features\]$' "$TARGET/.codex/config.toml")" = "1" ]
+    grep -qE '^codex_hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import tomllib' >/dev/null 2>&1; then
+        python3 - "$TARGET/.codex/config.toml" <<'PY'
+import pathlib
+import sys
+import tomllib
+
+tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
+PY
+    fi
+}
+
+@test "stage4: re-run fails instead of deleting user-owned [features] keys" {
+    PRESET=base run_stage4
+    cat >> "$TARGET/.codex/config.toml" <<'EOF'
+
+[features]
+codex_hooks = true
+experimental_widget = true
+EOF
+    PRESET=base run run_stage4
+    [ "$status" -ne 0 ]
+    echo "$output" | grep -qi 'duplicate singleton TOML table'
+    ls "$TARGET/.codex"/config.toml.singleton-table-backup-* >/dev/null 2>&1
+    grep -q 'experimental_widget = true' "$TARGET/.codex/config.toml"
+}
+
+@test "stage4: re-run fails on duplicate user-owned [history] table" {
+    PRESET=base run_stage4
+    cat >> "$TARGET/.codex/config.toml" <<'EOF'
+
+[history]
+extra = "keep"
+EOF
+    PRESET=base run run_stage4
+    [ "$status" -ne 0 ]
+    echo "$output" | grep -qi 'duplicate singleton TOML table'
+    ls "$TARGET/.codex"/config.toml.singleton-table-backup-* >/dev/null 2>&1
+    grep -q 'extra = "keep"' "$TARGET/.codex/config.toml"
 }
 
 @test "stage4: missing markers → backup + regenerate" {

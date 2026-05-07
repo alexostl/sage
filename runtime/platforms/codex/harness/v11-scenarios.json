@@ -23,49 +23,68 @@
       "prompt": "05-routing-edge.txt",
       "claim": "conversational/read-only prompt does not create workflow state",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_files": [".sage/docs/read-only-todo.md"]
+      }
     },
     {
       "id": "06-action-creates-or-resumes-manifest",
       "prompt": "06-action-creates-or-resumes-manifest.txt",
       "claim": "explicit action prompt creates or resumes the correct manifest",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {
+        "required_changed_patterns": ["^\\.sage/work/[^/]+/manifest\\.md$"]
+      }
     },
     {
       "id": "03-blocked-mutation-next-legal-move",
       "prompt": "03-build-out-of-scope.txt",
       "claim": "blocked mutation returns a recovery message with next legal move",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {}
     },
     {
       "id": "07-capture-router-minimal-intake",
       "prompt": "07-capture-router-minimal-intake.txt",
       "claim": "Capture Router creates minimal intake for unrelated actionable findings",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_files": [".sage/docs/harness-glossary-follow-up.md"]
+      }
     },
     {
       "id": "08-safe-autofix-metadata",
       "prompt": "08-safe-autofix-metadata.txt",
       "claim": "safe auto-fix keeps a reversible metadata/state issue moving",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {
+        "required_audit_kinds": ["safe_auto_fix"]
+      }
     },
     {
       "id": "09-memory-correction-reuse",
       "prompt": "09-memory-correction-reuse.txt",
       "claim": "documentation-routing correction is captured in .sage-memory and reused on the next relevant task",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_files": [".sage/docs/harness-glossary-follow-up.md"]
+      }
     },
     {
       "id": "10-cross-repo-target-state",
       "prompt": "10-cross-repo-target-state.txt",
       "claim": "cross-repo task uses the target repo's .sage state, scope, memory, and gates",
       "verification_class": "real-codex-harness",
-      "release_blocker": true
+      "release_blocker": true,
+      "state_rubric": {
+        "expected_files": [".sage/decisions.md"]
+      }
     }
   ]
 }

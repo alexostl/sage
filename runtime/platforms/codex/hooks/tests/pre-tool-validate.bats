@@ -98,7 +98,7 @@ make_cycle_with_scope() {
 
 @test "pre-tool-validate.sh: blocks Moderate+ implementation before plan.md exists" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
-    cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: tests/a.bats\n+z\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: src/c.sh\n+z\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
@@ -110,7 +110,7 @@ make_cycle_with_scope() {
 @test "pre-tool-validate.sh: allows Moderate+ implementation after plan.md and manifest.md exist" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
-    cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: tests/a.bats\n+z\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: src/c.sh\n+z\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
@@ -147,6 +147,10 @@ make_cycle_with_scope() {
 
 @test "pre-tool-validate.sh: Delete File path in scope → allow" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    sed -i.bak '/phase: implement/a\
+semantic_reclassification: accepted
+' "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md"
+    rm -f "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md.bak"
     cmd="$(make_patch_cmd Delete src/old.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -168,6 +172,61 @@ make_cycle_with_scope() {
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 2 ]
+}
+
+@test "pre-tool-validate.sh: paused/intake cycles are parked, not silently activated" {
+    make_cycle_with_scope "20260101-paused" "paused" "src/**"
+    make_cycle_with_scope "20260102-intake" "intake" "src/**"
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "parked"
+    echo "$output" | grep -qi "manifest-only"
+    echo "$output" | grep -qi "sage continue"
+}
+
+@test "pre-tool-validate.sh: risky repo-control/doc/test/CLI path requires semantic reclassification" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" ".gitignore" "README.md" "bin/*" "tests/**"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+tmp\n*** Update File: README.md\n@@\n+docs\n*** Update File: bin/sage\n@@\n+cli\n*** Add File: tests/new.bats\n+test\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "semantic reclassification"
+    echo "$output" | grep -q ".gitignore"
+    echo "$output" | grep -q "README.md"
+    echo "$output" | grep -q "bin/sage"
+    echo "$output" | grep -q "tests/new.bats"
+}
+
+@test "pre-tool-validate.sh: risky path allowed after semantic_reclassification accepted" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+semantic_reclassification: accepted
+scope:
+  - ".gitignore"
+  - "tests/**"
+---
+EOF
+    touch "$cycle_dir/plan.md"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+tmp\n*** Add File: tests/new.bats\n+test\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: Delete File is risky even when path is otherwise in scope" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    cmd="$(make_patch_cmd Delete src/old.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "semantic reclassification"
 }
 
 @test "pre-tool-validate.sh: phase value is irrelevant (§15.4 parity)" {
@@ -207,11 +266,11 @@ EOF
 @test "pre-tool-validate.sh: multiple in-progress cycles → newest mtime + warning logged" {
     make_cycle_with_scope "20260101-old" "in-progress" "src/**"
     sleep 1
-    make_cycle_with_scope "20260102-newer" "in-progress" "tests/**"
-    cmd="$(make_patch_cmd Add tests/new_test.sh)"
+    make_cycle_with_scope "20260102-newer" "in-progress" "app/**"
+    cmd="$(make_patch_cmd Add app/new_feature.sh)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
-    # newer cycle scope = tests/** → allow
+    # newer cycle scope = app/** → allow
     [ "$status" -eq 0 ]
     skip_log="$PROJECT_ROOT/.sage/.skipped-checks.log"
     [ -f "$skip_log" ]
