@@ -39,6 +39,10 @@ AGENTS.md
 # Track only the shared, durable Sage working-layer docs on codex-port.
 !.sage/
 .sage/*
+!.sage/work/
+.sage/work/*
+!.sage/work/20260507-codex-upstream-pr-prep/
+!.sage/work/20260507-codex-upstream-pr-prep/*
 !.sage/config.yaml
 !.sage/docs/
 .sage/docs/*
@@ -47,7 +51,6 @@ AGENTS.md
 !.sage/docs/learn-sage-selfhost-repository-map.md
 !.sage/docs/learn-sage-selfhost-working-model.md
 !.sage/docs/learn-sage-selfhost-branch-worktree-model.md
-!.sage/docs/codex-port-upstream-pr-todo.md
 
 # Python
 __pycache__/
