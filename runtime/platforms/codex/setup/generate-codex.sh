@@ -206,7 +206,6 @@ stage_7_deploy_skills() {
     fi
     deploy_skills "$TARGET" "$fw"
 }
-# Stage 8 (githooks) deferred to v2 per spec §2.
 stage_9_bootstrap_sage() {
     bootstrap_sage "$TARGET" "$PRESET"
 }

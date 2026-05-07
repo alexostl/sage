@@ -5,7 +5,7 @@
 # Stage 6, consumed by ADR-7 audit + `sage doctor`.
 #
 # Maps `.sage/` paths → list of allowed writer scripts. Entries with
-# `writers: []` are v2-only (UPS approval, L5 git hooks deferred).
+# `writers: []` are v2-only (UPS approval deferred).
 
 .sage/.approval-pending:
   # v2 only — UPS approval hook deferred per §6.2; in v1 this file
@@ -35,12 +35,6 @@
   # state, safety rationale, resulting state, and next legal move.
   writers:
     - pre-tool-validate.sh
-
-.sage/.precommit.log:
-  # v2 only — L5 deferred per §2; in v1 this file is absent and ADR-7
-  # C5 cross-check degrades to "no precommit log" mode.
-  writers:
-    - .githooks/pre-commit
 
 .sage/decisions.md:
   # v1: only the agent (via apply_patch when path scope allows it)

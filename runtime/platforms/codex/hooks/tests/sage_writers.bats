@@ -2,8 +2,8 @@
 # T1.3 — audit/sage-writers.yaml: writers manifest per spec §6.7.
 #
 # Plan contract (T1.3): yq parses cleanly; values match spec §6.7
-# verbatim (v1 entries — `.approval-pending`, `.ups-hook.log`,
-# `.precommit.log` empty writers; v2 commented in-line).
+# verbatim (v1 entries — `.approval-pending` and `.ups-hook.log`
+# empty writers; v2 commented in-line).
 
 setup() {
     MANIFEST="$BATS_TEST_DIRNAME/../../audit/sage-writers.yaml"
@@ -39,10 +39,6 @@ setup() {
     [ "$result" = "pre-tool-validate.sh" ]
 }
 
-@test "sage-writers.yaml: .precommit.log writers = [.githooks/pre-commit] (v2 deferred entry)" {
-    result=$(yq eval '.[".sage/.precommit.log"].writers | join(",")' "$MANIFEST")
-    [ "$result" = ".githooks/pre-commit" ]
-}
 
 @test "sage-writers.yaml: decisions.md writer = agent_via_apply_patch_when_P2_2" {
     result=$(yq eval '.[".sage/decisions.md"].writers | join(",")' "$MANIFEST")
@@ -56,7 +52,7 @@ setup() {
     [ "$docs" = "agent_via_apply_patch_when_P2_2" ]
 }
 
-@test "sage-writers.yaml: total entries = 9 (v1 contract)" {
+@test "sage-writers.yaml: total entries = 8 (v1 contract)" {
     result=$(yq eval 'keys | length' "$MANIFEST")
-    [ "$result" = "9" ]
+    [ "$result" = "8" ]
 }
