@@ -17,6 +17,10 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/json_log.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/path_normalize.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/active_init.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/artifact_order.sh"
 
 # Pre-flight: jq required to read payload. yq is optional (Check C
 # degrades). If jq missing, log skip + exit 0 — never block.
@@ -65,6 +69,37 @@ emit_incident() {
         '{kind:$kind, file:$file, severity:$sev, session_id:$sid, ts:$ts}')"
     json_log_append "$incidents_log" "$line"
 }
+
+# Close-cycle contract: flipping a manifest to completed should be the final
+# mutation by default. If the same patch also touches implementation/public
+# files, surface a critical incident unless the manifest explicitly carries a
+# pre-flip closeout marker.
+completed_cycles=()
+for p in "${claimed_paths[@]}"; do
+    case "$p" in
+        .sage/work/*/manifest.md)
+            cycle="${p#.sage/work/}"
+            cycle="${cycle%/manifest.md}"
+            manifest="$cwd/$p"
+            [ -f "$manifest" ] || continue
+            status_now="$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null || true)"
+            epilogue="$(manifest_yaml "$manifest" | yq eval '.closeout_epilogue // ""' - 2>/dev/null || true)"
+            if [ "$status_now" = "completed" ]; then
+                case "$epilogue" in allowed|accepted|true|yes) ;;
+                    *) completed_cycles+=("$cycle") ;;
+                esac
+            fi
+            ;;
+    esac
+done
+
+for cycle in ${completed_cycles[@]+"${completed_cycles[@]}"}; do
+    for p in "${claimed_paths[@]}"; do
+        if ! is_cycle_artifact_path "$p" "$cycle"; then
+            emit_incident "post_completion_mutation" "$p" "critical"
+        fi
+    done
+done
 
 # Step 2 — Check A (diff-claim mismatch).
 # Use `git status --porcelain -uall` (not `git diff --name-only HEAD`):

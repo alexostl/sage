@@ -69,6 +69,18 @@ EOF
     [ -z "$result" ]
 }
 
+@test "resumable_cycles_summary: paused/intake cycles are reported but not active" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    make_cycle "20260101-paused" "paused"
+    make_cycle "20260102-intake" "intake"
+    active="$(active_init_path "$PROJECT_ROOT")"
+    summary="$(resumable_cycles_summary "$PROJECT_ROOT")"
+    [ -z "$active" ]
+    echo "$summary" | grep -q "20260101-paused status=paused"
+    echo "$summary" | grep -q "20260102-intake status=intake"
+}
+
 @test "active_init_path: mixed in-progress + completed → returns only in-progress" {
     # shellcheck disable=SC1090
     source "$LIB"

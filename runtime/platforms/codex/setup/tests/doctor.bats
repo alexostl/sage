@@ -46,10 +46,10 @@ run_doctor() {
     # Snapshot every-file mtime+content under target before doctor.
     local pre post
     pre="$(find "$TARGET" -type f ! -path "$TARGET/.sage/.doctor-cursor" \
-        ! -path '*/.git/*' -exec stat -f '%m %z %N' {} \; 2>/dev/null | sort)"
+        ! -path '*/.git/*' -exec sh -c 'stat -c '''%Y %s %n''' "$1" 2>/dev/null || stat -f '''%m %z %N''' "$1"' _ {} \; 2>/dev/null | sort)"
     run_doctor >/dev/null 2>&1 || true
     post="$(find "$TARGET" -type f ! -path "$TARGET/.sage/.doctor-cursor" \
-        ! -path '*/.git/*' -exec stat -f '%m %z %N' {} \; 2>/dev/null | sort)"
+        ! -path '*/.git/*' -exec sh -c 'stat -c '''%Y %s %n''' "$1" 2>/dev/null || stat -f '''%m %z %N''' "$1"' _ {} \; 2>/dev/null | sort)"
     [ "$pre" = "$post" ] || {
         echo "BEFORE: $pre"
         echo "AFTER:  $post"

@@ -83,6 +83,13 @@ run_stage7() {
     grep -q 'sage/core/workflows/build.workflow.md' "$TARGET/.agents/skills/sage:build/SKILL.md"
 }
 
+@test "stage7: sage loader keeps router/entry-point discovery strong" {
+    run_stage7
+    grep -q 'Sage.s intelligent entry point' "$TARGET/.agents/skills/sage:sage/SKILL.md"
+    grep -q 'Read and follow the full workflow definition' "$TARGET/.agents/skills/sage:sage/SKILL.md"
+    grep -q 'sage/core/workflows/sage.workflow.md' "$TARGET/.agents/skills/sage:sage/SKILL.md"
+}
+
 @test "stage7: re-run produces identical output (idempotent)" {
     run_stage7
     cp -r "$TARGET/.agents/skills" "$TARGET/.agents/skills.first"

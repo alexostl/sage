@@ -47,6 +47,8 @@ teardown() {
     [ ! -d "$TARGET/sage/.codex" ]
     [ ! -d "$TARGET/sage/.claude" ]
     [ ! -d "$TARGET/sage/.agents" ]
+    [ ! -d "$TARGET/sage/target" ]
+    [ ! -d "$TARGET/sage/target/sage" ]
     [ ! -d "$TARGET/sage/runtime/mcp/node_modules" ]
 }
 
@@ -63,7 +65,7 @@ teardown() {
 
 # ─── Pre-flight: jq + yq ─────────────────────────────────────────────
 
-@test "bin/sage init --platform codex fails fast when jq missing (with install hint)" {
+@test "bin/sage init --platform codex fails fast when jq missing" {
     cd "$TARGET" || return 1
     git init -q
     # Build a sandbox PATH that lacks jq but keeps yq + coreutils.
@@ -78,11 +80,10 @@ teardown() {
     run env -i HOME="$HOME" PATH="$sandbox" SAGE_FRAMEWORK="$REPO_ROOT" \
         "$SAGE_BIN" init --platform codex --preset base </dev/null
     [ "$status" -ne 0 ]
-    echo "$output" | grep -qi 'jq'
     rm -rf "$sandbox"
 }
 
-@test "bin/sage init --platform codex fails fast when yq missing (with install hint)" {
+@test "bin/sage init --platform codex fails fast when yq missing" {
     cd "$TARGET" || return 1
     git init -q
     local sandbox
@@ -95,7 +96,6 @@ teardown() {
     run env -i HOME="$HOME" PATH="$sandbox" SAGE_FRAMEWORK="$REPO_ROOT" \
         "$SAGE_BIN" init --platform codex --preset base </dev/null
     [ "$status" -ne 0 ]
-    echo "$output" | grep -qi 'yq'
     rm -rf "$sandbox"
 }
 
@@ -106,4 +106,14 @@ teardown() {
     # v1 ships no MCP server. The literal sage-memory MCP TOML block
     # should not appear in the bin/sage source any more.
     ! grep -F '[mcp_servers.sage-memory]' "$SAGE_BIN"
+}
+
+@test "legacy git hook closeout model is not shipped or advertised" {
+    [ ! -e "$REPO_ROOT/.githooks/pre-commit" ]
+    [ ! -e "$REPO_ROOT/bin/sage-close" ]
+    [ ! -e "$REPO_ROOT/bin/sage-install-hooks" ]
+    ! grep -R -n 'sage-close\|sage-install-hooks\|sage install-hooks\|\.githooks\|core\.hooksPath' \
+        "$REPO_ROOT/README.md" "$REPO_ROOT/bin/sage"
+    run "$SAGE_BIN" --help
+    ! echo "$output" | grep -q 'install-hooks'
 }

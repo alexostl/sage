@@ -41,7 +41,7 @@ active_init_path() {
         status=$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null) || continue
         [ "$status" = "in-progress" ] || continue
         local mtime
-        mtime=$(stat -f '%m' "$manifest" 2>/dev/null || stat -c '%Y' "$manifest" 2>/dev/null) || continue
+        mtime=$(stat -c '%Y' "$manifest" 2>/dev/null || stat -f '%m' "$manifest" 2>/dev/null) || continue
         matched_count=$((matched_count + 1))
         matched_list="$matched_list $manifest"
         if [ "$mtime" -gt "$newest_mtime" ]; then
@@ -60,5 +60,30 @@ active_init_path() {
     fi
 
     [ -n "$newest_path" ] && printf '%s\n' "$newest_path"
+    return 0
+}
+
+resumable_cycles_summary() {
+    local project_root="$1"
+    local work_dir="$project_root/.sage/work"
+    [ -d "$work_dir" ] || return 0
+
+    local manifest out="" count=0
+    for manifest in "$work_dir"/*/manifest.md; do
+        [ -f "$manifest" ] || continue
+        local status id phase
+        status=$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null) || continue
+        case "$status" in paused|intake) ;; *) continue ;; esac
+        id="$(basename "$(dirname "$manifest")")"
+        phase="$(manifest_yaml "$manifest" | yq eval '.phase // ""' - 2>/dev/null || true)"
+        count=$((count + 1))
+        if [ -z "$out" ]; then
+            out="${id} status=${status} phase=${phase:-unknown}"
+        else
+            out="${out}; ${id} status=${status} phase=${phase:-unknown}"
+        fi
+    done
+
+    [ "$count" -gt 0 ] && printf '%s\n' "$out"
     return 0
 }
