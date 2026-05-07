@@ -230,6 +230,79 @@ EOF
     grep -q 'without resuming' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md explains paused/intake visibility vs implementation-active state" {
+    PRESET=base run_stage3
+    grep -q 'status: in-progress' "$TARGET/AGENTS.md"
+    grep -q 'implementation-active' "$TARGET/AGENTS.md"
+    grep -q 'status: paused' "$TARGET/AGENTS.md"
+    grep -q 'status: intake' "$TARGET/AGENTS.md"
+    grep -q 'sage status' "$TARGET/AGENTS.md"
+    grep -q 'sage doctor' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md defines deterministic artifact router" {
+    PRESET=base run_stage3
+    grep -q 'Artifact Router' "$TARGET/AGENTS.md"
+    grep -q '\.sage/docs/' "$TARGET/AGENTS.md"
+    grep -q '\.sage/work/<cycle>/' "$TARGET/AGENTS.md"
+    grep -q '\.sage/work/<cycle>/research/' "$TARGET/AGENTS.md"
+    grep -q '\.sage/decisions.md' "$TARGET/AGENTS.md"
+    grep -q '\.sage-memory/' "$TARGET/AGENTS.md"
+    grep -q 'minimal intake' "$TARGET/AGENTS.md"
+    grep -q 'needs-triage' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md defines recovery-first safe auto-fix boundaries" {
+    PRESET=base run_stage3
+    grep -q 'Recovery-First' "$TARGET/AGENTS.md"
+    grep -q 'safe auto-fix' "$TARGET/AGENTS.md"
+    grep -q 'minimal intake manifest' "$TARGET/AGENTS.md"
+    grep -q 'inferable frontmatter' "$TARGET/AGENTS.md"
+    grep -q 'same-cycle documentation scope' "$TARGET/AGENTS.md"
+    grep -q 'Hard stop' "$TARGET/AGENTS.md"
+    grep -q 'destructive actions' "$TARGET/AGENTS.md"
+    grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
+    grep -q '.sage/.auto-fixes.log' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md defines target-repo ownership" {
+    PRESET=base run_stage3
+    grep -q 'Target Repo Ownership' "$TARGET/AGENTS.md"
+    grep -q 'current working directory' "$TARGET/AGENTS.md"
+    grep -q 'edited repository owns workflow state' "$TARGET/AGENTS.md"
+    grep -q 'state, memory, scope, gates, and recovery' "$TARGET/AGENTS.md"
+    grep -q 'framework repository must not impersonate' "$TARGET/AGENTS.md"
+    grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
+}
+
+@test "shared guidance: review and navigator use Capture Router instead of decisions backlog" {
+    grep -q 'Capture Router' "$REPO_ROOT/core/workflows/review.workflow.md"
+    grep -q 'current-cycle follow-up' "$REPO_ROOT/core/workflows/review.workflow.md"
+    grep -q 'minimal intake' "$REPO_ROOT/core/workflows/review.workflow.md"
+    ! grep -q '^Prepend review findings to `.sage/decisions.md`\\.' "$REPO_ROOT/core/workflows/review.workflow.md"
+    grep -q 'Project-level knowledge' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'Initiative-specific research' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'Actionable TODO' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'needs-triage' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+}
+
+@test "shared guidance: status and continue describe recovery next legal moves" {
+    grep -q 'safe auto-fix' "$REPO_ROOT/core/workflows/status.workflow.md"
+    grep -q '.sage/.auto-fixes.log' "$REPO_ROOT/core/workflows/status.workflow.md"
+    grep -q 'single clear resumable candidate' "$REPO_ROOT/core/workflows/continue.workflow.md"
+    grep -q 'multiple equivalent cycles' "$REPO_ROOT/core/workflows/continue.workflow.md"
+    grep -q 'hard-stop' "$REPO_ROOT/core/workflows/continue.workflow.md"
+}
+
+@test "shared guidance: status and continue use target repository state" {
+    grep -q 'target repository' "$REPO_ROOT/core/workflows/status.workflow.md"
+    grep -q 'edited/current working repository owns workflow state' "$REPO_ROOT/core/workflows/status.workflow.md"
+    grep -q 'Cross-repo rule' "$REPO_ROOT/core/workflows/continue.workflow.md"
+    grep -q 'target repository' "$REPO_ROOT/core/workflows/continue.workflow.md"
+    grep -q 'framework repository does not stand in' "$REPO_ROOT/core/workflows/continue.workflow.md"
+}
+
+
 @test "stage3: re-run preserves user content below marker" {
     PRESET=base run_stage3
     # Append user content below marker.

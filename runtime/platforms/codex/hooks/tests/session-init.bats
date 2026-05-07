@@ -78,6 +78,15 @@ EOF
     echo "$output" | grep -q "20260102-beta"
 }
 
+@test "session-init.sh: intake cycle → emits summary line" {
+    make_cycle "20260106-intake" "intake" "Intake item" "intake" "intake"
+    payload="$(make_payload "$PROJECT_ROOT")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "20260106-intake"
+    echo "$output" | grep -q "intake"
+}
+
 @test "session-init.sh: completed cycle → no summary line emitted" {
     make_cycle "20260103-gamma" "completed" "Done feature" "build" "review"
     payload="$(make_payload "$PROJECT_ROOT")"
@@ -86,15 +95,17 @@ EOF
     ! echo "$output" | grep -q "20260103-gamma"
 }
 
-@test "session-init.sh: mixed cycles → only in-progress + paused listed" {
+@test "session-init.sh: mixed cycles → only in-progress + paused + intake listed" {
     make_cycle "20260101-done" "completed" "Done" "build" "review"
     make_cycle "20260102-active" "in-progress" "Active" "build" "implement"
     make_cycle "20260103-pause" "paused" "Paused" "fix" "diagnose"
+    make_cycle "20260104-intake" "intake" "Intake" "intake" "intake"
     payload="$(make_payload "$PROJECT_ROOT")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
     echo "$output" | grep -q "20260102-active"
     echo "$output" | grep -q "20260103-pause"
+    echo "$output" | grep -q "20260104-intake"
     ! echo "$output" | grep -q "20260101-done"
 }
 

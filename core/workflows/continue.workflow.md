@@ -16,7 +16,10 @@ to remember which workflow or initiative was in progress.
 ## Step 1: Scan for Active Cycles
 
 Scan `.sage/work/*/manifest.md` for cycles where
-`status: in-progress` or `status: paused`.
+`status: in-progress`, `status: paused`, or `status: intake`.
+
+Treat `in-progress` as implementation-active. Treat `paused` and `intake` as
+resumable but not mutation-active until the user confirms continuation.
 
 ### One cycle found (Zone 2: Approval)
 
@@ -41,13 +44,23 @@ Decisions, Open questions, Handoff guidance). Then offer [C]/[X].
 
 On [X]: "Describe what you want to work on, or type / to see commands."
 
+If there is one single clear resumable candidate and no conflicting active
+cycle, `/continue` may select it as a safe auto-fix of state navigation: report
+the detected state, why the choice was unambiguous, the selected cycle, and the
+next legal move. If there are multiple equivalent cycles, conflicting statuses,
+or ambiguous repo ownership, hard-stop and ask the user to choose.
+
+Cross-repo rule: `/continue` reads the target repository's `.sage/work/`
+manifests from the current working directory. The framework repository does not stand in
+for the target repo's state, memory, scope, gates, or recovery.
+
 ### Multiple cycles found (Zone 1: Choice)
 
 ```
-Sage: Found {N} active cycles:
+Sage: Found {N} resumable cycles:
 
-[1] {title A} — {workflow}, phase: {phase} (updated: {date})
-[2] {title B} — {workflow}, phase: {phase} (updated: {date})
+[1] {title A} — {workflow}, phase: {phase}, status: {status} (updated: {date})
+[2] {title B} — {workflow}, phase: {phase}, status: {status} (updated: {date})
 [3] Start something new
 
 Pick 1-{N+1}, type / for commands, or describe what you need.

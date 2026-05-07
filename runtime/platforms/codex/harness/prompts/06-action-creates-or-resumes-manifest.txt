@@ -1,0 +1,1 @@
+Add a short project note to AGENTS.md saying "Sage harness action note". Use the current Sage operating model and leave state that /sage:status can discover.

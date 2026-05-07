@@ -109,7 +109,18 @@ Based on the verdict:
 [R] Revise — I'll address the issues found
 [D] Discuss — let's talk about specific findings
 
-Prepend review findings to `.sage/decisions.md`.
+Route findings through the Capture Router:
+
+- checkpoint verdict or accepted process decision → prepend to
+  `.sage/decisions.md`
+- correction to agent behavior → `.sage-memory/`
+- current-cycle follow-up → current `manifest.md` or `plan.md`
+- separate actionable follow-up → new minimal intake cycle with source,
+  suggested workflow, and `needs-triage`
+- durable knowledge, ADR, or analysis → `.sage/docs/`
+
+Do not use `.sage/decisions.md` as a backlog. Do not write actionable review
+findings as loose `.sage/docs` notes.
 
 ## Rules
 

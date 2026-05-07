@@ -462,3 +462,114 @@ EOF
     [ -f "$log" ]
     grep -q '"AGENTS.md"' "$log"
 }
+
+@test "pre-tool-validate.sh: architect ADR docs do not count as Moderate+ implementation files" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-architect"
+workflow: architect
+status: in-progress
+phase: design
+scope:
+  - ".sage/work/20260101-architect/*"
+  - ".sage/docs/decision-codex-*.md"
+---
+EOF
+    printf '{"session_id":"test-uuid","cycle_id":"20260101-architect","files":[".sage/docs/decision-codex-a.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    printf '{"session_id":"test-uuid","cycle_id":"20260101-architect","files":[".sage/docs/decision-codex-b.md"]}\n' >> "$PROJECT_ROOT/.sage/.session-mutations.log"
+    cmd="$(make_patch_cmd Update ".sage/docs/decision-codex-v11-layered-operating-model.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: bootstrap allows manifest creation when target cycle dir already exists but is empty" {
+    cycle="20260101-empty-bootstrap"
+    mkdir -p "$PROJECT_ROOT/.sage/work/$cycle"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/%s/manifest.md\n+content\n*** Add File: .sage/work/%s/brief.md\n+content\n*** End Patch\n' "$cycle" "$cycle")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: safe auto-fix adds same-cycle architect doc scope and logs audit evidence" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-architect"
+workflow: architect
+status: in-progress
+phase: design
+scope:
+  - ".sage/work/20260101-architect/*"
+---
+EOF
+    cmd="$(make_patch_cmd Add ".sage/docs/decision-codex-v11-example.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '.sage/docs/decision-codex-\*.md' "$cycle_dir/manifest.md"
+    log="$PROJECT_ROOT/.sage/.auto-fixes.log"
+    [ -f "$log" ]
+    tail -n1 "$log" | jq -e '.kind == "safe_auto_fix"' >/dev/null
+    tail -n1 "$log" | jq -e '.fix == "manifest_scope_add"' >/dev/null
+    tail -n1 "$log" | jq -e '.severity == "info"' >/dev/null
+    tail -n1 "$log" | jq -e '.why_safe | test("reversible")' >/dev/null
+}
+
+@test "pre-tool-validate.sh: safe auto-fix creates missing scope key for architect doc metadata repair" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-architect"
+workflow: architect
+status: in-progress
+phase: design
+---
+EOF
+    cmd="$(make_patch_cmd Add ".sage/docs/analysis-codex-v11-example.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '^scope:' "$cycle_dir/manifest.md"
+    grep -q '.sage/docs/analysis-codex-\*.md' "$cycle_dir/manifest.md"
+}
+
+@test "pre-tool-validate.sh: safe auto-fix does not expand scope for implementation paths" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-architect"
+workflow: architect
+status: in-progress
+phase: design
+scope:
+  - ".sage/work/20260101-architect/*"
+---
+EOF
+    cmd="$(make_patch_cmd Add "src/surprise.sh")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "BLOCKING"
+    echo "$output" | grep -q "outside cycle scope"
+    [ ! -f "$PROJECT_ROOT/.sage/.auto-fixes.log" ]
+}
+
+@test "pre-tool-validate.sh: absolute path outside target repo hard-stops as out-of-scope ownership issue" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    outside_dir="$(mktemp -d -t sage_other_repo.XXXXXX)"
+    outside_path="$outside_dir/src/leak.sh"
+    cmd="$(make_patch_cmd Add "$outside_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    rm -rf "$outside_dir"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "outside cycle scope"
+    echo "$output" | grep -q "$outside_path"
+}

@@ -17,9 +17,10 @@ bash-native hooks today and possible MCP promotion later.
 runtime/platforms/codex/
 ├── audit/                      — read-only audit helpers (sage doctor S1-S4)
 ├── harness/                    — outcome harness (T2.7 seed; §13.2 signals)
-│   ├── run-harness.sh          — orchestrator: target init → 5 prompts → report
-│   ├── lib/aggregate-signals.sh — 8-signal collector (7 wired, 5+6b stub)
-│   ├── prompts/                 — 5 routing-coverage prompts
+│   ├── run-harness.sh          — orchestrator: target init → prompts → report
+│   ├── lib/aggregate-signals.sh — 8-signal + v1.1 release-blocker collector
+│   ├── prompts/                 — routing/recovery/capture coverage prompts
+│   ├── v11-scenarios.json       — v1.1 real-harness release contract
 │   └── README.md
 ├── hooks/                      — bash-native v1 hook implementations
 │   ├── lib/                    — sourced helpers (json_log, active_init,
@@ -36,8 +37,8 @@ runtime/platforms/codex/
 ## Quickstart (smoke test against a fresh target)
 
 ```bash
-# Outcome harness — runs 5 codex sessions on a throwaway target,
-# emits the §13.2 8-signal report.
+# Outcome harness — runs prompt sessions on a throwaway target,
+# emits the §13.2 8-signal report plus v1.1 release-blocker evidence.
 runtime/platforms/codex/harness/run-harness.sh
 ```
 
@@ -54,5 +55,5 @@ debuggable, hot-reloadable, and require no daemon. MCP is the v2
 upgrade path triggered when one of the v2-promotion signals fires
 (predicate > ~200 LOC, p95 latency > 1s, approval-gate logic
 returns, etc.). The outcome harness in `harness/` collects those
-signals empirically — see `harness/README.md` for the 8-signal
-table.
+signals empirically — see `harness/README.md` for the 8-signal table
+and v1.1 release-blocker harness policy.

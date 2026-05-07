@@ -1359,6 +1359,41 @@ sage_doctor() {
     fi
   fi
 
+  # ── S5 — documentation routing hygiene ──
+  local actionable_docs=""
+  if [ -d "$target/.sage/docs" ]; then
+    local doc
+    while IFS= read -r -d '' doc; do
+      local base
+      base="$(basename "$doc")"
+      if printf '%s\n' "$base" | grep -qiE '(todo|task|backlog|follow-?up|action)'; then
+        actionable_docs="${actionable_docs}$base, "
+        continue
+      fi
+      if grep -qiE '(^|[[:space:]])(- \[[ xX]?\]|TODO|FIXME|follow-?up|actionable|next action|backlog)' "$doc" 2>/dev/null; then
+        actionable_docs="${actionable_docs}$base, "
+      fi
+    done < <(find "$target/.sage/docs" -maxdepth 1 -type f -name '*.md' -print0 2>/dev/null)
+  fi
+  if [ -n "$actionable_docs" ]; then
+    actionable_docs="${actionable_docs%, }"
+    _doctor_warn "S5" "possible actionable work in .sage/docs: $actionable_docs" \
+      "Route actionable work to .sage/work/<cycle>/manifest.md or a minimal intake cycle"
+  else
+    _doctor_pass "S5" "no actionable docs routing warnings"
+  fi
+
+  # ── S6 — recovery-first safe auto-fix audit ──
+  local autofix_log="$target/.sage/.auto-fixes.log"
+  if [ -s "$autofix_log" ]; then
+    local n_autofixes
+    n_autofixes="$(wc -l < "$autofix_log" | tr -d ' ')"
+    _doctor_info "S6" "$n_autofixes safe auto-fix audit entr$( [ "$n_autofixes" = "1" ] && printf 'y' || printf 'ies' ) in .sage/.auto-fixes.log" \
+      "Review with: cat .sage/.auto-fixes.log"
+  else
+    _doctor_pass "S6" "no safe auto-fix audit entries"
+  fi
+
   # ── CV1 — Codex version watch ──
   local validated_file="$target/.sage/.codex-validated-version"
   if [ -n "$codex_ver" ] && [ -f "$validated_file" ]; then
@@ -1417,6 +1452,8 @@ sage_status() {
   # ── Read cycles from .sage/work/<id>/manifest.md ──
   # Each cycle: id (dir name) + frontmatter (title, workflow, phase, status, updated).
   local cycles_json=""
+  local active_cycles_json=""
+  local parked_cycles_json=""
   local cycle
   while IFS= read -r -d '' cycle; do
     local manifest="$cycle/manifest.md"
@@ -1428,12 +1465,11 @@ sage_status() {
     phase="$(awk -F': *' '/^phase:/{sub(/^phase: */,""); print; exit}' "$manifest")"
     status="$(awk -F': *' '/^status:/{sub(/^status: */,""); print; exit}' "$manifest")"
     updated="$(awk -F': *' '/^updated:/{sub(/^updated: */,""); print; exit}' "$manifest")"
-    # Only surface in-progress cycles in v1 (per §7.3 "active cycles").
     case "$status" in
-      in-progress|in_progress|active|"") ;;
+      in-progress|in_progress|active|"") status="${status:-in-progress}" ;;
+      paused|intake) ;;
       *) continue ;;
     esac
-    [ -z "$status" ] && status="(none)"
     local entry
     entry="$(jq -n \
       --arg id "$id" --arg title "$title" --arg workflow "$workflow" \
@@ -1444,6 +1480,12 @@ sage_status() {
     else
       cycles_json="${cycles_json},${entry}"
     fi
+    case "$status" in
+      in-progress|in_progress|active)
+        [ -z "$active_cycles_json" ] && active_cycles_json="$entry" || active_cycles_json="${active_cycles_json},${entry}" ;;
+      paused|intake)
+        [ -z "$parked_cycles_json" ] && parked_cycles_json="$entry" || parked_cycles_json="${parked_cycles_json},${entry}" ;;
+    esac
   done < <(find "$target/.sage/work" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 
   # ── Pending gates ──
@@ -1536,10 +1578,18 @@ $line"; fi
   echo ""
 
   echo -e "  ${BOLD}Active cycles${RESET}"
-  if [ -z "$cycles_json" ]; then
+  if [ -z "$active_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)"'
+    echo "[${active_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)"'
+  fi
+  echo ""
+
+  echo -e "  ${BOLD}Paused / intake${RESET}"
+  if [ -z "$parked_cycles_json" ]; then
+    echo -e "    ${DIM}(none)${RESET}"
+  else
+    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  next: sage continue"'
   fi
   echo ""
 

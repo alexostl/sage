@@ -1,0 +1,1 @@
+Before creating any TODO, prep, next-steps, or checklist artifact, check .sage-memory for documentation-routing corrections. Then create the correct Sage state for a parked task named "harness glossary follow-up"; do not put a TODO in .sage/docs.

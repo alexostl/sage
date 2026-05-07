@@ -30,6 +30,10 @@ Active:
     brief ✓  spec ✓  plan (in-progress)
     .sage/work/YYYYMMDD-slug/
 
+Paused / intake:
+  [initiative-name] [paused, phase] — resumable, not mutation-active
+  [initiative-name] [intake] — parked actionable work, no implementation started
+
 Completed:
   [initiative-name] [completed]
 
@@ -46,3 +50,17 @@ Gates: [mode config summary]
 - Compute from artifacts — never read progress.md.
 - If `.sage/work/` is empty, say so. Don't fabricate state.
 - Always suggest the next slash command.
+- `in-progress` is implementation-active. `paused` and `intake` are visible
+  and resumable, but not implementation-active for hooks.
+- `status` surfaces current active/resumable work and brief next actions.
+  `doctor` diagnoses structural inconsistencies such as actionable work placed
+  in `.sage/docs/`.
+- If recovery-first behavior applied a safe auto-fix, status may summarize the
+  resulting current state, but durable details live in `.sage/.auto-fixes.log`
+  and `doctor` surfaces the audit trail. A safe auto-fix is only reversible
+  metadata/state hygiene; anything that changes scope, product behavior, risk,
+  or ownership is a stop-and-ask condition.
+- Status is computed from the target repository's `.sage/` state. In
+  cross-repo work, the edited/current working repository owns workflow state,
+  memory, scope, gates, and recovery; framework repository state is not a
+  substitute.
