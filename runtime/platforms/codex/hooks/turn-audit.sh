@@ -19,6 +19,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/json_log.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/path_normalize.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/artifact_order.sh"
 
 if ! command -v jq >/dev/null 2>&1; then
     exit 0
@@ -103,6 +105,70 @@ for p in ${actual_paths[@]+"${actual_paths[@]}"}; do
         emit_incident "bypass_mutation" "$p" "warn"
     fi
 done
+
+# Critical fix invariant — Moderate+ fixes are artifact-first. A 3+ file
+# implementation change in a fix cycle is treated as Moderate+ for audit
+# purposes, and `plan.md` + `manifest.md` must have appeared in the session
+# mutation stream before the first implementation file. Later artifact writes
+# are recorded as post-hoc and do not cure the violation.
+if [ -f "$mutations_log" ]; then
+    cycle_ids="$(jq -r --arg sid "$session_id" '
+        select(.session_id == $sid) |
+        ((.cycle_id // empty), (.files[]? | capture("^\\.sage/work/(?<cycle>[^/]+)/").cycle?)) |
+        select(. != "")
+    ' "$mutations_log" 2>/dev/null | sort -u || true)"
+
+    while IFS= read -r cycle; do
+        [ -n "$cycle" ] || continue
+        plan_seen=0
+        manifest_seen=0
+        impl_count=0
+        first_impl=""
+        violation=0
+
+        while IFS= read -r row; do
+            entry_cycle="${row%%	*}"
+            path="${row#*	}"
+            [ "$entry_cycle" = "$cycle" ] || continue
+
+            case "$path" in
+                ".sage/work/$cycle/plan.md") plan_seen=1 ;;
+                ".sage/work/$cycle/manifest.md") manifest_seen=1 ;;
+            esac
+
+            if is_cycle_artifact_path "$path" "$cycle"; then
+                continue
+            fi
+
+            impl_count=$((impl_count + 1))
+            [ -n "$first_impl" ] || first_impl="$path"
+            if [ "$plan_seen" -ne 1 ] || [ "$manifest_seen" -ne 1 ]; then
+                violation=1
+            fi
+        done < <(jq -r --arg sid "$session_id" --arg cwd "$cwd" '
+            select(.session_id == $sid) as $entry |
+            ($entry.cycle_id // "") as $entry_cycle |
+            $entry.files[]? |
+            if test("^\\.sage/work/[^/]+/") then
+                (capture("^\\.sage/work/(?<cycle>[^/]+)/").cycle) + "\t" + .
+            elif $entry_cycle != "" then
+                $entry_cycle + "\t" + .
+            else
+                empty
+            end
+        ' "$mutations_log" 2>/dev/null || true)
+
+        if [ "$impl_count" -ge 3 ] && [ "$violation" -eq 1 ]; then
+            post_hoc=false
+            if [ "$plan_seen" -eq 1 ] && [ "$manifest_seen" -eq 1 ]; then
+                post_hoc=true
+            fi
+            extras="$(jq -nc --arg cycle "$cycle" --argjson count "$impl_count" --argjson post "$post_hoc" \
+                '{cycle:$cycle, implementation_file_count:$count, post_hoc_artifacts:$post}')"
+            emit_incident "artifact_order_violation" "$first_impl" "critical" "$extras"
+        fi
+    done <<< "$cycle_ids"
+fi
 
 # Step 4 — phase-jump probe: did this session mutate a manifest/spec/
 # plan and is the on-disk file at status: completed? Informational —

@@ -216,6 +216,12 @@ EOF
     grep -q 'verification-before-done' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md requires Moderate+ fix artifacts before code" {
+    PRESET=base run_stage3
+    grep -q 'Moderate+ fixes must update plan.md and manifest.md before code changes' "$TARGET/AGENTS.md"
+    grep -q 'Writing plan.md or manifest.md after code does not cure the violation' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md says active work does not force read-only implementation" {
     PRESET=base run_stage3
     grep -q 'When active work exists' "$TARGET/AGENTS.md"

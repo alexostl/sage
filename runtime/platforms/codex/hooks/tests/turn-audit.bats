@@ -58,6 +58,18 @@ log_mutation() {
         >> "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
+log_cycle_mutation() {
+    local sid="$1"
+    local tid="$2"
+    local cycle="$3"
+    shift 3
+    local files_json
+    files_json=$(printf '%s\n' "$@" | jq -R . | jq -sc .)
+    jq -nc --arg sid "$sid" --arg tid "$tid" --arg cycle "$cycle" --argjson f "$files_json" \
+        '{session_id:$sid, turn_id:$tid, ts:"2026-04-30T12:00:00Z", cycle_id:$cycle, files:$f}' \
+        >> "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
 @test "turn-audit.sh: no mutations + no diff → exit 0, no incidents" {
     payload="$(make_payload)"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -236,4 +248,57 @@ EOF
     found_bypass_log=0
     [ -f "$log" ] && grep -q '"file":".sage/.session-mutations.log"' "$log" && found_bypass_log=1
     [ "$found_bypass_log" -eq 0 ]
+}
+
+@test "turn-audit.sh: Moderate+ fix edits 3 implementation files before plan+manifest → artifact_order_violation" {
+    cd "$PROJECT_ROOT"
+    cycle="20260507-fix-order"
+    mkdir -p src tests .sage/work/"$cycle"
+    log_cycle_mutation "test-session" "turn-1" "$cycle" "src/a.sh" "src/b.sh" "tests/a.bats"
+    log_cycle_mutation "test-session" "turn-2" "$cycle" ".sage/work/$cycle/plan.md" ".sage/work/$cycle/manifest.md"
+    touch src/a.sh src/b.sh tests/a.bats .sage/work/"$cycle"/plan.md .sage/work/"$cycle"/manifest.md
+
+    payload="$(make_payload "test-session" "turn-2")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "artifact_order_violation" "$log"
+    grep -q '"file":"src/a.sh"' "$log"
+    grep -q '"cycle":"20260507-fix-order"' "$log"
+}
+
+@test "turn-audit.sh: post-hoc plan+manifest do not cure code-first Moderate+ violation" {
+    cd "$PROJECT_ROOT"
+    cycle="20260507-posthoc"
+    mkdir -p src .sage/work/"$cycle"
+    log_cycle_mutation "test-session" "turn-1" "$cycle" "src/a.sh" "src/b.sh" "src/c.sh"
+    log_cycle_mutation "test-session" "turn-2" "$cycle" ".sage/work/$cycle/plan.md"
+    log_cycle_mutation "test-session" "turn-3" "$cycle" ".sage/work/$cycle/manifest.md"
+    touch src/a.sh src/b.sh src/c.sh .sage/work/"$cycle"/plan.md .sage/work/"$cycle"/manifest.md
+
+    payload="$(make_payload "test-session" "turn-3")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "artifact_order_violation" "$log"
+    grep -q '"post_hoc_artifacts":true' "$log"
+}
+
+@test "turn-audit.sh: plan+manifest before Moderate+ implementation → no artifact_order_violation" {
+    cd "$PROJECT_ROOT"
+    cycle="20260507-good-order"
+    mkdir -p src .sage/work/"$cycle"
+    log_cycle_mutation "test-session" "turn-1" "$cycle" ".sage/work/$cycle/plan.md" ".sage/work/$cycle/manifest.md"
+    log_cycle_mutation "test-session" "turn-2" "$cycle" "src/a.sh" "src/b.sh" "src/c.sh"
+    touch src/a.sh src/b.sh src/c.sh .sage/work/"$cycle"/plan.md .sage/work/"$cycle"/manifest.md
+
+    payload="$(make_payload "test-session" "turn-2")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "artifact_order_violation" "$log"
+    fi
 }

@@ -96,6 +96,37 @@ make_cycle_with_scope() {
     grep -q "src/foo.txt" "$log"
 }
 
+@test "pre-tool-validate.sh: blocks Moderate+ implementation before plan.md exists" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
+    cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: tests/a.bats\n+z\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "Moderate+ fix"
+    echo "$output" | grep -q "plan.md"
+    echo "$output" | grep -q "manifest.md"
+}
+
+@test "pre-tool-validate.sh: allows Moderate+ implementation after plan.md and manifest.md exist" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: tests/a.bats\n+z\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: blocks third implementation file when artifacts were not written first" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    printf '{"session_id":"test-uuid","cycle_id":"20260101-alpha","files":["src/a.sh"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    printf '{"session_id":"test-uuid","cycle_id":"20260101-alpha","files":["src/b.sh"]}\n' >> "$PROJECT_ROOT/.sage/.session-mutations.log"
+    cmd="$(make_patch_cmd Add src/c.sh)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "Moderate+ fix"
+}
+
 @test "pre-tool-validate.sh: path out of scope → exit 2, stderr lists out-of-scope paths" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
     cmd="$(make_patch_cmd Add docs/oops.md)"
