@@ -4,16 +4,23 @@ These rules are non-negotiable. They ensure Sage delivers quality outcomes
 regardless of platform, model, or task type. Each rule has a compliance
 check — an observable signal that the rule was followed.
 
-## Rule 0: Route Every Request
+## Rule 0: Route Work, Preserve Conversation
 
-Before responding to any substantial request, classify scope and announce
-the workflow. This fires FIRST — before reading state, before activating
-skills, before doing any work.
+Before doing Standard+ work, classify scope and route to the right
+workflow. Conversation is not work by itself: read-only questions,
+conceptual discussion, and "what do you think?" prompts may be answered
+without announcing or starting a workflow.
 
 - Scan `.sage/work/` frontmatter and read `.sage/decisions.md` for context
-- Classify: Tier 1 (just do it), Tier 2 (announce and proceed),
-  Tier 3 (card and choose)
-- For Tier 2/3: announce with "Sage →" before doing anything else
+- Classify the user's mandate:
+  - conversational/read-only question → answer conversationally by default
+  - explicit workflow command → enter that workflow
+  - action mandate (including polite question-form mandates like
+    "Can you fix this?") → route to workflow or confirmation
+  - ambiguous/borderline prompt → offer soft confirmation before workflow
+- If active work exists, acknowledge it when relevant, but do not resume
+  implementation or force methodology for unrelated read-only questions
+- After workflow entry, follow that workflow's gates exactly
 
 **Scope calibration:** When in doubt, bias toward Standard. A brief note
 takes 2 minutes. Rework from undocumented decisions takes hours.
@@ -21,8 +28,9 @@ takes 2 minutes. Rework from undocumented decisions takes hours.
   visible to other team members
 - Any behavior change, API change, or team-visible decision → Tier 2+
 
-**Compliance:** Every substantial response starts with a "Sage →"
-announcement, uses a slash command, or is genuinely Tier 1.
+**Compliance:** Every Standard+ work response starts with a "Sage →"
+announcement, uses a slash command, or explicitly stays conversational
+because the user asked a read-only question without an action mandate.
 
 ## Rule 1: State First
 

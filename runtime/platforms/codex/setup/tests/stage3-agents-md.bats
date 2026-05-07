@@ -151,6 +151,79 @@ EOF
     ! grep -q 'v1 filesystem variant' "$TARGET/AGENTS.md"
 }
 
+# Shared-source routing contract assertions. These are intentionally
+# separate from generated AGENTS.md assertions below.
+
+@test "shared routing: old eager question fallback is absent" {
+    ! grep -R -n 'Question / evaluation / "why".*UNDERSTAND' \
+        "$REPO_ROOT/core/constitution/sage-process.constitution.md" \
+        "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    ! grep -R -n 'why".*UNDERSTAND.*analyze' \
+        "$REPO_ROOT/core/constitution/sage-process.constitution.md" \
+        "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+}
+
+@test "shared routing: conversational questions can be answered without workflow" {
+    grep -q 'conversational/read-only question' "$REPO_ROOT/core/constitution/sage-process.constitution.md"
+    grep -q 'without announcing or starting a workflow' "$REPO_ROOT/core/constitution/sage-process.constitution.md"
+    grep -q 'Conversational/read-only question' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'Answer conversationally by default' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+}
+
+@test "shared routing: active work does not force read-only questions into implementation" {
+    grep -q 'active work exists' "$REPO_ROOT/core/constitution/sage-process.constitution.md"
+    grep -q 'unrelated read-only questions' "$REPO_ROOT/core/constitution/sage-process.constitution.md"
+    grep -q 'If active work exists' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'offer to resume afterward' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+}
+
+@test "shared routing: polite question-form mandates are action mandates" {
+    grep -q 'polite question-form mandates' "$REPO_ROOT/core/constitution/sage-process.constitution.md"
+    grep -q 'Can you fix this' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'Could you implement this' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'Would you run a smoke test' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+}
+
+# Generated Codex AGENTS.md routing contract assertions.
+
+@test "stage3: generated AGENTS.md says conversational questions do not start workflow by default" {
+    PRESET=base run_stage3
+    grep -q 'Route Work, Preserve Conversation' "$TARGET/AGENTS.md"
+    grep -q 'conversational/read-only questions can be answered' "$TARGET/AGENTS.md"
+    grep -q 'without workflow by default' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md distinguishes workflow commands, action mandates, and ambiguous prompts" {
+    PRESET=base run_stage3
+    grep -q 'explicit workflow command' "$TARGET/AGENTS.md"
+    grep -q 'action mandate' "$TARGET/AGENTS.md"
+    grep -q 'ambiguous/borderline prompt' "$TARGET/AGENTS.md"
+    grep -q 'soft confirmation' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md covers polite question-form mandates" {
+    PRESET=base run_stage3
+    grep -q 'Can you fix' "$TARGET/AGENTS.md"
+    grep -q 'Could you implement' "$TARGET/AGENTS.md"
+    grep -q 'Would you run a smoke test' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md preserves post-entry Codex enforcement language" {
+    PRESET=base run_stage3
+    grep -q 'After workflow entry, Codex-native enforcement still applies' "$TARGET/AGENTS.md"
+    grep -q 'spec/plan gates' "$TARGET/AGENTS.md"
+    grep -q 'manifest scope protection' "$TARGET/AGENTS.md"
+    grep -q 'verification-before-done' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md says active work does not force read-only implementation" {
+    PRESET=base run_stage3
+    grep -q 'When active work exists' "$TARGET/AGENTS.md"
+    grep -q 'unrelated' "$TARGET/AGENTS.md"
+    grep -q 'read-only questions' "$TARGET/AGENTS.md"
+    grep -q 'without resuming' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: re-run preserves user content below marker" {
     PRESET=base run_stage3
     # Append user content below marker.
