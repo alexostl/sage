@@ -42,6 +42,12 @@ teardown() {
     [ -f "$TARGET/.sage/decisions.md" ]
     [ -d "$TARGET/.sage/gates/scripts" ]
     [ -f "$TARGET/.sage/constitution.md" ]
+    [ ! -d "$TARGET/sage/.sage" ]
+    [ ! -d "$TARGET/sage/.sage-memory" ]
+    [ ! -d "$TARGET/sage/.codex" ]
+    [ ! -d "$TARGET/sage/.claude" ]
+    [ ! -d "$TARGET/sage/.agents" ]
+    [ ! -d "$TARGET/sage/runtime/mcp/node_modules" ]
 }
 
 @test "bin/sage init runs Stage 10 sanity sweep PASSED on the produced layout" {
@@ -64,7 +70,7 @@ teardown() {
     local sandbox
     sandbox="$(mktemp -d -t binsage_nojq.XXXXXX)"
     # Symlink in everything except jq.
-    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 yq sort uniq col tput xargs touch hostname pwd uname id stty; do
+    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 yq sort uniq col tput xargs touch hostname pwd uname id stty tar; do
         local where
         where="$(command -v "$tool" 2>/dev/null)" || continue
         ln -sf "$where" "$sandbox/$tool" 2>/dev/null || true
@@ -81,7 +87,7 @@ teardown() {
     git init -q
     local sandbox
     sandbox="$(mktemp -d -t binsage_noyq.XXXXXX)"
-    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 jq sort uniq col tput xargs touch hostname pwd uname id stty; do
+    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 jq sort uniq col tput xargs touch hostname pwd uname id stty tar; do
         local where
         where="$(command -v "$tool" 2>/dev/null)" || continue
         ln -sf "$where" "$sandbox/$tool" 2>/dev/null || true

@@ -145,7 +145,38 @@ resolve_framework
 prune_framework_copy() {
   local sage_dir="$1"
   rm -rf "$sage_dir/.git" "$sage_dir/.github" "$sage_dir/.tmp"
+  rm -rf "$sage_dir/.sage" "$sage_dir/.sage-memory"
+  rm -rf "$sage_dir/.claude" "$sage_dir/.codex" "$sage_dir/.agents"
+  find "$sage_dir" -name node_modules -type d -prune -exec rm -rf {} + 2>/dev/null || true
+  find "$sage_dir" -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null || true
+  find "$sage_dir" \( -name '*.pyc' -o -name '.DS_Store' \) -type f -delete 2>/dev/null || true
   rm -f "$sage_dir/.DS_Store"
+}
+
+copy_framework_distribution() {
+  local source="$1"
+  local dest="$2"
+  mkdir -p "$dest"
+  (
+    cd "$source" || exit 1
+    tar \
+      --exclude './.git' \
+      --exclude './.github' \
+      --exclude './.sage' \
+      --exclude './.sage-memory' \
+      --exclude './.claude' \
+      --exclude './.codex' \
+      --exclude './.agents' \
+      --exclude './.tmp' \
+      --exclude './.DS_Store' \
+      --exclude '*/node_modules' \
+      --exclude '*/__pycache__' \
+      --exclude '*.pyc' \
+      -cf - .
+  ) | (
+    cd "$dest" || exit 1
+    tar -xf -
+  )
 }
 
 ask_choice() {
@@ -246,7 +277,7 @@ copy_framework() {
   if [ -d "$target/sage" ]; then
     echo -e "  ${GREEN}✓${RESET} sage/ already present"
   else
-    cp -a "$SAGE_FRAMEWORK" "$target/sage"
+    copy_framework_distribution "$SAGE_FRAMEWORK" "$target/sage"
     prune_framework_copy "$target/sage"
     echo -e "  ${GREEN}✓${RESET} sage/ copied to project"
   fi
@@ -631,7 +662,7 @@ except: pass
   # Update sage/ framework
   if [ -d "$target/sage" ]; then
     rm -rf "$target/sage"
-    cp -a "$SAGE_FRAMEWORK" "$target/sage"
+    copy_framework_distribution "$SAGE_FRAMEWORK" "$target/sage"
     prune_framework_copy "$target/sage"
     echo -e "  ${GREEN}✓${RESET} sage/ updated"
   fi
