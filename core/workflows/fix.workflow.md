@@ -33,7 +33,8 @@ and fix patterns may be relevant.
 ### Manifest Lifecycle (fix workflow)
 
 **Surgical fixes:** No manifest. Too fast — completes in one session.
-**Moderate fixes:** Create manifest when fix plan is written (Step 3).
+**Moderate fixes:** Create/update manifest when fix plan is written
+(Step 3), before any fix code changes.
 **Systemic fixes:** Create manifest at escalation point.
 **Update** at fix scope gate and close checkpoint.
 **Session end ([N]):** Mandatory update for Moderate+ fixes.
@@ -198,12 +199,17 @@ abstractions. The fix follows directly from the confirmed root cause.
 **Moderate:** 3-5 files changed, OR test infrastructure changes,
 OR error handling pattern changes. The fix is clear but touches
 multiple components.
-→ MUST write a fix plan before implementing:
+→ MUST write a fix plan and update manifest scope before implementing:
   Save to `.sage/work/[fix-initiative]/plan.md`:
   - Files to change and what changes in each
   - Tests to add or modify
   - Rollback approach if fix doesn't work
+  Update `.sage/work/[fix-initiative]/manifest.md` in the same planning
+  gate with the approved scope.
   Present [A]/[R] → wait for approval.
+  Do not edit implementation code until both `plan.md` and `manifest.md`
+  have been updated and approved. Writing these artifacts after code
+  changes is a methodology violation, not a cure.
 
 **Systemic:** 5+ files changed, OR interface/API changes, OR new
 abstractions needed, OR architectural implications. This is no

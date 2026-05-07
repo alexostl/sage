@@ -214,7 +214,7 @@ without workflow by default.
 Classify the user's mandate:
 - conversational/read-only question → answer conversationally by default;
   do not announce a workflow or write artifacts
-- explicit workflow command (`$sage:build`, `$sage:fix`, etc.) → enter that
+- explicit workflow command (\`\$sage:build\`, \`\$sage:fix\`, etc.) → enter that
   workflow and follow its gates
 - action mandate, including polite question-form mandates like "Can you fix
   this?", "Could you implement this?", or "Would you run a smoke test?" →
@@ -226,6 +226,9 @@ read-only questions may be answered from context without resuming
 implementation. After workflow entry, Codex-native enforcement still applies:
 spec/plan gates, fix root-cause approval, manifest scope protection, and
 verification-before-done remain mandatory.
+
+Moderate+ fixes must update plan.md and manifest.md before code changes.
+Writing plan.md or manifest.md after code does not cure the violation.
 
 ### Rule 1 — State First
 

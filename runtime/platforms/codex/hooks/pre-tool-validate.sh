@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# pre-tool-validate.sh — Codex PreToolUse(apply_patch). v1 cycle-scope-only.
-# Spec §6.3 / §15.3 / §15.4. Plan T1.5 (≤80 LOC ceiling).
+# pre-tool-validate.sh — Codex PreToolUse(apply_patch).
 set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
@@ -11,6 +10,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/path_normalize.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/bootstrap_check.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/artifact_order.sh"
 
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -29,8 +30,8 @@ fi
 cwd="$(printf '%s' "$payload" | jq -r '.cwd // empty')"
 [ -n "$cwd" ] && [ -d "$cwd" ] || cwd="$PWD"
 cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
+session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
 
-# Parse apply_patch DSL — extract Add|Update|Delete File paths.
 claimed_paths=()
 while IFS= read -r line; do
     case "$line" in
@@ -39,7 +40,6 @@ while IFS= read -r line; do
     esac
 done <<< "$cmd"
 
-# Empty patch — Codex rejects on its own; not our role to mirror.
 [ "${#claimed_paths[@]}" -eq 0 ] && exit 0
 
 cycle_dir="$(active_init_path "$cwd")"
@@ -52,17 +52,14 @@ if [ -z "$cycle_dir" ]; then
 else
     cycle_id="$(basename "$cycle_dir")"
     manifest="$cycle_dir/manifest.md"
-    # F-1 BUG-F1-5: implicit allow for cycle-self dir + decisions.md.
     scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
     while IFS= read -r line; do
         [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
     done < <(manifest_yaml "$manifest" | yq eval '.scope[]' - 2>/dev/null || true)
-    # ${arr[@]+...} guards empty-array under set -u on bash 3.2 macOS.
     out_of_scope=()
     for path in "${claimed_paths[@]}"; do
         matched=0
         for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
-            # shellcheck disable=SC2254
             case "$path" in $glob) matched=1; break ;; esac
         done
         [ "$matched" -eq 0 ] && out_of_scope+=("$path")
@@ -72,11 +69,14 @@ else
             "${out_of_scope[*]}" "$cycle_id" "${scope_globs[*]:-(none)}" >&2
         exit 2
     fi
+
+    if moderate_fix_artifacts_missing "$cycle_dir" "$manifest" "$cwd/.sage/.session-mutations.log" "$session_id" "$cycle_id" "${claimed_paths[@]}"; then
+        printf 'Sage: Moderate+ fix implementation is blocked until plan.md and manifest.md exist before code changes. Write/update those artifacts first; post-hoc artifacts do not cure a code-first violation. Active cycle: %s.\n' "$cycle_id" >&2
+        exit 2
+    fi
 fi
 
-# Allow — log session mutation for ADR-7 audit.
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
 files_json="$(printf '%s\n' "${claimed_paths[@]}" | jq -R . | jq -sc .)"
 log_line="$(jq -nc --arg sid "$session_id" --arg ts "$ts" --arg cycle "$cycle_id" --argjson files "$files_json" \
     '{session_id:$sid, ts:$ts, cycle_id:$cycle, files:$files}')"
