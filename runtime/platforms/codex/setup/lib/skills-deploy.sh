@@ -6,9 +6,9 @@
 #
 # Each loader is a thin stub: name + description (Tier C preamble
 # extracted from `core/workflows/<wf>.workflow.md` via T1.8 helper) +
-# a body line referring to the source workflow file. The full workflow
-# content stays at `core/workflows/<wf>.workflow.md` — Codex resolves
-# it on activation; loader keeps `.agents/skills/` lightweight.
+# a body line referring to the deployed workflow file. In Codex targets,
+# the framework is vendored under `sage/`, so loaders must point at
+# `sage/core/workflows/<wf>.workflow.md`.
 #
 # v1 spec ref: §4 Stage 7, §5 Tier C.
 # v1 plan ref: T1.14.
@@ -29,7 +29,7 @@ CODEX_V1_WORKFLOWS=(
 _render_skill_loader() {
     local wf="$1"
     local description="$2"
-    local source_rel="core/workflows/${wf}.workflow.md"
+    local source_rel="sage/core/workflows/${wf}.workflow.md"
 
     cat <<EOF
 ---
