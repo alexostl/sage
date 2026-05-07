@@ -47,12 +47,16 @@ AGENTS.md
 !.sage/docs/learn-sage-selfhost-repository-map.md
 !.sage/docs/learn-sage-selfhost-working-model.md
 !.sage/docs/learn-sage-selfhost-branch-worktree-model.md
-!.sage/docs/research-codex-port-rewrite-base.md
-!.sage/docs/research-codex-stream-a-initiative-history.md
-!.sage/docs/research-codex-stream-b-latest-thinking.md
-!.sage/docs/research-codex-stream-c-adapter-map.md
-!.sage/docs/research-codex-stream-d-platform-truth.md
+!.sage/docs/codex-port-upstream-pr-todo.md
 
 # Python
 __pycache__/
 *.pyc
+
+# Sage hook artifacts (managed by `bin/sage init` — remove this block to commit hook logs)
+.sage/.mcp-incidents.log
+.sage/.session-mutations.log
+.sage/.skipped-checks.log
+.sage/.approval-pending
+.sage/.codex-validated-version
+# end Sage hook artifacts
