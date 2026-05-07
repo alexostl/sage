@@ -1,0 +1,54 @@
+name: Codex Port CI
+
+on:
+  pull_request:
+    branches:
+      - self-host/main
+    paths:
+      - ".github/workflows/codex-port-ci.yml"
+      - "bin/sage"
+      - "core/**"
+      - "runtime/platforms/codex/**"
+  push:
+    branches:
+      - self-host/main
+    paths:
+      - ".github/workflows/codex-port-ci.yml"
+      - "bin/sage"
+      - "core/**"
+      - "runtime/platforms/codex/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bats:
+    name: Codex Bats suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install test dependencies
+        env:
+          YQ_VERSION: v4.44.3
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bats jq shellcheck
+          sudo wget -qO /usr/local/bin/yq \
+            "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+          bats --version
+          jq --version
+          yq --version
+          shellcheck --version
+
+      - name: Run Codex hook tests
+        run: bats runtime/platforms/codex/hooks/tests
+
+      - name: Run Codex setup tests
+        run: bats runtime/platforms/codex/setup/tests
