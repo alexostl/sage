@@ -236,8 +236,52 @@ resolve_update_source() {
 
 prune_framework_copy() {
   local sage_dir="$1"
-  rm -rf "$sage_dir/.git" "$sage_dir/.github" "$sage_dir/.tmp"
-  rm -f "$sage_dir/.DS_Store"
+  rm -rf \
+    "$sage_dir/.git" \
+    "$sage_dir/.github" \
+    "$sage_dir/.tmp" \
+    "$sage_dir/.sage" \
+    "$sage_dir/.sage-memory" \
+    "$sage_dir/.claude" \
+    "$sage_dir/.codex" \
+    "$sage_dir/.agents" \
+    "$sage_dir/target" \
+    "$sage_dir/runtime/mcp/node_modules"
+  find "$sage_dir" \
+    \( -name .DS_Store -o -name __pycache__ -o -name '*.pyc' \) \
+    -exec rm -rf {} + 2>/dev/null || true
+}
+
+copy_framework_distribution() {
+  local source="$1"
+  local destination="$2"
+  local parent
+  parent="$(dirname "$destination")"
+  mkdir -p "$parent"
+  (
+    cd "$source"
+    tar \
+      --exclude ./.git \
+      --exclude ./.github \
+      --exclude ./.tmp \
+      --exclude ./.sage \
+      --exclude ./.sage-memory \
+      --exclude ./.claude \
+      --exclude ./.codex \
+      --exclude ./.agents \
+      --exclude ./target \
+      --exclude './runtime/mcp/node_modules' \
+      --exclude './runtime/platforms/codex/harness/target' \
+      --exclude './runtime/platforms/codex/harness/.sage/work/*/qa/run-*' \
+      --exclude '*/__pycache__' \
+      --exclude '*.pyc' \
+      --exclude '.DS_Store' \
+      -cf - .
+  ) | (
+    mkdir -p "$destination"
+    cd "$destination"
+    tar -xf -
+  )
 }
 
 ask_choice() {
@@ -448,7 +492,7 @@ copy_framework() {
     ensure_framework_entrypoint "$target"
     echo -e "  ${GREEN}✓${RESET} sage/ already present"
   else
-    cp -a "$SAGE_FRAMEWORK" "$target/sage" &
+    copy_framework_distribution "$SAGE_FRAMEWORK" "$target/sage" &
     spin $! "Copying framework..."
     prune_framework_copy "$target/sage"
     record_framework_source "$target" "$SAGE_FRAMEWORK"
@@ -614,6 +658,23 @@ CONSTMD
   fi
 }
 
+preflight_platform_tools() {
+  if platform_has "codex"; then
+    local _missing=""
+    command -v jq >/dev/null 2>&1 || _missing="${_missing} jq"
+    command -v yq >/dev/null 2>&1 || _missing="${_missing} yq"
+    if [ -n "$_missing" ]; then
+      echo -e "  ${RED}❌ Missing required tools for Codex hooks:${RESET}${_missing}"
+      case "$(uname -s)" in
+        Darwin) echo -e "  ${DIM}Install:${RESET} brew install$_missing" ;;
+        Linux)  echo -e "  ${DIM}Install:${RESET} apt-get install$_missing  (or your distro's package manager)" ;;
+        *)      echo -e "  ${DIM}Install:${RESET} install$_missing via your package manager" ;;
+      esac
+      exit 1
+    fi
+  fi
+}
+
 run_generators() {
   local target="$1"
   local sage_path="$target/sage"
@@ -631,20 +692,7 @@ run_generators() {
 
   if platform_has "codex"; then
     echo ""
-    # Pre-flight: jq + yq required by Codex hooks (per spec §6.3 / §7.1).
-    # Without them, hooks silently degrade — fail fast at install time.
-    local _missing=""
-    command -v jq >/dev/null 2>&1 || _missing="${_missing} jq"
-    command -v yq >/dev/null 2>&1 || _missing="${_missing} yq"
-    if [ -n "$_missing" ]; then
-      echo -e "  ${RED}❌ Missing required tools for Codex hooks:${RESET}${_missing}"
-      case "$(uname -s)" in
-        Darwin) echo -e "  ${DIM}Install:${RESET} brew install$_missing" ;;
-        Linux)  echo -e "  ${DIM}Install:${RESET} apt-get install$_missing  (or your distro's package manager)" ;;
-        *)      echo -e "  ${DIM}Install:${RESET} install$_missing via your package manager" ;;
-      esac
-      exit 1
-    fi
+    preflight_platform_tools
     SAGE_FRAMEWORK="$sage_path" bash \
       "$sage_path/runtime/platforms/codex/setup/generate-codex.sh" \
       --target "$target" --preset "${SELECTED_PRESET:-base}"
@@ -746,6 +794,8 @@ sage_new() {
   local target
   target="$(cd "$name" && pwd)"
 
+  select_platform "$target"
+  preflight_platform_tools
   copy_framework "$target"
 
   # Git init
@@ -755,7 +805,10 @@ sage_new() {
   fi
 
   detect_stack "$target"
-  select_platform "$target"
+  if [ -z "${PLATFORM:-}" ]; then
+    select_platform "$target"
+    preflight_platform_tools
+  fi
   select_preset "$target"
   create_sage_state "$target"
   run_generators "$target"
@@ -804,9 +857,10 @@ sage_init() {
     echo ""
   fi
 
-  copy_framework "$target"
   detect_stack "$target"
   select_platform "$target"
+  preflight_platform_tools
+  copy_framework "$target"
   select_preset "$target"
   create_sage_state "$target"
   run_generators "$target"
@@ -931,7 +985,7 @@ except: pass
       exit 1
     fi
     rm -rf "$target/sage"
-    cp -a "$update_source" "$target/sage" &
+    copy_framework_distribution "$update_source" "$target/sage" &
     spin $! "Updating framework..."
     prune_framework_copy "$target/sage"
     record_framework_source "$target" "$update_source"
@@ -1260,7 +1314,7 @@ sage_doctor() {
       [ -z "$cursor_ts" ] && cursor_ts=0
     fi
     local log_mtime
-    log_mtime="$(stat -f '%m' "$incidents_log" 2>/dev/null || stat -c '%Y' "$incidents_log" 2>/dev/null || echo 0)"
+    log_mtime="$(stat -c '%Y' "$incidents_log" 2>/dev/null || stat -f '%m' "$incidents_log" 2>/dev/null || echo 0)"
     if [ "$log_mtime" -gt "$cursor_ts" ]; then
       local n_unread
       n_unread="$(wc -l < "$incidents_log" | tr -d ' ')"
@@ -1287,7 +1341,7 @@ sage_doctor() {
       [ -f "$manifest" ] || continue
       grep -q '^status:[[:space:]]*in-progress' "$manifest" 2>/dev/null || continue
       local mtime
-      mtime="$(stat -f '%m' "$manifest" 2>/dev/null || stat -c '%Y' "$manifest" 2>/dev/null || echo "$now")"
+      mtime="$(stat -c '%Y' "$manifest" 2>/dev/null || stat -f '%m' "$manifest" 2>/dev/null || echo "$now")"
       local age=$((now - mtime))
       if [ "$age" -gt "$week_secs" ]; then
         stale_cycles="${stale_cycles}$(basename "$cycle"), "
@@ -1589,7 +1643,7 @@ $line"; fi
   if [ -z "$parked_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  next: sage continue"'
+    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  parked manifest-only; no active implementation; next: sage continue"'
   fi
   echo ""
 

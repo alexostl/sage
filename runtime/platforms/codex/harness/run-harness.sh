@@ -12,6 +12,8 @@
 #
 # Output dir defaults to a tempdir under $TMPDIR. Override with
 # HARNESS_OUT=<path>. Target dir = <out-dir>/target.
+# Real-agent profile defaults to gpt-5.4 medium. gpt-5.5 is refused because
+# this harness is intentionally extensive and cost-sensitive.
 #
 # Runnable autonomously by Claude Code (Round 2 C5 hard gate).
 #
@@ -32,13 +34,97 @@ for cmd in jq codex git; do
 done
 [ -x "$SAGE_BIN" ] || { echo "ERROR: bin/sage not executable at $SAGE_BIN" >&2; exit 1; }
 
+log_line_count() {
+    local file="${1:?log file required}"
+    if [ -f "$file" ]; then
+        wc -l < "$file" | tr -d ' '
+    else
+        printf '0\n'
+    fi
+}
+
+read_json_or_key_value_log() {
+    local file="${1:?log file required}"
+    local start_line="${2:-1}"
+    local tmp
+    tmp="$(mktemp)"
+    if [ -f "$file" ]; then
+        tail -n +"$start_line" "$file" > "$tmp"
+    fi
+
+    if jq -sc '.' "$tmp" >/dev/null 2>&1; then
+        jq -sc '.' "$tmp"
+        rm -f "$tmp"
+        return
+    fi
+
+    awk -F'|' '
+        function emit_entry() {
+            if (kind != "") {
+                print kind "\t" severity
+            }
+            kind = ""
+            severity = ""
+        }
+        {
+            if ($0 ~ /^### /) {
+                emit_entry()
+                heading = tolower($0)
+                if (heading ~ /safe/ || heading ~ /auto-fix/ || heading ~ /scope repair/) {
+                    kind = "safe_auto_fix"
+                }
+                next
+            }
+            if (kind != "" && $0 ~ /^Severity:/) {
+                severity = $0
+                sub(/^Severity:[[:space:]]*/, "", severity)
+                next
+            }
+            pipe_kind = ""
+            pipe_severity = ""
+            for (i = 1; i <= NF; i++) {
+                part = $i
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", part)
+                if (part ~ /^kind=/) {
+                    pipe_kind = substr(part, 6)
+                }
+                if (part ~ /^severity=/) {
+                    pipe_severity = substr(part, 10)
+                }
+            }
+            if (pipe_kind != "") {
+                emit_entry()
+                kind = pipe_kind
+                severity = pipe_severity
+                emit_entry()
+            }
+        }
+        END { emit_entry() }
+    ' "$tmp" | jq -Rsc '
+        split("\n")
+        | map(select(length > 0) | split("\t") | {kind: .[0], severity: (.[1] // "")})
+    '
+    rm -f "$tmp"
+}
+
 OUT_DIR="${HARNESS_OUT:-$(mktemp -d -t codex-harness.XXXXXX)}"
 TARGET="$OUT_DIR/target"
 TRANSCRIPTS="$OUT_DIR/transcripts"
+HARNESS_MODEL="${HARNESS_MODEL:-gpt-5.4}"
+HARNESS_REASONING="${HARNESS_REASONING:-medium}"
+HARNESS_TARGET_MODE="${HARNESS_TARGET_MODE:-dummy-project}"
 mkdir -p "$TARGET" "$TRANSCRIPTS"
+
+case "$HARNESS_MODEL" in
+    gpt-5.5|*gpt-5.5*)
+        echo "ERROR: HARNESS_MODEL must not be gpt-5.5 for this extensive harness." >&2
+        exit 2 ;;
+esac
 
 echo "==> Harness output: $OUT_DIR"
 echo "==> Target dir:     $TARGET"
+echo "==> Target mode:    $HARNESS_TARGET_MODE"
+echo "==> Model profile:  $HARNESS_MODEL / reasoning=$HARNESS_REASONING"
 
 # --- Step 1: init target -------------------------------------------
 (
@@ -46,8 +132,36 @@ echo "==> Target dir:     $TARGET"
     git init -q -b main
     git config user.email "harness@sage.local"
     git config user.name "harness"
-    echo "harness seed" > README.md
-    git add README.md
+    if [ "$HARNESS_TARGET_MODE" = "dummy-project" ]; then
+        mkdir -p src tests docs
+        cat > README.md <<'EOF'
+# Dummy Project
+
+Small realistic project for Sage/Codex harness runs.
+EOF
+        cat > package.json <<'EOF'
+{"scripts":{"test":"node tests/smoke.test.js"},"dependencies":{},"devDependencies":{}}
+EOF
+        cat > src/todo-store.js <<'EOF'
+export function normalizeTitle(title) {
+  return String(title || "").trim().replace(/\s+/g, " ");
+}
+EOF
+        cat > tests/smoke.test.js <<'EOF'
+import assert from "node:assert/strict";
+import { normalizeTitle } from "../src/todo-store.js";
+
+assert.equal(normalizeTitle("  pay   invoice "), "pay invoice");
+EOF
+        cat > docs/architecture.md <<'EOF'
+# Architecture
+
+The app has a tiny domain module and a smoke test so agent changes have real files.
+EOF
+    else
+        echo "harness seed" > README.md
+    fi
+    git add -A
     git commit -q -m "seed"
 ) || { echo "ERROR: git init failed" >&2; exit 1; }
 
@@ -96,13 +210,19 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
     echo "==> [${prompt_idx}/${prompt_total}] $name"
     echo "    prompt: $prompt_text"
 
+    before_incident_lines="$(log_line_count "$TARGET/.sage/.mcp-incidents.log")"
+    before_auto_fix_lines="$(log_line_count "$TARGET/.sage/.auto-fixes.log")"
+    before_manifests_json="$(cd "$TARGET" && find .sage/work -mindepth 2 -maxdepth 2 -name manifest.md -type f 2>/dev/null | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
+
     # codex exec --json: non-interactive JSON-line transcript.
     # --skip-git-repo-check + --ephemeral + --dangerously-bypass-... per
     # ADR-9 / cycle test setup; -C runs in target dir.
     # < /dev/null closes stdin (codex hangs on shell-special chars).
     if codex exec --json --ignore-user-config --skip-git-repo-check --ephemeral \
         --dangerously-bypass-approvals-and-sandbox \
+        -m "$HARNESS_MODEL" -c "model_reasoning_effort=\"$HARNESS_REASONING\"" \
         -C "$TARGET" "$prompt_text" > "$out" 2> "$out.stderr" < /dev/null; then
+        rc=0
         printf '0\n' > "$out.exit"
         echo "    transcript: $(wc -l < "$out" | tr -d ' ') events"
     else
@@ -110,6 +230,33 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
         printf '%s\n' "$rc" > "$out.exit"
         echo "    WARN: codex exec returned non-zero — see $out.stderr" >&2
     fi
+
+    files_json="$(cd "$TARGET" && find . -type f ! -path './.git/*' | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
+    manifests_json="$(cd "$TARGET" && find .sage/work -mindepth 2 -maxdepth 2 -name manifest.md -type f 2>/dev/null | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
+    new_manifests_json="$(jq -nc --argjson before "$before_manifests_json" --argjson after "$manifests_json" '$after - $before')"
+    changed_files_json="$(cd "$TARGET" && git status --porcelain -uall 2>/dev/null | sed 's#^...##' | sort -u | jq -R . | jq -sc .)"
+    incidents_json='[]'
+    if [ -f "$TARGET/.sage/.mcp-incidents.log" ]; then
+        incidents_json="$(read_json_or_key_value_log "$TARGET/.sage/.mcp-incidents.log" "$((before_incident_lines + 1))")"
+    fi
+    auto_fixes_json='[]'
+    if [ -f "$TARGET/.sage/.auto-fixes.log" ]; then
+        auto_fixes_json="$(read_json_or_key_value_log "$TARGET/.sage/.auto-fixes.log" "$((before_auto_fix_lines + 1))")"
+    fi
+    jq -n \
+        --arg prompt "$name" \
+        --arg model "$HARNESS_MODEL" \
+        --arg reasoning "$HARNESS_REASONING" \
+        --arg mode "$HARNESS_TARGET_MODE" \
+        --argjson exit_code "$rc" \
+        --argjson files "$files_json" \
+        --argjson manifests "$manifests_json" \
+        --argjson new_manifests "$new_manifests_json" \
+        --argjson changed_files "$changed_files_json" \
+        --argjson incidents "$incidents_json" \
+        --argjson auto_fixes "$auto_fixes_json" \
+        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
+        > "$out.state.json"
 
     # Commit each session's porcelain so the NEXT session's Stop hook
     # sees a clean working tree. Without this, prior-session uncommitted

@@ -24,6 +24,15 @@ FRAMEWORK_ROOT="${3:?framework root required}"
 incidents_log="$TARGET/.sage/.mcp-incidents.log"
 session_mut_log="$TARGET/.sage/.session-mutations.log"
 scenario_manifest="$FRAMEWORK_ROOT/runtime/platforms/codex/harness/v11-scenarios.json"
+first_state="$(find "$TRANSCRIPTS" -maxdepth 1 -type f -name '*.state.json' | sort | head -1)"
+report_model="unknown"
+report_reasoning="unknown"
+report_target_mode="unknown"
+if [ -n "$first_state" ] && [ -f "$first_state" ]; then
+    report_model="$(jq -r '.model // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
+    report_reasoning="$(jq -r '.reasoning_effort // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
+    report_target_mode="$(jq -r '.target_mode // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
+fi
 
 # --- Signal 1: workflow-entry rate ----------------------------------
 # Count `/sage:` (or `/sage`) invocations in agent transcripts. Each
@@ -82,10 +91,9 @@ signal6a_loc=0
 if [ -f "$predicate_path" ]; then
     signal6a_loc="$(wc -l < "$predicate_path" | tr -d ' ')"
 fi
-signal6a_ceiling=85  # spec §6.0 anti-bloat ceiling (+5 from baseline 80
-                     # to absorb T2.7-follow-up path_normalize wiring;
-                     # spec text says "~80 lines" — 85 stays well under the
-                     # ~200-LOC v2-promotion threshold from §8 line 213).
+signal6a_ceiling=160 # calibrated v1.1 ceiling after semantic
+                     # reclassification + parked-cycle protections; still
+                     # below the ~200-LOC v2-promotion threshold from spec §8.
 
 # --- Signal 6b: predicate p95 latency drift (STUB) ------------------
 # Hooks do not currently emit per-invocation duration_ms — plan
@@ -96,15 +104,29 @@ signal6b_status="TODO"
 signal6b_note="Per-invocation duration_ms not currently logged by pre-tool-validate.sh. Adding requires hook patch + timing log + p95 calculator (~1 day). Spec §6.3 v2 promotion trigger #1 (cold-start latency > 1s) cannot fire from this seed yet."
 
 # --- Signal 7: L1-bypass detection ----------------------------------
-# Commits in target where no `.session-mutations.log` entry exists with
-# files.* matching any path in the commit diff. Proxy: if no log at all
-# OR log has zero matching entries → bypass.
+# Prefer state snapshots from this harness run. The harness commits each
+# session after capture, so git-only commit correlation is noisy here; state
+# incidents are the authoritative run evidence when present. Keep the old
+# commit proxy as fallback for legacy reports without state snapshots.
 signal7_count=0
 signal7_total_commits=0
-if [ -d "$TARGET/.git" ]; then
+state_snapshot_count="$(find "$TRANSCRIPTS" -maxdepth 1 -type f -name '*.state.json' | wc -l | tr -d ' ')"
+if [ "${state_snapshot_count:-0}" -gt 0 ]; then
+    while IFS= read -r state_file; do
+        [ -n "$state_file" ] || continue
+        signal7_total_commits=$((signal7_total_commits + 1))
+        if jq -e '.incidents[]? | select(.kind == "bypass_mutation")' "$state_file" >/dev/null; then
+            signal7_count=$((signal7_count + 1))
+        fi
+    done < <(find "$TRANSCRIPTS" -maxdepth 1 -type f -name '*.state.json' | sort)
+elif [ -d "$TARGET/.git" ]; then
     cd "$TARGET" || exit 0
     while IFS= read -r commit; do
         [ -n "$commit" ] || continue
+        subject="$(git log -1 --format=%s "$commit" 2>/dev/null || true)"
+        case "$subject" in
+            seed|"sage init:"*) continue ;;
+        esac
         signal7_total_commits=$((signal7_total_commits + 1))
         # Files changed in this commit (parent diff; first commit gets full tree)
         if git rev-parse "$commit"^ >/dev/null 2>&1; then
@@ -177,10 +199,63 @@ if [ -f "$scenario_manifest" ]; then
         exit_file="$base.exit"
         exit_code="missing"
         [ -f "$exit_file" ] && exit_code="$(cat "$exit_file" 2>/dev/null || echo missing)"
-        if [ -s "$transcript" ] && [ "$exit_code" = "0" ]; then
+        state_file="$base.state.json"
+        rubric_failures='[]'
+        rubric_pass=true
+        rubric="$(printf '%s' "$row" | jq -c '.state_rubric // {}')"
+        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
+        if [ ! -f "$state_file" ] && [ "$rubric_required_count" -gt 0 ]; then
+            rubric_pass=false
+            rubric_failures="$(jq -c --arg msg "missing state snapshot: $state_file" '. + [$msg]' <<< "$rubric_failures")"
+        fi
+        if [ -f "$state_file" ]; then
+            while IFS= read -r expected; do
+                [ -n "$expected" ] || continue
+                if ! jq -e --arg p "$expected" '.files | index($p)' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing expected file: $expected" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.expected_files[]? // empty' <<< "$rubric")
+            while IFS= read -r forbidden; do
+                [ -n "$forbidden" ] || continue
+                if jq -e --arg p "$forbidden" '.files | index($p)' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "forbidden file present: $forbidden" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.forbidden_files[]? // empty' <<< "$rubric")
+            while IFS= read -r kind; do
+                [ -n "$kind" ] || continue
+                if ! jq -e --arg kind "$kind" '(.incidents[]?, .auto_fixes[]?) | select(.kind == $kind)' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing audit kind: $kind" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.required_audit_kinds[]? // empty' <<< "$rubric")
+            while IFS= read -r pattern; do
+                [ -n "$pattern" ] || continue
+                if ! jq -e --arg pattern "$pattern" '.changed_files[]? | select(test($pattern))' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing changed file pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.required_changed_patterns[]? // empty' <<< "$rubric")
+            while IFS= read -r pattern; do
+                [ -n "$pattern" ] || continue
+                if ! jq -e --arg pattern "$pattern" '.new_manifests[]? | select(test($pattern))' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing new manifest pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.required_new_manifest_patterns[]? // empty' <<< "$rubric")
+            while IFS= read -r pattern; do
+                [ -n "$pattern" ] || continue
+                if ! grep -E -q "$pattern" "$transcript" 2>/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing transcript pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.required_transcript_patterns[]? // empty' <<< "$rubric")
+        fi
+        if [ -s "$transcript" ] && [ "$exit_code" = "0" ] && [ "$rubric_pass" = "true" ]; then
             v11_present_release_blockers=$((v11_present_release_blockers + 1))
         else
-            missing_item="$(printf '%s' "$row" | jq -c --arg transcript "$transcript" --arg exit_code "$exit_code" '. + {missing_transcript:$transcript, exit_code:$exit_code}')"
+            missing_item="$(printf '%s' "$row" | jq -c --arg transcript "$transcript" --arg exit_code "$exit_code" --arg state_file "$state_file" --argjson rubric_failures "$rubric_failures" '. + {missing_transcript:$transcript, exit_code:$exit_code, state_file:$state_file, rubric_failures:$rubric_failures}')"
             v11_missing_release_blockers_json="$(jq -c --argjson item "$missing_item" '. + [$item]' <<< "$v11_missing_release_blockers_json")"
         fi
     done < <(jq -c '.scenarios[]' "$scenario_manifest")
@@ -194,6 +269,9 @@ jq -n \
     --arg ts "$ts" \
     --arg codex_version "$codex_version" \
     --arg target "$TARGET" \
+    --arg model "$report_model" \
+    --arg reasoning "$report_reasoning" \
+    --arg target_mode "$report_target_mode" \
     --argjson s1_count "$signal1_count" \
     --argjson s1_total "$signal1_total_prompts" \
     --argjson s2_count "$signal2_count" \
@@ -218,6 +296,12 @@ jq -n \
         ts: $ts,
         codex_version: $codex_version,
         target: $target,
+        model_profile: {
+            model: $model,
+            reasoning_effort: $reasoning,
+            target_mode: $target_mode,
+            forbidden_models: ["gpt-5.5"]
+        },
         signals: {
             "1_workflow_entry": {
                 description: "Sage workflow-entry rate (prompts that invoked /sage:* slash command)",
@@ -243,7 +327,7 @@ jq -n \
                 note: $s5_note
             },
             "6a_predicate_loc": {
-                description: "pre-tool-validate.sh line count vs spec §6.0 ceiling",
+                description: "pre-tool-validate.sh line count vs calibrated v1.1 ceiling",
                 loc: $s6a_loc,
                 ceiling: $s6a_ceiling,
                 over_ceiling: ($s6a_loc > $s6a_ceiling)
@@ -254,7 +338,7 @@ jq -n \
                 note: $s6b_note
             },
             "7_l1_bypass": {
-                description: "Commits with no matching .session-mutations.log entry (predicate hook bypassed)",
+                description: "Harness state snapshots with bypass_mutation incidents; falls back to commit/log correlation for legacy reports",
                 count: $s7_count,
                 total: $s7_total,
                 rate: (if $s7_total > 0 then ($s7_count / $s7_total) else 0 end)
