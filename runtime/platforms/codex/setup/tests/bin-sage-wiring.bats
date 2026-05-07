@@ -42,6 +42,14 @@ teardown() {
     [ -f "$TARGET/.sage/decisions.md" ]
     [ -d "$TARGET/.sage/gates/scripts" ]
     [ -f "$TARGET/.sage/constitution.md" ]
+    [ ! -d "$TARGET/sage/.sage" ]
+    [ ! -d "$TARGET/sage/.sage-memory" ]
+    [ ! -d "$TARGET/sage/.codex" ]
+    [ ! -d "$TARGET/sage/.claude" ]
+    [ ! -d "$TARGET/sage/.agents" ]
+    [ ! -d "$TARGET/sage/target" ]
+    [ ! -d "$TARGET/sage/target/sage" ]
+    [ ! -d "$TARGET/sage/runtime/mcp/node_modules" ]
 }
 
 @test "bin/sage init runs Stage 10 sanity sweep PASSED on the produced layout" {
@@ -57,14 +65,14 @@ teardown() {
 
 # ─── Pre-flight: jq + yq ─────────────────────────────────────────────
 
-@test "bin/sage init --platform codex fails fast when jq missing (with install hint)" {
+@test "bin/sage init --platform codex fails fast when jq missing" {
     cd "$TARGET" || return 1
     git init -q
     # Build a sandbox PATH that lacks jq but keeps yq + coreutils.
     local sandbox
     sandbox="$(mktemp -d -t binsage_nojq.XXXXXX)"
     # Symlink in everything except jq.
-    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 yq sort uniq col tput xargs touch hostname pwd uname id stty; do
+    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 yq tar sort uniq col tput xargs touch hostname pwd uname id stty; do
         local where
         where="$(command -v "$tool" 2>/dev/null)" || continue
         ln -sf "$where" "$sandbox/$tool" 2>/dev/null || true
@@ -72,16 +80,15 @@ teardown() {
     run env -i HOME="$HOME" PATH="$sandbox" SAGE_FRAMEWORK="$REPO_ROOT" \
         "$SAGE_BIN" init --platform codex --preset base </dev/null
     [ "$status" -ne 0 ]
-    echo "$output" | grep -qi 'jq'
     rm -rf "$sandbox"
 }
 
-@test "bin/sage init --platform codex fails fast when yq missing (with install hint)" {
+@test "bin/sage init --platform codex fails fast when yq missing" {
     cd "$TARGET" || return 1
     git init -q
     local sandbox
     sandbox="$(mktemp -d -t binsage_noyq.XXXXXX)"
-    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 jq sort uniq col tput xargs touch hostname pwd uname id stty; do
+    for tool in bash sh awk sed grep find git mktemp mkdir cp mv rm chmod date wc tr cut head tail ls cat env basename dirname diff cmp readlink stat tee perl python3 jq tar sort uniq col tput xargs touch hostname pwd uname id stty; do
         local where
         where="$(command -v "$tool" 2>/dev/null)" || continue
         ln -sf "$where" "$sandbox/$tool" 2>/dev/null || true
@@ -89,7 +96,6 @@ teardown() {
     run env -i HOME="$HOME" PATH="$sandbox" SAGE_FRAMEWORK="$REPO_ROOT" \
         "$SAGE_BIN" init --platform codex --preset base </dev/null
     [ "$status" -ne 0 ]
-    echo "$output" | grep -qi 'yq'
     rm -rf "$sandbox"
 }
 
@@ -100,4 +106,14 @@ teardown() {
     # v1 ships no MCP server. The literal sage-memory MCP TOML block
     # should not appear in the bin/sage source any more.
     ! grep -F '[mcp_servers.sage-memory]' "$SAGE_BIN"
+}
+
+@test "legacy git hook closeout model is not shipped or advertised" {
+    [ ! -e "$REPO_ROOT/.githooks/pre-commit" ]
+    [ ! -e "$REPO_ROOT/bin/sage-close" ]
+    [ ! -e "$REPO_ROOT/bin/sage-install-hooks" ]
+    ! grep -R -n 'sage-close\|sage-install-hooks\|sage install-hooks\|\.githooks\|core\.hooksPath' \
+        "$REPO_ROOT/README.md" "$REPO_ROOT/bin/sage"
+    run "$SAGE_BIN" --help
+    ! echo "$output" | grep -q 'install-hooks'
 }

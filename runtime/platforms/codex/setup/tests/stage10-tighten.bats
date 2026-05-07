@@ -134,13 +134,13 @@ run_stage_10() {
 
 # ─── B1 + B3 still hold under tightened sanity ───────────────────────
 
-@test "stage10: B1 still enforced — missing 'v1 filesystem variant' substring → fail" {
+@test "stage10: B1 still enforced — missing Sage Memory discovery/fallback wording → fail" {
     build_complete_target
-    # Strip the substring from AGENTS.md to simulate broken render.
-    perl -i -pe 's/v1 filesystem variant//g' "$TARGET/AGENTS.md"
+    # Strip the required Rule 1A phrases from AGENTS.md to simulate broken render.
+    perl -i -pe 's/Discover available Sage Memory tools//g; s/Fall back to `\.sage-memory\/` files only when MCP tools are unavailable//g' "$TARGET/AGENTS.md"
     run run_stage_10
     [ "$status" -ne 0 ]
-    echo "$output" | grep -qi 'filesystem\|Rule 1A'
+    echo "$output" | grep -qi 'Sage Memory\|Rule 1A'
 }
 
 @test "stage10: B3 still enforced — missing extends: in constitution → fail" {

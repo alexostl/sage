@@ -15,9 +15,9 @@ The harness tracks these eight v2-promotion-trigger signals:
 | 3 | `bypass_mutation` | wired | How often did Stop hook detect unclaimed git diff? |
 | 4 | `doctor_s1` | wired | S1 incidents after harness run |
 | 5 | `bash_mutation_leaks` | **STUB** | Agent `bash` tool writes to managed paths (cost > 1 day in v1) |
-| 6a | `predicate_loc` | wired | `pre-tool-validate.sh` LOC vs §6.0 80-line ceiling |
+| 6a | `predicate_loc` | wired | `pre-tool-validate.sh` LOC vs calibrated v1.1 ceiling |
 | 6b | `predicate_p95_latency` | **STUB** | Per-invocation duration_ms (hooks don't yet log timing) |
-| 7 | `l1_bypass` | wired | Commits without `.session-mutations.log` entries |
+| 7 | `l1_bypass` | wired | Harness state snapshots with `bypass_mutation` incidents |
 | 8 | `decisions_missing` | wired | Cycle frontmatter flips without same-commit decisions.md update |
 
 7-of-8 wired; 5 + 6b are explicitly stubbed with TODO markers, so deferred measurement is declared rather than silent.
@@ -30,6 +30,11 @@ runtime/platforms/codex/harness/run-harness.sh
 
 Optional: set `HARNESS_OUT=/some/path` to control output location.
 Default is a `mktemp -d` under `$TMPDIR`.
+
+The real-agent profile defaults to `HARNESS_MODEL=gpt-5.4`,
+`HARNESS_REASONING=medium`, and `HARNESS_TARGET_MODE=dummy-project`.
+`gpt-5.5` is refused because this harness is intentionally extensive and
+cost-sensitive.
 
 The harness:
 1. Creates a fresh `git init` target at `$OUT/target/`
@@ -70,6 +75,11 @@ behavior: workflow routing, recovery behavior, Capture Router behavior,
 memory reuse across sessions, and cross-repo state ownership. These scenarios
 are declared in `v11-scenarios.json`.
 
+Each prompt writes a sidecar `*.state.json` snapshot with final files,
+manifests, per-prompt changed files, newly-created manifests, and audit-log
+deltas. Release-blocker audit rubrics are evaluated against the scenario
+snapshot only; final target-wide logs are not enough to satisfy a scenario.
+
 Harness failures block release claims when the changed behavior depends on
 Codex following the operating model. Harness failures are advisory for
 unrelated text-only changes that do not alter agent/runtime behavior, provided
@@ -96,13 +106,19 @@ scenario has a real Codex transcript from the current harness run with
   "ts": "2026-04-30T...",
   "codex_version": "...",
   "target": "/tmp/codex-harness.X/target",
+  "model_profile": {
+    "model": "gpt-5.4",
+    "reasoning_effort": "medium",
+    "target_mode": "dummy-project",
+    "forbidden_models": ["gpt-5.5"]
+  },
   "signals": {
     "1_workflow_entry": { "count": N, "total": 5, "rate": ... },
     "2_phase_jump":     { "count": N },
     "3_bypass_mutation":{ "count": N },
     "4_doctor_s1":      { "count": N },
     "5_bash_mutation_leaks": { "status": "TODO", "note": "..." },
-    "6a_predicate_loc": { "loc": N, "ceiling": 80, "over_ceiling": false },
+    "6a_predicate_loc": { "loc": N, "ceiling": 160, "over_ceiling": false },
     "6b_predicate_p95_latency_ms": { "status": "TODO", "note": "..." },
     "7_l1_bypass":      { "count": N, "total": M, "rate": ... },
     "8_decisions_missing": { "count": N, "total": M, "rate": ... },

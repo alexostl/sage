@@ -83,9 +83,10 @@ teardown() {
     cat > "$TARGET/AGENTS.md" <<'EOF'
 # Sage — Project Instructions
 
-## Constitution
+## Operating Kernel
 
-v1 filesystem variant — Rule 1A.
+Discover available Sage Memory tools through Codex tool discovery.
+Fall back to `.sage-memory/` files only when MCP tools are unavailable.
 
 <!-- SAGE-MANAGED-END -->
 EOF

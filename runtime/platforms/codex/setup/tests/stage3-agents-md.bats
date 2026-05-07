@@ -4,7 +4,7 @@
 # Plan contract (T1.11):
 #   - Prefix-managed pattern with `<!-- SAGE-MANAGED-END -->` marker
 #   - 3-layer constitution merge (base → preset overlay → user overlay)
-#   - Rule 1A v1 filesystem variant (no MCP) vs MCP variant
+#   - Rule 1A Sage Memory discovery before filesystem fallback
 #   - T1.9 preset sentinel-bypass: PRESET ∈ {base, none, "", unset}
 #   - Re-run preserves user territory below marker; missing marker → backup
 #
@@ -37,9 +37,9 @@ run_stage3() {
     grep -q '^# Sage — Project Instructions' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: AGENTS.md contains '## Constitution' section" {
+@test "stage3: AGENTS.md contains compact operating kernel" {
     PRESET=base run_stage3
-    grep -q '^## Constitution' "$TARGET/AGENTS.md"
+    grep -q '^## Operating Kernel' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: AGENTS.md ends with SAGE-MANAGED-END marker (prefix-managed)" {
@@ -133,13 +133,15 @@ EOF
     ! grep -q 'UNIQUE-MARKER-T26-MERGE' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: Rule 1A renders 'v1 filesystem variant' when no [[mcp_servers]]" {
-    # No .codex/config.toml at all → fallback variant.
+@test "stage3: Rule 1A discovers Sage Memory before filesystem fallback" {
+    # No .codex/config.toml at all still tells Codex to try deferred discovery first.
     PRESET=base run_stage3
-    grep -q 'v1 filesystem variant' "$TARGET/AGENTS.md"
+    grep -q 'Discover available Sage Memory tools' "$TARGET/AGENTS.md"
+    grep -q 'Fall back to `.sage-memory/` files only when MCP tools are unavailable' "$TARGET/AGENTS.md"
+    grep -q 'Codex built-in Memories are a' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: Rule 1A renders MCP variant when [[mcp_servers]] present" {
+@test "stage3: Rule 1A keeps MCP-first behavior when [[mcp_servers]] present" {
     mkdir -p "$TARGET/.codex"
     cat > "$TARGET/.codex/config.toml" <<'EOF'
 [[mcp_servers]]
@@ -147,8 +149,8 @@ name = "sage-memory"
 command = "node"
 EOF
     PRESET=base run_stage3
-    grep -q 'sage_memory_search' "$TARGET/AGENTS.md"
-    ! grep -q 'v1 filesystem variant' "$TARGET/AGENTS.md"
+    grep -q 'Discover available Sage Memory tools' "$TARGET/AGENTS.md"
+    grep -q 'Fall back to `.sage-memory/` files only when MCP tools are unavailable' "$TARGET/AGENTS.md"
 }
 
 # Shared-source routing contract assertions. These are intentionally
@@ -236,6 +238,8 @@ EOF
     grep -q 'implementation-active' "$TARGET/AGENTS.md"
     grep -q 'status: paused' "$TARGET/AGENTS.md"
     grep -q 'status: intake' "$TARGET/AGENTS.md"
+    grep -q 'parked, resumable work' "$TARGET/AGENTS.md"
+    grep -q 'manifest-only' "$TARGET/AGENTS.md"
     grep -q 'sage status' "$TARGET/AGENTS.md"
     grep -q 'sage doctor' "$TARGET/AGENTS.md"
 }
@@ -273,6 +277,24 @@ EOF
     grep -q 'state, memory, scope, gates, and recovery' "$TARGET/AGENTS.md"
     grep -q 'framework repository must not impersonate' "$TARGET/AGENTS.md"
     grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md preserves explicit review and skip-review checkpoint paths" {
+    PRESET=base run_stage3
+    grep -q '\[A\] Review' "$TARGET/AGENTS.md"
+    grep -q '\[S\] Skip review' "$TARGET/AGENTS.md"
+    grep -q 'Do not collapse them into generic' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md stays compact and points to skills/workflows" {
+    PRESET=base run_stage3
+    bytes="$(wc -c < "$TARGET/AGENTS.md" | tr -d ' ')"
+    [ "$bytes" -lt 11000 ] || {
+        echo "AGENTS.md too large: $bytes bytes"
+        return 1
+    }
+    grep -q '\.agents/skills/' "$TARGET/AGENTS.md"
+    grep -q 'core/workflows/' "$TARGET/AGENTS.md"
 }
 
 @test "shared guidance: review and navigator use Capture Router instead of decisions backlog" {
@@ -315,6 +337,29 @@ EOF
     PRESET=base run_stage3
     grep -q 'My Custom Section' "$TARGET/AGENTS.md"
     grep -q 'preserve me on update' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: re-run is idempotent despite explanatory marker mention" {
+    PRESET=base run_stage3
+    PRESET=base run_stage3
+
+    local constitution_count marker_line_count mention_count
+    constitution_count="$(grep -c '^## Operating Kernel$' "$TARGET/AGENTS.md" || true)"
+    marker_line_count="$(grep -c '^<!-- SAGE-MANAGED-END' "$TARGET/AGENTS.md" || true)"
+    mention_count="$(grep -c 'SAGE-MANAGED-END' "$TARGET/AGENTS.md" || true)"
+
+    [ "$constitution_count" = "1" ] || {
+        echo "Operating Kernel count: $constitution_count"
+        return 1
+    }
+    [ "$marker_line_count" = "1" ] || {
+        echo "marker line count: $marker_line_count"
+        return 1
+    }
+    [ "$mention_count" = "2" ] || {
+        echo "marker mention count: $mention_count"
+        return 1
+    }
 }
 
 @test "stage3: re-run with no marker → backup + regenerate (with marker)" {
