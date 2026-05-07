@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - self-host/main
+      - codex-port
     paths:
       - ".github/workflows/codex-port-ci.yml"
       - "bin/sage"
@@ -12,6 +13,7 @@ on:
   push:
     branches:
       - self-host/main
+      - codex-port
     paths:
       - ".github/workflows/codex-port-ci.yml"
       - "bin/sage"
