@@ -99,11 +99,35 @@ always-on instructions), skip to gap detection in section 2.
 Full routing below applies when activated via `/sage` or for ambiguous
 requests.
 
-### Three-Layer Routing
+### Four-Category Routing
 
-Route using this chain. Each layer handles what the previous missed.
+Classify the user's mandate before choosing a workflow. Do not treat every
+question as workflow work.
 
-**Layer 1 — Keyword Matching (deterministic, check FIRST):**
+**Category 1 — Conversational/read-only question**
+
+Examples: "How does this work?", "Does this direction make sense?",
+"What do you think?", "Let's talk before building."
+
+Answer conversationally by default. You may mention that a formal workflow
+is available, but do not announce a workflow, write artifacts, or resume
+implementation unless the user asks for action. If active work exists, you
+may answer from that context and offer to resume afterward.
+
+**Category 2 — Explicit workflow command**
+
+If the user typed a slash command (`/build`, `/fix`, `/research`, etc.),
+the workflow is explicit — proceed directly to the workflow's first step.
+No routing needed.
+
+**Category 3 — Action mandate**
+
+Prompts that ask the agent to make, change, investigate, verify, test,
+or produce an artifact should route to workflow or confirmation. This
+includes polite question-form mandates such as "Can you fix this?",
+"Could you implement this?", and "Would you run a smoke test?"
+
+Use keyword matching as a hint, not as the decision by itself:
 
 build/implement/create/add/develop/ship/code/feature → /build
 fix/bug/broken/error/crash/failing/debug/issue → /fix
@@ -114,15 +138,24 @@ audit/evaluate/assess/analyze/measure/funnel/usability → /analyze
 
 If ONE match → go to Confirmation.
 If MULTIPLE match → present matched workflows in Confirmation.
-If NO match → Layer 2.
+If NO match → use the classifier or in-context judgment below.
 
-**Layer 2 — Sub-Agent Classifier (when keywords don't match):**
+**Category 4 — Ambiguous/borderline prompt**
+
+Examples: "Can you look at this?", "Should we improve onboarding?",
+"Could this be cleaner?"
+
+Use soft confirmation. Briefly state the likely path and ask whether to
+run it, or answer conceptually while offering the workflow path.
+
+**Sub-Agent Classifier (for ambiguous action prompts):**
 
 If Task tool is available, spawn a lightweight classifier:
 
 ```
 You are a request classifier. Respond with ONLY the category and workflow.
 
+CONVERSATION → answer read-only/conceptual question without workflow
 UNDERSTAND → /research (users, needs) or /analyze (evaluate existing)
 ENVISION → /design (features, UX) or /architect (systems)
 DELIVER → /build (create) or /fix (repair)
@@ -133,12 +166,13 @@ Format: CATEGORY → /workflow
 ```
 
 Use the response → go to Confirmation.
-If Task tool unavailable → Layer 3.
+If Task tool unavailable → in-context judgment.
 
-**Layer 3 — In-Context Classification (fallback):**
+**In-Context Classification (fallback):**
 
-Question / evaluation / "why" → UNDERSTAND → /research or /analyze
-Future / "should" / "let's create" → ENVISION → /design or /architect
+Read-only question / "why" / "what do you think" → CONVERSATION
+Question with action mandate ("can you fix/check/run/build") → DELIVER or Confirmation
+Future / "should" / "let's create" → ENVISION or soft confirmation
 Action / "add" / "implement" → DELIVER → /build or /fix
 Ambiguous → present all matching options.
 

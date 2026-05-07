@@ -205,6 +205,28 @@ an observable signal the rule was followed.
 
 ${rule_1a_block}
 
+### Rule 0 — Route Work, Preserve Conversation
+
+Before doing Standard+ work, route to the right Sage workflow. Conversation
+is not work by itself: conversational/read-only questions can be answered
+without workflow by default.
+
+Classify the user's mandate:
+- conversational/read-only question → answer conversationally by default;
+  do not announce a workflow or write artifacts
+- explicit workflow command (`$sage:build`, `$sage:fix`, etc.) → enter that
+  workflow and follow its gates
+- action mandate, including polite question-form mandates like "Can you fix
+  this?", "Could you implement this?", or "Would you run a smoke test?" →
+  route to workflow or confirmation
+- ambiguous/borderline prompt → use soft confirmation before workflow
+
+When active work exists, acknowledge it when relevant, but unrelated
+read-only questions may be answered from context without resuming
+implementation. After workflow entry, Codex-native enforcement still applies:
+spec/plan gates, fix root-cause approval, manifest scope protection, and
+verification-before-done remain mandatory.
+
 ### Rule 1 — State First
 
 Before any substantial response, scan \`.sage/work/\` frontmatter for
