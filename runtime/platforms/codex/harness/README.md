@@ -4,11 +4,9 @@ Lightweight measurement scaffold for the Codex port. Aggregates the
 8 v2-promotion-trigger signals from spec §13.2 against a real
 `codex exec --json` session.
 
-**Plan contract:** [T2.7 in plan.md](../../../../.sage/work/20260429-codex-port-rewrite/plan.md).
-
 ## What it measures (8 signals)
 
-Per spec §13.2 + plan T2.7 done-criteria:
+The harness tracks these eight v2-promotion-trigger signals:
 
 | # | Signal | Status | What it answers |
 |---|---|---|---|
@@ -22,8 +20,7 @@ Per spec §13.2 + plan T2.7 done-criteria:
 | 7 | `l1_bypass` | wired | Commits without `.session-mutations.log` entries |
 | 8 | `decisions_missing` | wired | Cycle frontmatter flips without same-commit decisions.md update |
 
-7-of-8 wired; 5 + 6b explicitly stubbed with TODO markers (plan
-T2.7 anti-gap rule — declared, not silent).
+7-of-8 wired; 5 + 6b are explicitly stubbed with TODO markers, so deferred measurement is declared rather than silent.
 
 ## How to run
 
@@ -91,6 +88,4 @@ TODO signals carry a `status` and `note` explaining why deferred.
 
 **Seed only.** This produces a baseline reading from a single run.
 The full pilot (12-15 prompts × multiple seeds × statistical
-analysis per spec C5) is v1.x or v2 work. Per plan T2.7, this seed
-unblocks v2-promotion decisions by giving §13.2 thresholds
-something to compare against.
+analysis per spec C5) is v1.x or v2 work. This seed unblocks v2-promotion decisions by giving future thresholds something to compare against.

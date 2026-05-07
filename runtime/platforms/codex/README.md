@@ -3,13 +3,13 @@
 Codex-native deployment of Sage on top of the Codex CLI 0.126.0-alpha.15
 hook surface (SessionStart / PreToolUse / PostToolUse / Stop).
 
-## Authoritative spec
+## Design contract
 
-The complete v1 architecture, hook contracts, and MCP-vs-bash decisions
-live in [.sage/work/20260429-codex-port-rewrite/spec.md](../../../.sage/work/20260429-codex-port-rewrite/spec.md).
-Read the spec before changing anything in this tree — many design
-choices are deliberate trade-offs documented in §6 (hook surface) and
-§8 (v2 promotion triggers).
+The v1 architecture is encoded in this tree and its Bats suites:
+`setup/` owns generation, `hooks/` owns runtime guardrails, and
+`harness/` owns outcome measurement. Read those files and tests before
+changing behavior; many decisions are deliberate trade-offs between
+bash-native hooks today and possible MCP promotion later.
 
 ## What's here
 
@@ -41,8 +41,6 @@ runtime/platforms/codex/
 runtime/platforms/codex/harness/run-harness.sh
 ```
 
-For development on the framework itself, follow the cycle plan at
-[.sage/work/20260429-codex-port-rewrite/plan.md](../../../.sage/work/20260429-codex-port-rewrite/plan.md).
 Bats sweep:
 
 ```bash

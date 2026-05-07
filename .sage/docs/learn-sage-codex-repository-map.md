@@ -90,9 +90,9 @@ Use when:
 Primary source:
 
 - `runtime/platforms/codex/README.md`
-- `runtime/platforms/codex/INSTALL.md`
-- `runtime/platforms/codex/HOOKS.md`
-- `runtime/platforms/codex/platform.yaml`
+- `runtime/platforms/codex/setup/`
+- `runtime/platforms/codex/hooks/`
+- `runtime/platforms/codex/harness/`
 
 Use when:
 

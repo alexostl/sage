@@ -71,14 +71,17 @@ adapter.
 
 ### Hooks
 
-Hooks are real but experimental and opt-in. The current posture is conservative:
+The v1 Codex adapter deploys Codex-native hooks during `sage init` and
+`sage update`:
 
-- no claim of Claude-style lifecycle parity
-- starter materials exist
-- nothing is enabled by default
+- `SessionStart` → `session-init.sh`
+- `PreToolUse(apply_patch)` → `pre-tool-validate.sh`
+- `PostToolUse(apply_patch)` → `post-tool-check.sh`
+- `Stop` → `turn-audit.sh`
 
-The practical implication for repo work is: rely on Sage workflow discipline
-first, and treat hooks as optional extra guardrails.
+These hooks are guardrails and audits, not a hard sandbox boundary. Keep
+the hook implementation, generated `.codex/hooks.json`, and Bats tests in
+sync when changing behavior.
 
 ## Self-Hosted Repository Caveat
 
@@ -103,9 +106,9 @@ plans, docs, or operating guidance.
 Use these when you need detail beyond this summary:
 
 - `runtime/platforms/codex/README.md`
-- `runtime/platforms/codex/INSTALL.md`
-- `runtime/platforms/codex/HOOKS.md`
-- `runtime/platforms/codex/AUTOMATIONS.md`
+- `runtime/platforms/codex/setup/`
+- `runtime/platforms/codex/hooks/`
+- `runtime/platforms/codex/harness/`
 - `runtime/platforms/README.md`
 
 Historical context during parity checks only:

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # T1.1 — lib/json_log.sh atomic JSON-line append helper.
 #
-# Plan contract (.sage/work/20260429-codex-port-rewrite/plan.md T1.1):
+# Contract:
 # 100 concurrent appenders each writing 10 lines, final file has 1000
 # lines, all parseable as JSON; flock path + plain-append fallback
 # both covered.
