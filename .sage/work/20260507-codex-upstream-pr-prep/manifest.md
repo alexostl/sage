@@ -65,6 +65,34 @@ candidate cleanup target, not as an active feature.
   work rather than durable knowledge.
 - Update `sage status` so `intake/paused` cycles clearly show that
   "manifest only, no plan yet" is the correct state.
+- Fix Codex hook bootstrap/recovery UX for workflow artifacts:
+  saying "entering workflow" is not enough; the hook recognizes a workflow only
+  after an in-progress `manifest.md` exists. Avoid the trap where a premature
+  `mkdir .sage/work/<cycle>` prevents the bootstrap allowance from creating the
+  first manifest, and make the recovery message/action explicit.
+- Add Codex review-finding capture guidance and/or hook UX:
+  when a thread review produces actionable process findings, route them into
+  `.sage/work/<cycle>/manifest.md` as intake TODOs instead of attempting to
+  append them directly to `.sage/decisions.md` without an active cycle.
+  Technical context to preserve for the future fix:
+  `core/workflows/review.workflow.md` Step 5 currently instructs agents to
+  prepend review findings to `.sage/decisions.md`, while Codex
+  `pre-tool-validate.sh` only permits mutations when
+  `active_init.sh` finds a manifest with `status: in-progress`. Manifests in
+  `status: paused` or `status: completed` are not active for the hook. The fix
+  should resolve that contract explicitly, preferably by having review create
+  or resume a lightweight manifest before durable writes, rather than by adding
+  a broad exception for `.sage/decisions.md`.
+- Add the reviewed thread compliance cases as Codex/Sage regression examples:
+  `019dff35` and `019dff5b` show correct review-driven recovery, `019dff66`
+  shows lightweight read-only investigation that should not force artifacts,
+  and `019dfff8` is the failure case where a multi-file fix skipped root-cause
+  approval, scope approval, and Moderate fix artifacts before code edits.
+- Strengthen Codex guidance for cross-repo fix scope:
+  if a task starts in `sage-selfhost` but the actual edits land in another
+  Sage-managed repo such as `alex-os-dev`, the target repo's `.sage` state and
+  fix scope gates still apply. Do not treat cross-repo edits as exempt from
+  `manifest.md` / `plan.md` requirements.
 - Add CI for the Codex port Bats suites:
   `bats runtime/platforms/codex/hooks/tests runtime/platforms/codex/setup/tests`.
 - Run one real Codex smoke/harness pass before marking the upstream PR ready:

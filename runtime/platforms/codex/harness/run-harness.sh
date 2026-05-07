@@ -85,6 +85,7 @@ fi
 
 # --- Step 2: run codex exec on each prompt -------------------------
 prompt_idx=0
+prompt_total="$(find "$HARNESS_DIR/prompts" -maxdepth 1 -type f -name '*.txt' | wc -l | tr -d ' ')"
 for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
     [ -f "$prompt_file" ] || continue
     prompt_idx=$((prompt_idx + 1))
@@ -92,18 +93,21 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
     out="$TRANSCRIPTS/$name.jsonl"
 
     prompt_text="$(cat "$prompt_file")"
-    echo "==> [${prompt_idx}/5] $name"
+    echo "==> [${prompt_idx}/${prompt_total}] $name"
     echo "    prompt: $prompt_text"
 
     # codex exec --json: non-interactive JSON-line transcript.
     # --skip-git-repo-check + --ephemeral + --dangerously-bypass-... per
     # ADR-9 / cycle test setup; -C runs in target dir.
     # < /dev/null closes stdin (codex hangs on shell-special chars).
-    if codex exec --json --skip-git-repo-check --ephemeral \
+    if codex exec --json --ignore-user-config --skip-git-repo-check --ephemeral \
         --dangerously-bypass-approvals-and-sandbox \
         -C "$TARGET" "$prompt_text" > "$out" 2> "$out.stderr" < /dev/null; then
+        printf '0\n' > "$out.exit"
         echo "    transcript: $(wc -l < "$out" | tr -d ' ') events"
     else
+        rc=$?
+        printf '%s\n' "$rc" > "$out.exit"
         echo "    WARN: codex exec returned non-zero — see $out.stderr" >&2
     fi
 

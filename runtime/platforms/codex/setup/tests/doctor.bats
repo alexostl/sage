@@ -206,6 +206,27 @@ EOF
     ! echo "$output" | grep -qE 'S4.*FAIL|S4.*✗'
 }
 
+@test "S5 warn: actionable TODO document in .sage/docs diagnosed as work/intake routing issue" {
+    mkdir -p "$TARGET/.sage/docs"
+    cat > "$TARGET/.sage/docs/codex-port-upstream-pr-todo.md" <<'EOF'
+# Codex TODO
+
+- [ ] Fix status paused intake visibility
+EOF
+    run run_doctor
+    echo "$output" | grep -qi 'S5\|todo\|actionable\|intake\|work'
+}
+
+@test "S6 info: safe auto-fix audit log is surfaced by doctor" {
+    mkdir -p "$TARGET/.sage"
+    cat > "$TARGET/.sage/.auto-fixes.log" <<'EOF'
+{"kind":"safe_auto_fix","fix":"manifest_scope_add","severity":"info","cycle_id":"20260101-architect"}
+EOF
+    run run_doctor
+    echo "$output" | grep -qi 'S6\|auto-fix\|audit'
+    echo "$output" | grep -qi '.auto-fixes.log'
+}
+
 # ─── Codex MCP hint removed — sanity ─────────────────────────────────
 
 @test "doctor: never mentions [mcp_servers.sage-memory] (v1 has no MCP)" {

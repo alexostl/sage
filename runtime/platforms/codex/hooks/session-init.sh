@@ -5,7 +5,7 @@
 #   1. Print Sage banner to stdout (Codex injects as context).
 #   2. Trust state check: noop in v1 (Codex only fires hooks on
 #      trusted projects per ~/.codex/config.toml trust_level).
-#   3. Emit one-line summary for each in-progress / paused cycle.
+#   3. Emit one-line summary for each in-progress / paused / intake cycle.
 #   4. Emit last 3 decisions.md entries.
 #   5. Exit 0 always (session start must never block).
 #
@@ -43,7 +43,7 @@ if [ -d "$work_dir" ] && command -v yq >/dev/null 2>&1; then
         [ -f "$manifest" ] || continue
         status=$(yq eval '.status // ""' "$manifest" 2>/dev/null || true)
         case "$status" in
-            in-progress|paused) ;;
+            in-progress|paused|intake) ;;
             *) continue ;;
         esac
         cycle_id=$(yq eval '.cycle_id // ""' "$manifest" 2>/dev/null || true)

@@ -37,31 +37,60 @@ Default is a `mktemp -d` under `$TMPDIR`.
 The harness:
 1. Creates a fresh `git init` target at `$OUT/target/`
 2. Runs `bin/sage init --platform codex --preset base` on it
-3. Executes 5 prompts via `codex exec --json` (see `prompts/`)
+3. Executes every prompt in `prompts/` via `codex exec --json`
 4. Captures one JSONL transcript per prompt at `$OUT/transcripts/`
 5. Runs `lib/aggregate-signals.sh` to produce `$OUT/report.json`
 
-End-to-end: ~3-5 minutes (5 prompts × ~30-60s each on Codex
+End-to-end depends on prompt count (~30-60s each on Codex
 0.126.0-alpha.15).
 
 ## Prompts
 
-Five prompts cover the routing surface:
+Prompts cover the routing surface:
 
 1. **01-build-en-clean** — clear English build trigger
 2. **02-build-pl-typos** — Polish + typos (regex-classifier dead-end test)
 3. **03-build-out-of-scope** — write outside any cycle scope (tests PreToolUse rejection)
 4. **04-fix-trigger** — fix workflow trigger
 5. **05-routing-edge** — read-only question (should NOT trigger build)
+6. **06-action-creates-or-resumes-manifest** — action prompt creates/resumes state
+7. **07-capture-router-minimal-intake** — unrelated finding becomes intake
+8. **08-safe-autofix-metadata** — reversible metadata repair keeps work moving
+9. **09-memory-correction-reuse** — `.sage-memory` correction is reused
+10. **10-cross-repo-target-state** — target repo owns workflow state
 
 Add prompts to `prompts/` to extend coverage. The aggregator picks
 up all `*.txt` files automatically.
+
+## v1.1 Verification Policy
+
+Deterministic Bats tests are required for framework outputs: generated
+instructions, hook predicates, `status`/`doctor` text, artifact routing text,
+and audit log schemas.
+
+Real Codex harness evidence is required for claims about agent/runtime
+behavior: workflow routing, recovery behavior, Capture Router behavior,
+memory reuse across sessions, and cross-repo state ownership. These scenarios
+are declared in `v11-scenarios.json`.
+
+Harness failures block release claims when the changed behavior depends on
+Codex following the operating model. Harness failures are advisory for
+unrelated text-only changes that do not alter agent/runtime behavior, provided
+the deterministic tests for the touched surface pass and the limitation is
+called out in the checkpoint.
+
+`report.json` includes `signals.v11_release_blocker_harness`. v1.1 cannot be
+marked complete unless deterministic tests pass and every release-blocker
+scenario has a real Codex transcript from the current harness run with
+`codex exec` exit code `0`.
 
 ## Pre-flight
 
 - `codex` ≥ 0.126.0-alpha.15 on PATH
 - `jq` and `git` on PATH
 - Framework's `bin/sage` executable
+- Harness runs `codex exec --ignore-user-config` so user-level settings such
+  as an unsupported `service_tier` do not invalidate release evidence.
 
 ## Output schema (`report.json`)
 
@@ -79,7 +108,13 @@ up all `*.txt` files automatically.
     "6a_predicate_loc": { "loc": N, "ceiling": 80, "over_ceiling": false },
     "6b_predicate_p95_latency_ms": { "status": "TODO", "note": "..." },
     "7_l1_bypass":      { "count": N, "total": M, "rate": ... },
-    "8_decisions_missing": { "count": N, "total": M, "rate": ... }
+    "8_decisions_missing": { "count": N, "total": M, "rate": ... },
+    "v11_release_blocker_harness": {
+      "total": 7,
+      "present": 7,
+      "missing": [],
+      "complete": true
+    }
   }
 }
 ```

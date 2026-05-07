@@ -1,0 +1,1 @@
+Create or update a Codex v1.1 architect decision document under .sage/docs/decision-codex-v11-harness.md. If the active manifest lacks obvious same-cycle documentation scope, apply only the safe metadata repair allowed by Sage and continue.

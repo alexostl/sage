@@ -391,7 +391,17 @@ location:
 
 - Project-level knowledge → `.sage/docs/skill-prefix-description.md`
 - Initiative work → `.sage/work/YYYYMMDD-slug/` (brief.md, spec.md, plan.md)
-- Initiative work → `.sage/work/YYYYMMDD-slug/` (brief.md, spec.md, plan.md)
+- Initiative-specific research → `.sage/work/YYYYMMDD-slug/research/`
+- Actionable TODO/backlog in current scope → current `manifest.md` or `plan.md`
+- Actionable TODO/backlog outside current scope → minimal intake cycle with
+  `needs-triage`, source cycle, suggested workflow, and no implementation
+  started
+- Checkpoint decision/verdict → `.sage/decisions.md`
+- Agent behavior correction/self-learning → `.sage-memory/`
+
+This Capture Router is deterministic. Do not ask the user where to store a
+finding; ask only when continuing would change product scope, priority, risk,
+or which active/resumable cycle to work on.
 
 ### Post-Flight: State Management
 

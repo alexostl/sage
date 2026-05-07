@@ -236,6 +236,12 @@ Before any substantial response, scan \`.sage/work/\` frontmatter for
 active initiatives. Read \`.sage/decisions.md\` for recent context.
 Never start fresh when there is existing context.
 
+Treat \`status: in-progress\` as implementation-active. Treat \`status: paused\`
+and \`status: intake\` as visible/resumable parked work, but not
+implementation-active until the user confirms continuation. \`sage status\`
+shows active work separately from paused/intake; \`sage doctor\` diagnoses
+structural issues such as actionable work placed in \`.sage/docs/\`.
+
 ### Rule 2 — Skills Before Assumptions
 
 If a Sage skill exists for the current task, read and follow it.
@@ -245,7 +251,45 @@ when a skill provides specific methodology.
 ### Rule 3 — Document Decisions
 
 Decisions that affect the project must be recorded. Specs, plans,
-ADRs, and briefs go to \`.sage/work/\` or \`.sage/docs/\`.
+ADRs, and briefs go through the Artifact Router:
+
+- Durable project knowledge, ADRs, and analyses → \`.sage/docs/\`
+- Initiative deliverables → \`.sage/work/<cycle>/\`
+- Initiative-specific research → \`.sage/work/<cycle>/research/\`
+- Actionable TODOs/backlog → current \`manifest.md\`/\`plan.md\` or a minimal intake cycle
+- Checkpoint decisions → \`.sage/decisions.md\`
+- Agent behavior corrections/learnings → \`.sage-memory/\`
+
+Do not ask the user where to store artifacts. If an actionable finding is
+uncertain or unrelated to the current cycle, create a minimal intake manifest
+with \`needs-triage\`; do not put actionable work in \`.sage/docs/\`.
+
+### Rule 3A — Recovery-First Safe Auto-Fix
+
+Sage may use safe auto-fix only for reversible state/metadata hygiene that does
+not change product behavior, priority, scope, risk, or ownership. Allowed
+classes include: minimal intake manifest creation for clear capture items;
+inferable frontmatter/handoff repair; deterministic finding routing;
+single-candidate continue; and same-cycle documentation scope updates.
+
+Hard stop instead of auto-fix for implementation without approved artifacts;
+scope expansion; destructive actions; conflicting instructions; ambiguous repo ownership;
+or multiple equivalent active/resumable cycles. Every safe auto-fix must record
+durable audit evidence in \`.sage/.auto-fixes.log\`: detected state, why it
+was safe, what changed, resulting state, severity, and next legal move.
+
+### Rule 3B — Target Repo Ownership
+
+The current working directory / edited repository owns workflow state.
+The edited repository owns state, memory, scope, gates, and recovery. Its
+\`.sage/\`, \`.sage-memory/\`, manifest scope, and gate config are
+authoritative for the task. The Sage framework repository must not impersonate
+target repo workflow state when Sage is invoked from another repo.
+
+If repo ownership is ambiguous, hard-stop and ask which repository is the
+target. Do not auto-fix across repository boundaries. Absolute paths outside
+the target repo are out of scope unless they are explicitly listed in the
+active manifest scope.
 
 ### Rule 4 — Checkpoints Are Sacred
 

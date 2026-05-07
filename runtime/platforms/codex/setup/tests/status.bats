@@ -72,6 +72,39 @@ EOF
         "$TARGET/.sage/work/20260315-stale-b/manifest.md" 2>/dev/null || true
 }
 
+seed_paused_intake_cycles() {
+    mkdir -p "$TARGET/.sage/work/20260430-active"
+    cat > "$TARGET/.sage/work/20260430-active/manifest.md" <<'EOF'
+---
+title: Active feature build
+workflow: build
+phase: implement
+status: in-progress
+updated: 2026-04-30
+---
+EOF
+    mkdir -p "$TARGET/.sage/work/20260501-paused"
+    cat > "$TARGET/.sage/work/20260501-paused/manifest.md" <<'EOF'
+---
+title: Paused hook repair
+workflow: fix
+phase: diagnose
+status: paused
+updated: 2026-05-01
+---
+EOF
+    mkdir -p "$TARGET/.sage/work/20260502-intake"
+    cat > "$TARGET/.sage/work/20260502-intake/manifest.md" <<'EOF'
+---
+title: Intake status visibility
+workflow: intake
+phase: intake
+status: intake
+updated: 2026-05-02
+---
+EOF
+}
+
 # ─── Command exists + read-only ──────────────────────────────────────
 
 @test "status: command exists (sage status invocable)" {
@@ -113,6 +146,18 @@ EOF
     echo "$output" | grep -q '20260430-active'
     echo "$output" | grep -q '20260301-stale-a'
     echo "$output" | grep -q '20260315-stale-b'
+}
+
+@test "status: prints paused/intake work in separate section with next action hint" {
+    seed_paused_intake_cycles
+    run run_status
+    echo "$output" | grep -qi 'active cycles'
+    echo "$output" | grep -q '20260430-active'
+    echo "$output" | grep -qi 'paused'
+    echo "$output" | grep -qi 'intake'
+    echo "$output" | grep -q '20260501-paused'
+    echo "$output" | grep -q '20260502-intake'
+    echo "$output" | grep -qi 'continue\|resume'
 }
 
 @test "status: prints 'Pending gates' block" {
@@ -176,6 +221,15 @@ EOF
     local n
     n="$(echo "$output" | jq -r '.cycles | length')"
     [ "$n" = "3" ]
+}
+
+@test "status --json: includes active, paused, and intake cycles with status fields" {
+    seed_paused_intake_cycles
+    run run_status --json
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.cycles[] | select(.id == "20260430-active" and .status == "in-progress")' >/dev/null
+    echo "$output" | jq -e '.cycles[] | select(.id == "20260501-paused" and .status == "paused")' >/dev/null
+    echo "$output" | jq -e '.cycles[] | select(.id == "20260502-intake" and .status == "intake")' >/dev/null
 }
 
 @test "status --json: cycles entry includes id and status fields" {

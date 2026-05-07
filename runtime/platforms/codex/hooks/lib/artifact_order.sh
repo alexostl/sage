@@ -10,6 +10,14 @@ is_cycle_artifact_path() {
     esac
 }
 
+is_documentation_artifact_path() {
+    local path="$1"
+    case "$path" in
+        .sage/docs/decision-*.md|.sage/docs/analysis-*.md) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 count_prior_impl_files() {
     local session_log="$1"
     local session_id="$2"
@@ -23,7 +31,8 @@ count_prior_impl_files() {
     jq -sr --arg sid "$session_id" --arg cycle "$cycle_id" '
         [.[] | select(.session_id == $sid and (.cycle_id // "") == $cycle)
          | .files[]?
-         | select((startswith(".sage/work/" + $cycle + "/") | not) and . != ".sage/decisions.md")]
+         | select((startswith(".sage/work/" + $cycle + "/") | not) and . != ".sage/decisions.md")
+         | select((test("^\\.sage/docs/(decision|analysis)-.*\\.md$")) | not)]
         | length
     ' "$session_log" 2>/dev/null || printf '0\n'
 }
@@ -39,7 +48,7 @@ moderate_fix_artifacts_missing() {
     local current_impl_count=0
     local path
     for path in "$@"; do
-        if ! is_cycle_artifact_path "$path" "$cycle_id"; then
+        if ! is_cycle_artifact_path "$path" "$cycle_id" && ! is_documentation_artifact_path "$path"; then
             current_impl_count=$((current_impl_count + 1))
         fi
     done

@@ -22,7 +22,7 @@ requires: [Task tool]
 
 Quick independent review of spec/plan/ADR via sub-agent delegation.
 Triggered as part of the [A] Review checkpoint flow.
-60 seconds max. Advisory — never blocks.
+120 seconds max. Advisory — never blocks.
 
 ## When to Run
 
@@ -57,8 +57,8 @@ When all conditions are met and user picks [A]: announce
 
 ## Time Budget
 
-60 seconds max per review. If the sub-agent doesn't respond within
-60 seconds, skip with: "Auto-review timed out. Run the review command
+120 seconds max per review. If the sub-agent doesn't respond within
+120 seconds, skip with: "Auto-review timed out. Run the review command
 manually for a full evaluation." Do not block the workflow.
 
 ## Presentation Format
@@ -134,7 +134,7 @@ The whole point is independent judgment. Filtering defeats it.
 Blocked rationalizations:
 - "The spec is straightforward" — straightforward specs still
   benefit from independent eyes
-- "The user is in a hurry" — 60 seconds is not a delay
+- "The user is in a hurry" — 120 seconds is not a delay
 - "I already reviewed it while writing" — self-review is not review
 - "The previous review passed" — this is a different artifact
 

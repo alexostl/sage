@@ -1,0 +1,1 @@
+Assume this framework was invoked from another repository. For this task, use the current target repository's .sage state, scope, memory, and gates as authoritative; do not write workflow state into the framework repository. Report which repo owns the state.

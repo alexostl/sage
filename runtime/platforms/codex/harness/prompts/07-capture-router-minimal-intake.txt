@@ -1,0 +1,1 @@
+During review of the current work, you discover an unrelated actionable follow-up: "evaluate whether the documentation site needs a glossary." Route it through the Sage Capture Router without implementing it.

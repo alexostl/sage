@@ -74,3 +74,38 @@ Use `decision-` prefix. Format captures: context, options, decision, consequence
 
 If it applies to the whole product → `docs/`.
 If it was created for one initiative → `work/YYYYMMDD-slug/research/`.
+
+## Repository Ownership
+
+The edited/target repository owns `.sage/`, `.sage-memory/`, manifest scope,
+gates, and recovery state. Framework repository state is only authoritative
+when the framework repository itself is the target. When Sage is invoked from
+another repository, do not write workflow state back into `sage-selfhost` or
+reuse its active cycles as if they belonged to the target.
+
+## Actionable Findings
+
+Actionable work is not project-level knowledge. Route it deterministically:
+
+- same initiative → current `work/YYYYMMDD-slug/manifest.md` or `plan.md`
+- separate topic → new minimal `work/YYYYMMDD-slug/manifest.md` with
+  `status: intake` and `needs-triage`
+- checkpoint verdict/decision → `.sage/decisions.md`
+- agent correction/self-learning → `.sage-memory/`
+
+Do not park TODOs or backlog in `.sage/docs/`. If a finding is actionable but
+does not clearly belong to the current initiative, create intake instead of
+asking where to store it.
+
+## Recovery-First Metadata Repair
+
+Sage may auto-fix reversible metadata/state hygiene when the safe outcome is
+deterministic: minimal intake manifests, inferable frontmatter/handoff fields,
+deterministic finding routing, a single clear continue candidate, or same-cycle
+documentation scope updates.
+
+Sage must stop for implementation without approved artifacts, scope expansion,
+destructive actions, conflicting instructions, ambiguous repo ownership, or
+multiple equivalent cycles. Each safe auto-fix records audit evidence in
+`.sage/.auto-fixes.log`: detected state, safety rationale, changed metadata,
+resulting state, severity, and next legal move.

@@ -23,6 +23,7 @@ FRAMEWORK_ROOT="${3:?framework root required}"
 
 incidents_log="$TARGET/.sage/.mcp-incidents.log"
 session_mut_log="$TARGET/.sage/.session-mutations.log"
+scenario_manifest="$FRAMEWORK_ROOT/runtime/platforms/codex/harness/v11-scenarios.json"
 
 # --- Signal 1: workflow-entry rate ----------------------------------
 # Count `/sage:` (or `/sage`) invocations in agent transcripts. Each
@@ -153,6 +154,38 @@ if [ -d "$TARGET/.git" ]; then
     cd - >/dev/null
 fi
 
+# --- v1.1 verification contract -------------------------------------
+# Deterministic Bats proves framework outputs and hook predicates. These
+# release-blocker scenarios require real `codex exec --json` transcripts,
+# because they are claims about agent/runtime behavior.
+v11_total_release_blockers=0
+v11_present_release_blockers=0
+v11_missing_release_blockers_json='[]'
+v11_scenarios_json='[]'
+v11_release_rule="v1.1 cannot be marked complete unless deterministic tests pass and every release_blocker scenario has a real Codex transcript from the current harness run with codex exec exit code 0."
+if [ -f "$scenario_manifest" ]; then
+    v11_scenarios_json="$(jq -c '.scenarios' "$scenario_manifest")"
+    v11_release_rule="$(jq -r '.policy.release_rule // empty' "$scenario_manifest")"
+    while IFS= read -r row; do
+        [ -n "$row" ] || continue
+        is_blocker="$(printf '%s' "$row" | jq -r '.release_blocker // false')"
+        [ "$is_blocker" = "true" ] || continue
+        v11_total_release_blockers=$((v11_total_release_blockers + 1))
+        prompt="$(printf '%s' "$row" | jq -r '.prompt')"
+        base="$TRANSCRIPTS/${prompt%.txt}.jsonl"
+        transcript="$base"
+        exit_file="$base.exit"
+        exit_code="missing"
+        [ -f "$exit_file" ] && exit_code="$(cat "$exit_file" 2>/dev/null || echo missing)"
+        if [ -s "$transcript" ] && [ "$exit_code" = "0" ]; then
+            v11_present_release_blockers=$((v11_present_release_blockers + 1))
+        else
+            missing_item="$(printf '%s' "$row" | jq -c --arg transcript "$transcript" --arg exit_code "$exit_code" '. + {missing_transcript:$transcript, exit_code:$exit_code}')"
+            v11_missing_release_blockers_json="$(jq -c --argjson item "$missing_item" '. + [$item]' <<< "$v11_missing_release_blockers_json")"
+        fi
+    done < <(jq -c '.scenarios[]' "$scenario_manifest")
+fi
+
 # --- Emit aggregate JSON --------------------------------------------
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 codex_version="$(codex --version 2>/dev/null | head -1 || echo unknown)"
@@ -176,6 +209,11 @@ jq -n \
     --argjson s7_total "$signal7_total_commits" \
     --argjson s8_count "$signal8_count" \
     --argjson s8_total "$signal8_total_flips" \
+    --argjson v11_total "$v11_total_release_blockers" \
+    --argjson v11_present "$v11_present_release_blockers" \
+    --argjson v11_missing "$v11_missing_release_blockers_json" \
+    --argjson v11_scenarios "$v11_scenarios_json" \
+    --arg v11_release_rule "$v11_release_rule" \
     '{
         ts: $ts,
         codex_version: $codex_version,
@@ -226,6 +264,29 @@ jq -n \
                 count: $s8_count,
                 total: $s8_total,
                 rate: (if $s8_total > 0 then ($s8_count / $s8_total) else 0 end)
+            },
+            "v11_release_blocker_harness": {
+                description: "Codex operating model v1.1 release-blocker scenarios with real transcript evidence",
+                deterministic_required_for: [
+                    "generated instructions",
+                    "hook predicates",
+                    "status/doctor output",
+                    "artifact routing text",
+                    "audit log schemas"
+                ],
+                real_harness_required_for: [
+                    "agent workflow routing",
+                    "agent recovery behavior",
+                    "agent capture behavior",
+                    "memory reuse across sessions",
+                    "cross-repo state ownership"
+                ],
+                total: $v11_total,
+                present: $v11_present,
+                missing: $v11_missing,
+                complete: ($v11_total > 0 and $v11_present == $v11_total),
+                release_rule: $v11_release_rule,
+                scenarios: $v11_scenarios
             }
         }
     }'

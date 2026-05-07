@@ -12,6 +12,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/bootstrap_check.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/artifact_order.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/recovery_autofix.sh"
 
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -65,13 +67,29 @@ else
         [ "$matched" -eq 0 ] && out_of_scope+=("$path")
     done
     if [ "${#out_of_scope[@]}" -gt 0 ]; then
-        printf 'Sage: paths outside cycle scope: %s. Active cycle: %s. Allowed scope: %s.\n' \
+        if try_safe_scope_autofix "$cwd" "$cycle_id" "$manifest" "$session_id" "${out_of_scope[@]}"; then
+            scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
+            while IFS= read -r line; do
+                [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
+            done < <(manifest_yaml "$manifest" | yq eval '.scope[]' - 2>/dev/null || true)
+            out_of_scope=()
+            for path in "${claimed_paths[@]}"; do
+                matched=0
+                for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
+                    case "$path" in $glob) matched=1; break ;; esac
+                done
+                [ "$matched" -eq 0 ] && out_of_scope+=("$path")
+            done
+        fi
+    fi
+    if [ "${#out_of_scope[@]}" -gt 0 ]; then
+        printf 'Sage: BLOCKING outside cycle scope: %s. Active cycle: %s. Allowed scope: %s. Next legal move: update the approved manifest scope/plan first, or create a minimal intake cycle if this is separate work.\n' \
             "${out_of_scope[*]}" "$cycle_id" "${scope_globs[*]:-(none)}" >&2
         exit 2
     fi
 
     if moderate_fix_artifacts_missing "$cycle_dir" "$manifest" "$cwd/.sage/.session-mutations.log" "$session_id" "$cycle_id" "${claimed_paths[@]}"; then
-        printf 'Sage: Moderate+ fix implementation is blocked until plan.md and manifest.md exist before code changes. Write/update those artifacts first; post-hoc artifacts do not cure a code-first violation. Active cycle: %s.\n' "$cycle_id" >&2
+        printf 'Sage: BLOCKING Moderate+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. Active cycle: %s.\n' "$cycle_id" >&2
         exit 2
     fi
 fi

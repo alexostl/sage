@@ -30,6 +30,12 @@
   writers:
     - pre-tool-validate.sh
 
+.sage/.auto-fixes.log:
+  # v1 recovery-first audit: every safe hook auto-fix records the detected
+  # state, safety rationale, resulting state, and next legal move.
+  writers:
+    - pre-tool-validate.sh
+
 .sage/.precommit.log:
   # v2 only — L5 deferred per §2; in v1 this file is absent and ADR-7
   # C5 cross-check degrades to "no precommit log" mode.
