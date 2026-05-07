@@ -282,17 +282,35 @@ Pick A/S/R/N, or tell me what to change.
      Prepend review verdict to decisions.md.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
-3. THEN proceed to Step 6.
+3. Update `manifest.md` BEFORE Step 6:
+   - Set phase to `implement`.
+   - Add a `scope:` list containing every file or glob the approved plan
+     will mutate, including tests and implementation files.
+   - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
+   - If scope is uncertain, stop and ask before implementation.
+4. THEN proceed to Step 6.
 
 **On [S] Skip review:**
 1. Prepend plan approach to decisions.md.
 2. Announce: "Skipping independent review."
 3. Log to decisions.md: "Plan approved without auto-review (user chose [S])."
-4. Proceed to Step 6.
+4. Update `manifest.md` BEFORE Step 6:
+   - Set phase to `implement`.
+   - Add a `scope:` list containing every file or glob the approved plan
+     will mutate, including tests and implementation files.
+   - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
+   - If scope is uncertain, stop and ask before implementation.
+5. Proceed to Step 6.
 
 ## Step 6: Implement
 
 Execute the plan task by task using the build loop.
+
+Before the first implementation edit, run this preflight:
+- Re-read `manifest.md` and confirm `scope:` covers the next task's files.
+- If the next file is outside `manifest.scope`, update `manifest.md` first.
+- Do not attempt the implementation patch and let PreToolUse reject it; the
+  manifest scope is part of the approved plan handoff.
 
 Read and follow `sage/core/capabilities/orchestration/build-loop/SKILL.md`.
 It provides:

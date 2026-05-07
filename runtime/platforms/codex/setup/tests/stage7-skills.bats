@@ -2,7 +2,7 @@
 # T1.14 — Stage 7: deploy skills to `<target>/.agents/skills/`.
 #
 # Plan contract (T1.14):
-#   - For every public workflow at `core/workflows/<wf>.workflow.md`,
+#   - For every public workflow deployed at `sage/core/workflows/<wf>.workflow.md`,
 #     emit a Codex skill loader at
 #     `<target>/.agents/skills/sage:<wf>/SKILL.md` with:
 #       * frontmatter `name: sage:<wf>`
@@ -80,7 +80,7 @@ run_stage7() {
 
 @test "stage7: SKILL.md body references the source workflow path" {
     run_stage7
-    grep -q 'core/workflows/build.workflow.md' "$TARGET/.agents/skills/sage:build/SKILL.md"
+    grep -q 'sage/core/workflows/build.workflow.md' "$TARGET/.agents/skills/sage:build/SKILL.md"
 }
 
 @test "stage7: re-run produces identical output (idempotent)" {
