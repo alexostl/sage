@@ -54,6 +54,17 @@ candidate cleanup target, not as an active feature.
 - Remove the old git-hook close-out model from `self-host/main`:
   `.githooks/pre-commit`, `bin/sage-close`, `bin/sage-install-hooks`,
   `sage install-hooks`, and README references.
+- Strengthen Codex/Sage generated guidance for artifact routing:
+  actionable TODOs, PR prep, next steps, candidate work, and "fix later"
+  checklists should go to `.sage/work/<cycle>/manifest.md`, not `.sage/docs/`.
+- Strengthen Codex/Sage generated guidance for intake state:
+  `manifest.md` is valid for paused/intake work, but `plan.md` should only be
+  created after an explicit workflow resume and planning checkpoint.
+- Evaluate whether guidance is enough for the TODO-routing issue; if not, add
+  a soft Codex audit warning when new `.sage/docs/` files look like actionable
+  work rather than durable knowledge.
+- Update `sage status` so `intake/paused` cycles clearly show that
+  "manifest only, no plan yet" is the correct state.
 - Add CI for the Codex port Bats suites:
   `bats runtime/platforms/codex/hooks/tests runtime/platforms/codex/setup/tests`.
 - Run one real Codex smoke/harness pass before marking the upstream PR ready:
