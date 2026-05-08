@@ -12,6 +12,14 @@ user-role: "Confirm root cause, approve fix scope, approve fix"
 
 Diagnose, then scope, then fix. Never skip steps.
 
+## Alex-native Notes
+
+Keep the fix discipline strict, but explain root cause and evidence in
+junior-friendly Polish when writing `.sage` artifacts. Use natural programming
+terms such as stack trace, regression, test, root cause, and patch. At each
+diagnosis or scope checkpoint, include linki do dowodow: 1-3 clickable file or
+artifact references that show why the diagnosis is credible.
+
 ## Auto-Pickup
 
 Scan `.sage/work/` for fix-related directories with `status: in-progress`.

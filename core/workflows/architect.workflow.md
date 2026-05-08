@@ -13,6 +13,18 @@ user-role: "Review and approve design decisions at each gate"
 System design for new projects or major redesigns.
 Elicit, then design, then plan. Never skip steps.
 
+## Alex-native Notes
+
+In self-hosted Alex work, write new `.sage` artifacts po polsku while keeping
+Sage terms and artifact names canonical. Treat the human as a Junior Dev
+Vibecoder: ask jedno pytanie naraz, explain the decision context briefly, and
+include 1-3 klikalne linki to the key brief/spec/ADR/plan sections at each
+checkpoint.
+
+Autonomous continuation is allowed after a reviewed design or plan only when
+the next step is mechanical. If a meaningful architecture trade-off, scope
+change, or unanswered question appears, stop and discuss before implementation.
+
 ## Auto-Pickup
 
 Scan `.sage/work/` for architect initiatives.

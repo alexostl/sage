@@ -12,6 +12,15 @@ user-role: "Define scope, approve findings"
 
 Evaluate what exists. Audit, measure, score, find gaps.
 
+## Alex-native Notes
+
+Write new `.sage` analysis artifacts po polsku while keeping finding IDs,
+severity labels, command names, and Sage terms canonical. Before asking the
+user for scope, infer what you can from repo/docs, then ask jedno pytanie naraz.
+At findings checkpoints, explain why the top issue matters and link to
+1-3 concrete evidence sections so the user can skim instead of reading the
+whole report.
+
 ## Auto-Pickup
 
 Scan `.sage/docs/` for existing evaluation artifacts (ux-audit-*,

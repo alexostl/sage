@@ -10,6 +10,11 @@ sections: [context, options, decision, consequences]
 
 # decision record-{NNN}: {decision_title}
 
+<!-- GUIDANCE: Alex-native self-host — write prose po polsku. Preserve Sage
+terms, artifact names, frontmatter keys, option labels, file paths, command
+names, and natural programming anglicisms. Do not translate framework
+conventions. -->
+
 **Date:** {date}
 **Status:** Proposed | Accepted | Deprecated | Superseded by decision record-{NNN}
 

@@ -12,6 +12,10 @@ sections: [constitution-constraints, tech-decisions, task-breakdown]
 
 # Implementation Plan: {feature_name}
 
+<!-- GUIDANCE: Alex-native self-host — write prose po polsku. Preserve Sage
+terms, artifact names, frontmatter keys, file paths, command names, and natural
+programming anglicisms. Do not translate framework conventions. -->
+
 **Spec:** {link_to_spec}
 **Mode:** {build_or_architect}
 **Status:** not-started

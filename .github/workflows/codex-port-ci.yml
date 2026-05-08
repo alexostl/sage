@@ -10,6 +10,7 @@ on:
       - "bin/sage"
       - "core/**"
       - "runtime/platforms/codex/**"
+      - "runtime/platforms/claude-code/**"
   push:
     branches:
       - selfhost
@@ -19,6 +20,7 @@ on:
       - "bin/sage"
       - "core/**"
       - "runtime/platforms/codex/**"
+      - "runtime/platforms/claude-code/**"
   workflow_dispatch:
 
 permissions:
@@ -54,3 +56,6 @@ jobs:
 
       - name: Run Codex setup tests
         run: bats runtime/platforms/codex/setup/tests
+
+      - name: Run Claude Code setup tests
+        run: bats runtime/platforms/claude-code/setup/tests

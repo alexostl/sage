@@ -12,6 +12,22 @@ user-role: "Review and approve at each gate"
 
 Feature development guided by Sage.
 
+## Alex-native Notes
+
+Nowe artefakty `.sage` pisz po polsku. Keep `brief.md`, `spec.md`,
+`plan.md`, `manifest.md`, frontmatter keys, command names, and Sage terms in
+English/canonical form. In conversation, add junior-friendly context: briefly
+explain why a gate matters and link to 1-3 important artifact sections instead
+of assuming the user read the whole file.
+
+**Autonomiczna kontynuacja:** At spec and plan checkpoints, preserve the normal
+review paths and add an explicit autonomous path when appropriate:
+- po spec: the agent may continue into planning only if planning is mechanical
+  and no important architecture decision, scope expansion, or open question
+  appears; otherwise zatrzymaj sie przed implementation and ask.
+- po plan: the agent may execute the approved plan end-to-end with checkpointami
+  summarized between milestones/tasks, unless a material decision appears.
+
 ## Auto-Pickup
 
 BEFORE ANYTHING: Scan `.sage/work/` for existing artifacts.
@@ -202,10 +218,11 @@ Decision: [key technical decisions]. (prepend to .sage/decisions.md)
 
 [A] Review — sub-agent reviews spec, then continue to plan
 [S] Skip review — approve without independent review
+[C] Continue autonomously — review, plan, and stop before implementation if needed
 [R] Revise — tell me what to change
 [N] New session — type /build to continue with planning
 
-Pick A/S/R/N, or tell me what to change.
+Pick A/S/C/R/N, or tell me what to change.
 
 **On [A] Review:**
 1. Update spec frontmatter to `status: completed`.
@@ -237,6 +254,14 @@ handoff: |
 3. Log to decisions.md: "Spec approved without auto-review (user chose [S])."
 4. Proceed to Step 5.
 
+**On [C] Continue autonomously:**
+1. Run the [A] review path.
+2. Continue to Step 5 and draft the plan.
+3. If planning reveals a material architecture choice, scope expansion, or
+   important unanswered question, stop before implementation and ask one
+   question. Otherwise present the plan context and continue only if the
+   autonomous instruction still clearly applies.
+
 ## Step 5: Plan
 
 Break into small, independently testable tasks. Each task: what to do,
@@ -264,10 +289,11 @@ Sage: Plan saved to .sage/work/YYYYMMDD-slug/plan.md
 
 [A] Review — sub-agent reviews plan, then start building
 [S] Skip review — approve without independent review
+[C] Continue autonomously — approve plan and execute the full cycle
 [R] Revise — tell me what to change
 [N] New session — type /build to start implementation
 
-Pick A/S/R/N, or tell me what to change.
+Pick A/S/C/R/N, or tell me what to change.
 
 **On [A] Review:**
 1. Prepend plan approach to decisions.md (Rule 7).
@@ -301,6 +327,13 @@ Pick A/S/R/N, or tell me what to change.
    - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
    - If scope is uncertain, stop and ask before implementation.
 5. Proceed to Step 6.
+
+**On [C] Continue autonomously:**
+1. Run the [A] review path unless the user explicitly asked to skip review.
+2. Update `manifest.md` before implementation as above.
+3. Execute Step 6 through Step 8 without stopping at routine checkpointami.
+4. Stop and ask one question if a material architecture decision, scope
+   expansion, destructive action, ambiguous ownership, or important risk appears.
 
 ## Step 6: Implement
 

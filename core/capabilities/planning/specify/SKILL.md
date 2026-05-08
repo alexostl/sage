@@ -25,6 +25,15 @@ Define WHAT to build and WHY — without deciding HOW (technology choices).
 not the other way around. A clear spec prevents more bugs than any testing framework.
 The same spec can produce multiple implementations on different branches.
 
+## Alex-native Artifact Language
+
+Nowe artefakty `.sage` pisz po polsku. Preserve Sage terms, command names,
+artifact names, frontmatter keys, file paths, and natural English programming
+terms where Polish developer practice uses them. Do not rename framework
+concepts. At the checkpoint, summarize the spec in junior-friendly language and
+point to the 1-3 most important sections instead of assuming the user read all
+of it.
+
 ## Deliverable Type
 
 Every spec declares what it produces. Infer this from context:

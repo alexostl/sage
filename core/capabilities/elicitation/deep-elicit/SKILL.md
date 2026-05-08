@@ -27,6 +27,14 @@ Not a form to fill — a conversation that surfaces the important decisions.
 on elicitation saves days of rework. But spending 60 minutes loses the human's attention.
 Be thorough AND efficient.
 
+## Alex-native Conversation
+
+For Alex self-host, sprawdz repo, `.sage/work/`, `.sage/docs/`, and obvious
+code context before asking. Ask jedno pytanie naraz, especially in architect
+mode. Use Polish prose for new `.sage` artifacts, but keep Sage terms and
+natural programming terms canonical. Add short junior-friendly context before
+questions when the concept may be unclear.
+
 ## When to Use
 
 ARCHITECT mode, before architecture or planning. When:

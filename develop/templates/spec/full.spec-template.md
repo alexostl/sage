@@ -10,6 +10,10 @@ sections: [problem, personas, stories, requirements, non-functional, boundaries,
 
 # {product_or_feature_name}
 
+<!-- GUIDANCE: Alex-native self-host — write prose po polsku. Preserve Sage
+terms, artifact names, frontmatter keys, IDs, file paths, command names, and
+natural programming anglicisms. Do not translate framework conventions. -->
+
 **Version:** {version}
 **Author:** {human_name_or_team}
 **Date:** {date}

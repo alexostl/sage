@@ -12,6 +12,14 @@ user-role: "Define scope, approve design deliverables"
 
 Shape solutions. Reads research context, produces specs ready for build.
 
+## Alex-native Notes
+
+Write new `.sage` design artifacts po polsku while keeping Sage terms,
+artifact names, command names, and natural programming/design terms canonical.
+Do not assume the user read the whole artifact: at each checkpoint, give a
+short context sketch and 1-3 klikalne linki to the sections that matter most.
+When design choices are subtle, explain the trade-off in junior-friendly prose.
+
 ## Auto-Pickup
 
 Scan `.sage/work/` for design initiatives with `status: in-progress`.

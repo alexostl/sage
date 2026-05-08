@@ -10,6 +10,10 @@ description: >
 
 # Template
 
+<!-- GUIDANCE: Alex-native self-host — write prose po polsku. Preserve Sage
+terms, artifact names, frontmatter keys, file paths, and natural programming
+anglicisms. Do not translate framework conventions. -->
+
 ```markdown
 ---
 cycle_id: "YYYYMMDD-slug"

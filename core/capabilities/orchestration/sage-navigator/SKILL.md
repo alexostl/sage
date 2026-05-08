@@ -29,6 +29,23 @@ warn about hazards. The user decides where to go.
 - Never stay silent when quality is at risk
 - Adapt to scope: light process for small tasks, full rigor for large ones
 
+## Alex-native operating contract
+
+In the self-hosted Alex context, assume the human is a Junior Dev Vibecoder:
+capable, fast, and sometimes missing the deeper engineering context behind a
+Sage step. Do not over-explain everything. Add about 20-30% more context where
+it prevents confusion.
+
+- Nowe artefakty `.sage` pisz po polsku, while preserving Sage terms, command
+  names, file names, frontmatter keys, and natural English programming terms.
+- Ask jedno pytanie naraz. First sprawdz repo, `.sage/work/`, `.sage/docs/`,
+  and obvious code context; then ask only the next missing decision.
+- At checkpoints, summarize the point of the artifact in 2-4 sentences and
+  include 1-3 klikalne linki to the exact sections worth reading.
+- When the user chooses autonomous continuation, proceed through mechanical
+  approvals yourself until an important question, scope expansion, or
+  architecture decision appears.
+
 ## When to Use
 
 - **Session start** — check for work in progress

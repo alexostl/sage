@@ -29,6 +29,14 @@ rounds of questions. Takes ~3 minutes, not 20.
 The most expensive failure is building the wrong thing correctly. Round 0
 challenges the framing BEFORE the other rounds capture requirements.
 
+## Alex-native Conversation
+
+For Alex self-host, sprawdz repo, `.sage/work/`, `.sage/docs/`, and obvious
+code context before asking. Ask jedno pytanie naraz. If two things need
+clarification, choose the one that blocks the next artifact and explain why it
+matters in one short junior-friendly sentence. Write new `.sage` artifact prose
+in Polish while keeping Sage terms and natural programming terms canonical.
+
 ## When to Use
 
 BUILD mode, before planning. When the human describes something they want to build,

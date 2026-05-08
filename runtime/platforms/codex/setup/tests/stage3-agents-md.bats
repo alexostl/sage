@@ -232,6 +232,15 @@ EOF
     grep -q 'without resuming' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md carries compact Alex-native contract" {
+    PRESET=base run_stage3
+    grep -q 'Alex-native operating contract' "$TARGET/AGENTS.md"
+    grep -q 'Nowe artefakty `.sage` pisz po polsku' "$TARGET/AGENTS.md"
+    grep -q 'jedno pytanie naraz' "$TARGET/AGENTS.md"
+    grep -q '1-3 klikalne linki' "$TARGET/AGENTS.md"
+    grep -q 'Autonomous continuation' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md explains paused/intake visibility vs implementation-active state" {
     PRESET=base run_stage3
     grep -q 'status: in-progress' "$TARGET/AGENTS.md"

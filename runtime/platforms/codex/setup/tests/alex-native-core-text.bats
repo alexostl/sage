@@ -1,0 +1,73 @@
+#!/usr/bin/env bats
+# Alex-native operating contract shared-source assertions.
+#
+# These tests intentionally read the canonical core files directly. The Codex
+# and Claude generators mirror only compact always-loaded parts; the full
+# behavior must live in shared Sage core.
+
+setup() {
+    REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../../../../.." && pwd)"
+}
+
+assert_contains() {
+    local file="$1"
+    local pattern="$2"
+    grep -q "$pattern" "$REPO_ROOT/$file"
+}
+
+@test "alex-native core: constitution and navigator define the self-host contract" {
+    assert_contains "core/constitution/sage-process.constitution.md" "Alex-native operating contract"
+    assert_contains "core/constitution/sage-process.constitution.md" "Nowe artefakty \`.sage\` pisz po polsku"
+    assert_contains "core/constitution/sage-process.constitution.md" "jedno pytanie naraz"
+    assert_contains "core/constitution/sage-process.constitution.md" "1-3 klikalne linki"
+
+    assert_contains "core/capabilities/orchestration/sage-navigator/SKILL.md" "Alex-native operating contract"
+    assert_contains "core/capabilities/orchestration/sage-navigator/SKILL.md" "jedno pytanie naraz"
+    assert_contains "core/capabilities/orchestration/sage-navigator/SKILL.md" "Junior Dev Vibecoder"
+}
+
+@test "alex-native core: workflows cover Polish artifacts and autonomy checkpoints" {
+    assert_contains "core/workflows/build.workflow.md" "Autonomiczna kontynuacja"
+    assert_contains "core/workflows/build.workflow.md" "po spec"
+    assert_contains "core/workflows/build.workflow.md" "po plan"
+    assert_contains "core/workflows/build.workflow.md" "zatrzymaj sie przed implementation"
+
+    assert_contains "core/workflows/architect.workflow.md" "jedno pytanie naraz"
+    assert_contains "core/workflows/architect.workflow.md" "1-3 klikalne linki"
+    assert_contains "core/workflows/architect.workflow.md" "po polsku"
+
+    assert_contains "core/workflows/design.workflow.md" "1-3 klikalne linki"
+    assert_contains "core/workflows/design.workflow.md" "po polsku"
+
+    assert_contains "core/workflows/analyze.workflow.md" "jedno pytanie naraz"
+    assert_contains "core/workflows/analyze.workflow.md" "po polsku"
+
+    assert_contains "core/workflows/fix.workflow.md" "root cause"
+    assert_contains "core/workflows/fix.workflow.md" "linki do dowodow"
+}
+
+@test "alex-native core: elicitation and planning capabilities use junior-friendly conversation" {
+    assert_contains "core/capabilities/elicitation/deep-elicit/SKILL.md" "jedno pytanie naraz"
+    assert_contains "core/capabilities/elicitation/deep-elicit/SKILL.md" "sprawdz repo"
+
+    assert_contains "core/capabilities/elicitation/quick-elicit/SKILL.md" "jedno pytanie naraz"
+    assert_contains "core/capabilities/elicitation/quick-elicit/SKILL.md" "sprawdz repo"
+
+    assert_contains "core/capabilities/planning/specify/SKILL.md" "Nowe artefakty \`.sage\` pisz po polsku"
+    assert_contains "core/capabilities/planning/specify/SKILL.md" "Sage terms"
+
+    assert_contains "core/capabilities/planning/plan/SKILL.md" "Nowe artefakty \`.sage\` pisz po polsku"
+    assert_contains "core/capabilities/planning/plan/SKILL.md" "Sage terms"
+
+    assert_contains "core/capabilities/orchestration/build-loop/SKILL.md" "Autonomiczna kontynuacja"
+    assert_contains "core/capabilities/orchestration/build-loop/SKILL.md" "checkpointami"
+}
+
+@test "alex-native core: templates preserve framework terms while preferring Polish prose" {
+    assert_contains "develop/templates/manifest-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/manifest-template.md" "po polsku"
+    assert_contains "develop/templates/spec/full.spec-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/spec/minimal.spec-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/plan/standard.plan-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/architecture/decision-template.md" "Alex-native self-host"
+}

@@ -218,6 +218,16 @@ verification-before-done remain mandatory.
 Moderate+ fixes must update plan.md and manifest.md before code changes.
 Writing plan.md or manifest.md after code does not cure the violation.
 
+### Alex-native operating contract
+
+Nowe artefakty \`.sage\` pisz po polsku; keep Sage terms, command names,
+frontmatter keys, and natural programming terms canonical. Treat Alex as a
+Junior Dev Vibecoder: add short context when concepts or trade-offs may be
+unclear, ask jedno pytanie naraz after checking repo/artifacts first, and add
+1-3 klikalne linki to key artifact sections at checkpoints. Autonomous continuation may approve routine spec/plan/build checkpoints only when the
+next step is mechanical; stop for scope expansion, architecture decisions, or
+important unanswered questions.
+
 ### State First
 
 Before any substantial response, scan \`.sage/work/\` frontmatter for

@@ -10,6 +10,10 @@ sections: [framing, intent, boundaries, acceptance-criteria, affected-areas]
 
 # {feature_name}
 
+<!-- GUIDANCE: Alex-native self-host — write prose po polsku. Preserve Sage
+terms, artifact names, frontmatter keys, IDs, file paths, command names, and
+natural programming anglicisms. Do not translate framework conventions. -->
+
 **Deliverable:** code | document | mixed
 
 [SECTION: framing]

@@ -176,6 +176,16 @@ team-visible decision → Tier 2 minimum.
 **Compliance:** Every substantial response starts with "Sage →", uses a
 slash command, or is genuinely Tier 1.
 
+### Alex-native operating contract
+
+Nowe artefakty `.sage` pisz po polsku; keep Sage terms, command names,
+frontmatter keys, and natural programming terms canonical. Treat Alex as a
+Junior Dev Vibecoder: add short context when concepts or trade-offs may be
+unclear, ask jedno pytanie naraz after checking repo/artifacts first, and add
+1-3 klikalne linki to key artifact sections at checkpoints. Autonomous continuation may approve routine spec/plan/build checkpoints only when the
+next step is mechanical; stop for scope expansion, architecture decisions, or
+important unanswered questions.
+
 ### Rule 1A: Memory Before Work (MANDATORY for Standard+)
 
 Before writing specs, plans, ADRs, or starting an investigation,
@@ -573,6 +583,12 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Verify: PASTE actual test output before claiming done — no summaries
 - Never use code blocks for interaction (checkpoints, options, status)
 - If user corrects your approach, store as self-learning before continuing
+- Alex-native operating contract: Nowe artefakty `.sage` pisz po polsku;
+  explain briefly for a Junior Dev Vibecoder, ask jedno pytanie naraz, and add
+  1-3 klikalne linki to key artifact sections at checkpoints.
+- Autonomous continuation: if explicitly chosen, continue through routine
+  spec/plan/build checkpoints only when mechanical; zatrzymaj sie przed implementation
+  for scope expansion, architecture decisions, or important unanswered questions.
 
 '
       ;;
@@ -602,6 +618,11 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Choices: present with [1] [2] [3] bracket notation
 - Never use code blocks for interaction (checkpoints, options, status)
 - If user corrects your approach, store as self-learning before continuing
+- Alex-native operating contract: Nowe artefakty `.sage` pisz po polsku;
+  explain briefly for a Junior Dev Vibecoder, ask jedno pytanie naraz, and add
+  1-3 klikalne linki to key brief/spec/ADR/plan sections at checkpoints.
+- Autonomous continuation: continue only through mechanical review/plan steps;
+  stop for any meaningful architecture decision, scope change, or open question.
 
 '
       ;;
@@ -627,6 +648,11 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Choices: present with [1] [2] [3] bracket notation
 - Never use code blocks for interaction (checkpoints, options, status)
 - If user corrects your approach, store as self-learning before continuing
+- Alex-native operating contract: Nowe artefakty `.sage` pisz po polsku;
+  explain briefly for a Junior Dev Vibecoder, ask jedno pytanie naraz, and add
+  1-3 klikalne linki to key brief/spec/ADR/plan sections at checkpoints.
+- Autonomous continuation: continue only through mechanical review/plan steps;
+  stop for any meaningful architecture decision, scope change, or open question.
 
 '
       ;;
