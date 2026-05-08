@@ -328,7 +328,9 @@ _write_with_marker_strategy() {
     fi
 
     if grep -q '^<!-- SAGE-MANAGED-END' "$target_file"; then
-        # Marker present — preserve everything from the marker line onward.
+        # Marker present — preserve everything below the marker line.
+        # The generated header mentions the marker text, so match only the
+        # actual marker comment at the start of a line.
         local user_territory
         user_territory="$(awk '/^<!-- SAGE-MANAGED-END/{found=1} found{print}' "$target_file")"
         # Strip the marker line itself from user_territory (we re-emit it via prefix).
