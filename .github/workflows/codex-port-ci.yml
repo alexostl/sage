@@ -3,7 +3,7 @@ name: Codex Port CI
 on:
   pull_request:
     branches:
-      - self-host/main
+      - selfhost
       - codex-port
     paths:
       - ".github/workflows/codex-port-ci.yml"
@@ -12,7 +12,7 @@ on:
       - "runtime/platforms/codex/**"
   push:
     branches:
-      - self-host/main
+      - selfhost
       - codex-port
     paths:
       - ".github/workflows/codex-port-ci.yml"
