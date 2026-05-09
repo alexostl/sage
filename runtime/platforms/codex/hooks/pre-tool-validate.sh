@@ -52,9 +52,18 @@ done <<< "$cmd"
 
 [ "${#claimed_paths[@]}" -eq 0 ] && exit 0
 
-cycle_dir="$(active_init_path "$cwd")"
-if [ -z "$cycle_dir" ]; then
-    if ! cycle_id="$(bootstrap_cycle_id "$cwd" "${claimed_paths[@]}")"; then
+resolution="$(resolve_cycle_for_patch "$cwd" "${claimed_paths[@]}")"
+resolution_kind="${resolution%%:*}"
+resolution_value="${resolution#*:}"
+
+if [ "$resolution_kind" = "ambiguous" ]; then
+    printf 'Sage: BLOCKING ambiguous cycle selection for patch paths. Matching cycles: %s. Next legal move: explicitly select/resume one cycle or split the patch.\n' "$resolution_value" >&2
+    exit 2
+fi
+
+if [ "$resolution_kind" = "bootstrap" ]; then
+    cycle_id="$resolution_value"
+elif [ "$resolution_kind" = "none" ]; then
         resumable="$(resumable_cycles_summary "$cwd" || true)"
         if [ -n "$resumable" ]; then
             printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly `sage continue` the right cycle or start a new workflow.\n' "$resumable" >&2
@@ -63,11 +72,27 @@ if [ -z "$cycle_dir" ]; then
         # shellcheck disable=SC2016
         printf 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.\n' >&2
         exit 2
-    fi
 else
+    cycle_dir="$resolution_value"
     cycle_id="$(basename "$cycle_dir")"
     manifest="$cycle_dir/manifest.md"
+    if [ "$resolution_kind" = "parked-capture" ]; then
+        capture_out_of_scope=()
+        for path in "${claimed_paths[@]}"; do
+            case "$path" in
+                .sage/work/"$cycle_id"/*|.sage/decisions.md|.sage-memory/*.md) ;;
+                *) capture_out_of_scope+=("$path") ;;
+            esac
+        done
+        if [ "${#capture_out_of_scope[@]}" -gt 0 ]; then
+            printf 'Sage: BLOCKING parked-cycle capture with implementation/out-of-cycle paths: %s. Parked cycles allow only same-cycle .sage artifacts, .sage/decisions.md, and narrow .sage-memory capture. Next legal move: explicitly continue the cycle before implementation.\n' "${capture_out_of_scope[*]}" >&2
+            exit 2
+        fi
+    fi
     scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
+    if [ "$resolution_kind" = "parked-capture" ]; then
+        scope_globs+=("$(normalize_path "$cwd/.sage-memory/*.md" "$cwd")")
+    fi
     while IFS= read -r line; do
         [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
     done < <(manifest_yaml "$manifest" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true)

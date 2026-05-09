@@ -16,6 +16,7 @@ bootstrap_cycle_id() {
     for path in "$@"; do
         case "$path" in
             .sage/decisions.md) continue ;;
+            .sage-memory/*.md) continue ;;
             .sage/work/*/manifest.md)
                 this_id="${path#.sage/work/}"; this_id="${this_id%/manifest.md}"
                 has_manifest=1 ;;

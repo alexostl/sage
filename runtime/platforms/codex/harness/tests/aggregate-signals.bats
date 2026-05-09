@@ -35,7 +35,11 @@ write_release_blocker_transcripts() {
         "$REPO_ROOT/runtime/platforms/codex/harness/v11-scenarios.json" |
         while IFS= read -r prompt; do
             [ -n "$prompt" ] || continue
-            printf '{"type":"assistant","message":"ok"}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            if [ "$prompt" = "11-bug-report-no-fix.txt" ]; then
+                printf '{"type":"assistant","message":"Zapisuję zgłoszony błąd jako finding bez implementacji."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            else
+                printf '{"type":"assistant","message":"ok"}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            fi
         done
 }
 
@@ -73,8 +77,8 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.total == 7' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 7' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.total == 8' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 8' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_rule | test("cannot be marked complete")' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_rule | test("exit code 0")' >/dev/null
 }
@@ -90,7 +94,7 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 7' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 8' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[0].exit_code == "1"' >/dev/null
 }
 
@@ -113,7 +117,7 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == true' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.present == 7' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.present == 8' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 0' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.real_harness_required_for | index("memory reuse across sessions")' >/dev/null
     echo "$output" | jq -e '.model_profile.model == "gpt-5.4"' >/dev/null
@@ -168,5 +172,21 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals."7_l1_bypass".count == 0' >/dev/null
-    echo "$output" | jq -e '.signals."7_l1_bypass".total == 7' >/dev/null
+    echo "$output" | jq -e '.signals."7_l1_bypass".total == 8' >/dev/null
+}
+
+@test "aggregate-signals: bug-report-no-fix fails if implementation files change" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    for f in "$TRANSCRIPTS"/*.jsonl; do
+        printf '0\n' > "$f.exit"
+    done
+    jq '.changed_files = ["bin/sage"]' "$TRANSCRIPTS/11-bug-report-no-fix.jsonl.state.json" \
+        > "$TRANSCRIPTS/state.tmp"
+    mv "$TRANSCRIPTS/state.tmp" "$TRANSCRIPTS/11-bug-report-no-fix.jsonl.state.json"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "11-bug-report-no-fix") | .rubric_failures[] | test("forbidden changed file pattern")' >/dev/null
 }

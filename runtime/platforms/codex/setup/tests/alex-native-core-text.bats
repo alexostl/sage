@@ -17,7 +17,9 @@ assert_contains() {
 
 @test "alex-native core: constitution and navigator define the self-host contract" {
     assert_contains "core/constitution/sage-process.constitution.md" "Alex-native operating contract"
-    assert_contains "core/constitution/sage-process.constitution.md" "Nowe artefakty \`.sage\` pisz po polsku"
+    assert_contains "core/constitution/sage-process.constitution.md" "Treść prozatorską nowych sekcji"
+    assert_contains "core/constitution/sage-process.constitution.md" "starszego angielskiego pliku"
+    assert_contains "core/constitution/sage-process.constitution.md" "Full autonomous implementation"
     assert_contains "core/constitution/sage-process.constitution.md" "jedno pytanie naraz"
     assert_contains "core/constitution/sage-process.constitution.md" "1-3 klikalne linki"
 
@@ -53,14 +55,14 @@ assert_contains() {
     assert_contains "core/capabilities/elicitation/quick-elicit/SKILL.md" "jedno pytanie naraz"
     assert_contains "core/capabilities/elicitation/quick-elicit/SKILL.md" "sprawdz repo"
 
-    assert_contains "core/capabilities/planning/specify/SKILL.md" "Nowe artefakty \`.sage\` pisz po polsku"
+    assert_contains "core/capabilities/planning/specify/SKILL.md" "Treść prozatorską nowych sekcji"
     assert_contains "core/capabilities/planning/specify/SKILL.md" "Sage terms"
 
-    assert_contains "core/capabilities/planning/plan/SKILL.md" "Nowe artefakty \`.sage\` pisz po polsku"
+    assert_contains "core/capabilities/planning/plan/SKILL.md" "Treść prozatorską nowych sekcji"
     assert_contains "core/capabilities/planning/plan/SKILL.md" "Sage terms"
 
     assert_contains "core/capabilities/orchestration/build-loop/SKILL.md" "Autonomiczna kontynuacja"
-    assert_contains "core/capabilities/orchestration/build-loop/SKILL.md" "checkpointami"
+    assert_contains "core/capabilities/orchestration/build-loop/SKILL.md" "Full autonomous implementation"
 }
 
 @test "alex-native core: templates preserve framework terms while preferring Polish prose" {

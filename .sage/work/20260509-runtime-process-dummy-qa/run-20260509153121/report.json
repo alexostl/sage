@@ -1,0 +1,183 @@
+{
+  "ts": "2026-05-09T13:42:44Z",
+  "codex_version": "codex-cli 0.126.0-alpha.15",
+  "target": "/Users/alexostl/Developer/sage-selfhost/.sage/work/20260509-runtime-process-dummy-qa/run-20260509153121/target",
+  "model_profile": {
+    "model": "gpt-5.4",
+    "reasoning_effort": "low",
+    "target_mode": "dummy-project",
+    "forbidden_models": [
+      "gpt-5.5"
+    ]
+  },
+  "signals": {
+    "1_workflow_entry": {
+      "description": "Sage workflow-entry rate (prompts that invoked /sage:* slash command)",
+      "count": 11,
+      "total": 11,
+      "rate": 1
+    },
+    "2_phase_jump": {
+      "description": "phase_jump_observed incidents (turn-audit Stop hook detection)",
+      "count": 0
+    },
+    "3_bypass_mutation": {
+      "description": "bypass_mutation incidents (turn-audit detected unclaimed git diff)",
+      "count": 0
+    },
+    "4_doctor_s1": {
+      "description": "S1 doctor check failures after harness run",
+      "count": 0
+    },
+    "5_bash_mutation_leaks": {
+      "description": "Agent bash-tool writes to managed paths bypassing apply_patch (per spec §13.2)",
+      "status": "TODO",
+      "note": "Bash-tool transcript scan not yet implemented (cost > 1 day for v1 seed; see plan T2.7 anti-gap rule). bypass_mutation incident covers untracked-write detection ex post via Stop hook (signal 3); bash-time prevention is the v2 ADR-1 v2 trigger."
+    },
+    "6a_predicate_loc": {
+      "description": "pre-tool-validate.sh line count vs calibrated v1.1 ceiling",
+      "loc": 167,
+      "ceiling": 160,
+      "over_ceiling": true
+    },
+    "6b_predicate_p95_latency_ms": {
+      "description": "pre-tool-validate.sh p95 invocation latency (cold-start drift signal)",
+      "status": "TODO",
+      "note": "Per-invocation duration_ms not currently logged by pre-tool-validate.sh. Adding requires hook patch + timing log + p95 calculator (~1 day). Spec §6.3 v2 promotion trigger #1 (cold-start latency > 1s) cannot fire from this seed yet."
+    },
+    "7_l1_bypass": {
+      "description": "Harness state snapshots with bypass_mutation incidents; falls back to commit/log correlation for legacy reports",
+      "count": 0,
+      "total": 11,
+      "rate": 0
+    },
+    "8_decisions_missing": {
+      "description": "Cycle frontmatter flips without same-commit decisions.md update",
+      "count": 0,
+      "total": 5,
+      "rate": 0
+    },
+    "v11_release_blocker_harness": {
+      "description": "Codex operating model v1.1 release-blocker scenarios with real transcript evidence",
+      "deterministic_required_for": [
+        "generated instructions",
+        "hook predicates",
+        "status/doctor output",
+        "artifact routing text",
+        "audit log schemas"
+      ],
+      "real_harness_required_for": [
+        "agent workflow routing",
+        "agent recovery behavior",
+        "agent capture behavior",
+        "memory reuse across sessions",
+        "cross-repo state ownership"
+      ],
+      "total": 8,
+      "present": 8,
+      "missing": [],
+      "complete": true,
+      "release_rule": "v1.1 cannot be marked complete unless deterministic tests pass and every release_blocker scenario has a real Codex transcript from the current harness run with codex exec exit code 0.",
+      "scenarios": [
+        {
+          "id": "05-readonly-no-workflow-state",
+          "prompt": "05-routing-edge.txt",
+          "claim": "conversational/read-only prompt does not create workflow state",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "forbidden_files": [
+              ".sage/docs/read-only-todo.md"
+            ]
+          }
+        },
+        {
+          "id": "06-action-creates-or-resumes-manifest",
+          "prompt": "06-action-creates-or-resumes-manifest.txt",
+          "claim": "explicit action prompt creates or resumes the correct manifest",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "required_changed_patterns": [
+              "^\\.sage/work/[^/]+/manifest\\.md$"
+            ]
+          }
+        },
+        {
+          "id": "03-blocked-mutation-next-legal-move",
+          "prompt": "03-build-out-of-scope.txt",
+          "claim": "blocked mutation returns a recovery message with next legal move",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {}
+        },
+        {
+          "id": "07-capture-router-minimal-intake",
+          "prompt": "07-capture-router-minimal-intake.txt",
+          "claim": "Capture Router creates minimal intake for unrelated actionable findings",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "forbidden_files": [
+              ".sage/docs/harness-glossary-follow-up.md"
+            ]
+          }
+        },
+        {
+          "id": "08-safe-autofix-metadata",
+          "prompt": "08-safe-autofix-metadata.txt",
+          "claim": "safe auto-fix keeps a reversible metadata/state issue moving",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "required_audit_kinds": [
+              "safe_auto_fix"
+            ]
+          }
+        },
+        {
+          "id": "09-memory-correction-reuse",
+          "prompt": "09-memory-correction-reuse.txt",
+          "claim": "documentation-routing correction is captured in .sage-memory and reused on the next relevant task",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "forbidden_files": [
+              ".sage/docs/harness-glossary-follow-up.md"
+            ]
+          }
+        },
+        {
+          "id": "10-cross-repo-target-state",
+          "prompt": "10-cross-repo-target-state.txt",
+          "claim": "cross-repo task uses the target repo's .sage state, scope, memory, and gates",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "expected_files": [
+              ".sage/decisions.md"
+            ]
+          }
+        },
+        {
+          "id": "11-bug-report-no-fix",
+          "prompt": "11-bug-report-no-fix.txt",
+          "claim": "plain bug report is captured or diagnosed without implementation mutations",
+          "verification_class": "real-codex-harness",
+          "release_blocker": true,
+          "state_rubric": {
+            "forbidden_changed_patterns": [
+              "^src/",
+              "^tests/",
+              "^bin/sage$",
+              "^runtime/"
+            ],
+            "required_transcript_patterns": [
+              "bug|błąd|finding|zgłos"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -27,12 +27,13 @@ The same spec can produce multiple implementations on different branches.
 
 ## Alex-native Artifact Language
 
-Nowe artefakty `.sage` pisz po polsku. Preserve Sage terms, command names,
-artifact names, frontmatter keys, file paths, and natural English programming
-terms where Polish developer practice uses them. Do not rename framework
-concepts. At the checkpoint, summarize the spec in junior-friendly language and
-point to the 1-3 most important sections instead of assuming the user read all
-of it.
+Sage artifact structure stays canonical: preserve Sage terms, command names,
+artifact names, frontmatter keys, file paths, code identifiers, quoted evidence,
+and natural English programming terms where Polish developer practice uses
+them. Treść prozatorską nowych sekcji `.sage` pisz po polsku, także gdy
+dopisujesz do starszego angielskiego pliku. Do not rename framework concepts.
+At the checkpoint, summarize the spec in junior-friendly language and point to
+the 1-3 most important sections instead of assuming the user read all of it.
 
 ## Deliverable Type
 

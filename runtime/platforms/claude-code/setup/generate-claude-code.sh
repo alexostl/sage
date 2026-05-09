@@ -178,13 +178,21 @@ slash command, or is genuinely Tier 1.
 
 ### Alex-native operating contract
 
-Nowe artefakty `.sage` pisz po polsku; keep Sage terms, command names,
-frontmatter keys, and natural programming terms canonical. Treat Alex as a
-Junior Dev Vibecoder: add short context when concepts or trade-offs may be
+Sage artifact structure, filenames, frontmatter keys, command names, workflow
+identifiers, code identifiers, quoted evidence, and canonical Sage/programming
+terms stay in English. Treść prozatorską nowych sekcji w `.sage` pisz po
+polsku — także wtedy, gdy dopisujesz do starszego angielskiego pliku. Treat Alex
+as a Junior Dev Vibecoder: add short context when concepts or trade-offs may be
 unclear, ask jedno pytanie naraz after checking repo/artifacts first, and add
-1-3 klikalne linki to key artifact sections at checkpoints. Autonomous continuation may approve routine spec/plan/build checkpoints only when the
-next step is mechanical; stop for scope expansion, architecture decisions, or
-important unanswered questions.
+1-3 klikalne linki to key artifact sections at checkpoints.
+
+After an approved plan checkpoint, preserve two implementation paths:
+`[C] Checkpointed implementation` and `[F] Full autonomous implementation`.
+The full autonomous path means no intermediate checkpoints until
+verification/close, but stop for scope expansion, architecture/product
+decisions, conflicting instructions, failing tests that require changed
+assumptions, partial-guardrail risk, or mutations outside approved manifest
+scope.
 
 ### Rule 1A: Memory Before Work (MANDATORY for Standard+)
 
@@ -583,12 +591,17 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Verify: PASTE actual test output before claiming done — no summaries
 - Never use code blocks for interaction (checkpoints, options, status)
 - If user corrects your approach, store as self-learning before continuing
-- Alex-native operating contract: Nowe artefakty `.sage` pisz po polsku;
-  explain briefly for a Junior Dev Vibecoder, ask jedno pytanie naraz, and add
-  1-3 klikalne linki to key artifact sections at checkpoints.
-- Autonomous continuation: if explicitly chosen, continue through routine
-  spec/plan/build checkpoints only when mechanical; zatrzymaj sie przed implementation
-  for scope expansion, architecture decisions, or important unanswered questions.
+- Alex-native operating contract: keep Sage artifact structure/canonical terms
+  in English, but write new `.sage` prose in Polish, including append-only
+  sections in older English files; explain briefly for a Junior Dev Vibecoder,
+  ask jedno pytanie naraz, and add 1-3 klikalne linki to key artifact sections
+  at checkpoints.
+- After approved plan: preserve `[C] Checkpointed implementation` and `[F] Full
+  autonomous implementation`; full autonomous runs without intermediate
+  checkpoints until verification/close, but stops for scope expansion,
+  architecture/product decisions, conflicting instructions, failing tests that
+  require changed assumptions, partial-guardrail risk, or mutations outside
+  approved manifest scope.
 
 '
       ;;
@@ -618,11 +631,17 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Choices: present with [1] [2] [3] bracket notation
 - Never use code blocks for interaction (checkpoints, options, status)
 - If user corrects your approach, store as self-learning before continuing
-- Alex-native operating contract: Nowe artefakty `.sage` pisz po polsku;
-  explain briefly for a Junior Dev Vibecoder, ask jedno pytanie naraz, and add
-  1-3 klikalne linki to key brief/spec/ADR/plan sections at checkpoints.
-- Autonomous continuation: continue only through mechanical review/plan steps;
-  stop for any meaningful architecture decision, scope change, or open question.
+- Alex-native operating contract: keep Sage artifact structure/canonical terms
+  in English, but write new `.sage` prose in Polish, including append-only
+  sections in older English files; explain briefly for a Junior Dev Vibecoder,
+  ask jedno pytanie naraz, and add 1-3 klikalne linki to key
+  brief/spec/ADR/plan sections at checkpoints.
+- After approved plan: preserve `[C] Checkpointed implementation` and `[F] Full
+  autonomous implementation`; full autonomous runs without intermediate
+  checkpoints until verification/close, but stops for scope expansion,
+  architecture/product decisions, conflicting instructions, failing tests that
+  require changed assumptions, partial-guardrail risk, or mutations outside
+  approved manifest scope.
 
 '
       ;;
@@ -648,11 +667,17 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Choices: present with [1] [2] [3] bracket notation
 - Never use code blocks for interaction (checkpoints, options, status)
 - If user corrects your approach, store as self-learning before continuing
-- Alex-native operating contract: Nowe artefakty `.sage` pisz po polsku;
-  explain briefly for a Junior Dev Vibecoder, ask jedno pytanie naraz, and add
-  1-3 klikalne linki to key brief/spec/ADR/plan sections at checkpoints.
-- Autonomous continuation: continue only through mechanical review/plan steps;
-  stop for any meaningful architecture decision, scope change, or open question.
+- Alex-native operating contract: keep Sage artifact structure/canonical terms
+  in English, but write new `.sage` prose in Polish, including append-only
+  sections in older English files; explain briefly for a Junior Dev Vibecoder,
+  ask jedno pytanie naraz, and add 1-3 klikalne linki to key
+  brief/spec/ADR/plan sections at checkpoints.
+- After approved plan: preserve `[C] Checkpointed implementation` and `[F] Full
+  autonomous implementation`; full autonomous runs without intermediate
+  checkpoints until verification/close, but stops for scope expansion,
+  architecture/product decisions, conflicting instructions, failing tests that
+  require changed assumptions, partial-guardrail risk, or mutations outside
+  approved manifest scope.
 
 '
       ;;

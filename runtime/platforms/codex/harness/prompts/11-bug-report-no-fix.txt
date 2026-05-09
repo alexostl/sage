@@ -1,0 +1,1 @@
+Zauważyłem błąd: `sage status` pokazuje output po angielsku, a w tym projekcie treść dla Alexa powinna być po polsku. Na razie tylko to zgłaszam.

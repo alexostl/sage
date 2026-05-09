@@ -7,9 +7,15 @@
 
 setup() {
     LIB="$BATS_TEST_DIRNAME/../lib/active_init.sh"
+    BOOTSTRAP_LIB="$BATS_TEST_DIRNAME/../lib/bootstrap_check.sh"
     [ -f "$LIB" ] || skip "active_init.sh not found at $LIB"
+    [ -f "$BOOTSTRAP_LIB" ] || skip "bootstrap_check.sh not found at $BOOTSTRAP_LIB"
     PROJECT_ROOT="$(mktemp -d -t active_init_bats.XXXXXX)"
     mkdir -p "$PROJECT_ROOT/.sage/work"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
+    # shellcheck disable=SC1090
+    source "$LIB"
 }
 
 teardown() {
@@ -40,6 +46,8 @@ EOF
 @test "active_init_path: empty work dir → empty output" {
     # shellcheck disable=SC1090
     source "$LIB"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
     result="$(active_init_path "$PROJECT_ROOT")"
     [ -z "$result" ]
 }
@@ -47,6 +55,8 @@ EOF
 @test "active_init_path: no .sage/work dir at all → empty output" {
     # shellcheck disable=SC1090
     source "$LIB"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
     rm -rf "$PROJECT_ROOT/.sage"
     result="$(active_init_path "$PROJECT_ROOT")"
     [ -z "$result" ]
@@ -55,6 +65,8 @@ EOF
 @test "active_init_path: single in-progress cycle → returns cycle dir path" {
     # shellcheck disable=SC1090
     source "$LIB"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
     make_cycle "20260101-alpha" "in-progress"
     result="$(active_init_path "$PROJECT_ROOT")"
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-alpha" ]
@@ -63,6 +75,8 @@ EOF
 @test "active_init_path: only completed cycles → empty output" {
     # shellcheck disable=SC1090
     source "$LIB"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
     make_cycle "20260101-alpha" "completed"
     make_cycle "20260102-beta" "completed"
     result="$(active_init_path "$PROJECT_ROOT")"
@@ -174,4 +188,41 @@ phase: plan
 EOF
     result="$(active_init_path "$PROJECT_ROOT")"
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-flat" ]
+}
+
+@test "resolve_cycle_for_patch: path intent chooses touched active cycle over newest active" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    make_cycle "20260101-target" "in-progress"
+    sleep 1
+    make_cycle "20260102-newest" "in-progress"
+    result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260101-target/manifest.md")"
+    [ "$result" = "active:$PROJECT_ROOT/.sage/work/20260101-target" ]
+}
+
+@test "resolve_cycle_for_patch: bootstrap wins even when another cycle is active" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    make_cycle "20260101-active" "in-progress"
+    result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260103-new/manifest.md" ".sage/work/20260103-new/spec.md" ".sage/decisions.md")"
+    [ "$result" = "bootstrap:20260103-new" ]
+}
+
+@test "resolve_cycle_for_patch: multiple touched cycles are ambiguous" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    make_cycle "20260101-alpha" "in-progress"
+    make_cycle "20260102-beta" "in-progress"
+    result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260101-alpha/manifest.md" ".sage/work/20260102-beta/manifest.md")"
+    case "$result" in ambiguous:*) ;; *) return 1 ;; esac
+    echo "$result" | grep -q "20260101-alpha"
+    echo "$result" | grep -q "20260102-beta"
+}
+
+@test "resolve_cycle_for_patch: parked cycle capture is explicit, not active implementation" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    make_cycle "20260101-parked" "intake"
+    result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260101-parked/manifest.md")"
+    [ "$result" = "parked-capture:$PROJECT_ROOT/.sage/work/20260101-parked" ]
 }

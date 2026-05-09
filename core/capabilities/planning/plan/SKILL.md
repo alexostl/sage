@@ -32,11 +32,13 @@ is ambiguous, the implementation will be wrong.
 
 ## Alex-native Artifact Language
 
-Nowe artefakty `.sage` pisz po polsku. Preserve Sage terms, artifact names,
-frontmatter keys, file paths, and natural English programming terms. Plan tasks
-should include enough context for a Junior Dev Vibecoder to understand why the
-task exists, while staying concise. At the plan checkpoint, include 1-3 links
-to spec sections or ADRs that explain the most important decisions.
+Sage artifact structure stays canonical: preserve Sage terms, artifact names,
+frontmatter keys, file paths, code identifiers, quoted evidence, and natural
+English programming terms. Treść prozatorską nowych sekcji `.sage` pisz po
+polsku, także gdy dopisujesz do starszego angielskiego pliku. Plan tasks should
+include enough context for a Junior Dev Vibecoder to understand why the task
+exists, while staying concise. At the plan checkpoint, include 1-3 links to
+spec sections or ADRs that explain the most important decisions.
 
 ## When to Use
 

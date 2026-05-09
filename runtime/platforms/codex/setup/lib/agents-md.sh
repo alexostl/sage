@@ -140,7 +140,10 @@ _render_rule_1a() {
 ### Rule 1A — Memory Before Work
 
 Before Standard+ work, try Sage Memory first:
-1. Discover available Sage Memory tools through Codex tool discovery.
+1. Discover available Sage Memory tools through the available Codex
+   tool-discovery surface. In Codex Desktop this may be \`tool_search\`; in
+   CLI/app-server contexts use the available MCP status/tool surfaces or
+   configured MCP tools.
 2. Activate/select the current project if the tool requires it.
 3. Search project/domain memory and self-learning corrections.
 4. Fall back to `.sage-memory/` files only when MCP tools are unavailable.
@@ -153,7 +156,10 @@ EOF
 ### Rule 1A — Memory Before Work
 
 Before Standard+ work, try Sage Memory first:
-1. Discover available Sage Memory tools through Codex tool discovery.
+1. Discover available Sage Memory tools through the available Codex
+   tool-discovery surface. In Codex Desktop this may be \`tool_search\`; in
+   CLI/app-server contexts use the available MCP status/tool surfaces or
+   configured MCP tools.
 2. Activate/select the current project if the tool requires it.
 3. Search project/domain memory and self-learning corrections.
 4. Fall back to `.sage-memory/` files only when MCP tools are unavailable.
@@ -207,6 +213,9 @@ Classify the user's mandate:
 - action mandate, including polite question-form mandates like "Can you fix
   this?", "Could you implement this?", or "Would you run a smoke test?" →
   route to workflow or confirmation
+- bug report/finding/observation without an explicit fix mandate → capture or
+  diagnose first; do not edit code until the user explicitly asks for a fix or
+  a workflow gate approves implementation
 - ambiguous/borderline prompt → use soft confirmation before workflow
 
 When active work exists, acknowledge it when relevant, but unrelated
@@ -220,13 +229,26 @@ Writing plan.md or manifest.md after code does not cure the violation.
 
 ### Alex-native operating contract
 
-Nowe artefakty \`.sage\` pisz po polsku; keep Sage terms, command names,
-frontmatter keys, and natural programming terms canonical. Treat Alex as a
+Sage artifact structure, filenames, frontmatter keys, command names, workflow
+identifiers, code identifiers, quoted evidence, and canonical Sage/programming
+terms stay in English. Treść prozatorską nowych sekcji w \`.sage\` pisz po
+polsku — także wtedy, gdy dopisujesz do starszego angielskiego pliku. Treat Alex as a
 Junior Dev Vibecoder: add short context when concepts or trade-offs may be
 unclear, ask jedno pytanie naraz after checking repo/artifacts first, and add
-1-3 klikalne linki to key artifact sections at checkpoints. Autonomous continuation may approve routine spec/plan/build checkpoints only when the
-next step is mechanical; stop for scope expansion, architecture decisions, or
-important unanswered questions.
+1-3 klikalne linki to key artifact sections at checkpoints.
+
+After an approved plan checkpoint, preserve two implementation paths:
+\`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.
+The full autonomous path means no intermediate checkpoints until
+verification/close, but stop for scope expansion, architecture/product
+decisions, conflicting instructions, failing tests that require changed
+assumptions, partial-guardrail risk, or mutations outside approved manifest
+scope.
+
+When using subagents/reviewer agents, verify they inherit or are explicitly
+given the active project instructions, Sage scope, and MCP/tool expectations.
+Subagent edits are not exempt from manifest scope, plan approval, or
+verification gates.
 
 ### State First
 

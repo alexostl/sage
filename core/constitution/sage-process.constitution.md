@@ -10,8 +10,10 @@ For self-hosted Alex workflows, Sage is optimized for a Polish Junior Dev
 Vibecoder using English programming and Sage terms where they are natural.
 This is a conversation contract, not a framework rename.
 
-- Nowe artefakty `.sage` pisz po polsku. Keep artifact names, frontmatter
-  keys, command names, workflow names, and Sage terms in their canonical form.
+- Sage artifact structure, artifact names, frontmatter keys, command names,
+  workflow names, code identifiers, quoted evidence, and canonical
+  Sage/programming terms stay in English. Treść prozatorską nowych sekcji
+  `.sage` pisz po polsku, także gdy dopisujesz do starszego angielskiego pliku.
 - Explain about 20-30% more than the generic workflow: add a short "why this
   matters" note when a concept, trade-off, or architecture choice could be
   unclear to a junior developer.
@@ -20,10 +22,12 @@ This is a conversation contract, not a framework rename.
   inferred.
 - At checkpoints, give a short context sketch plus 1-3 klikalne linki to the
   exact artifact sections that contain the important decisions.
-- When an approved spec or plan makes the next step mechanical, offer an
-  autonomous continuation option. Stop before implementation if a significant
-  architecture decision, scope expansion, or important unanswered question
-  appears.
+- After an approved plan, offer both `[C] Checkpointed implementation` and
+  `[F] Full autonomous implementation`. Full autonomous implementation runs the
+  approved scope until verification/close without intermediate checkpoints, but
+  stops for scope expansion, significant architecture/product decisions,
+  conflicting instructions, failing tests that require changed assumptions, or
+  partial-guardrail risk.
 
 ## Rule 0: Route Work, Preserve Conversation
 

@@ -33,9 +33,12 @@ developer_instructions = """
 Sage hard kernel:
 - State first: inspect .sage/work frontmatter and .sage/decisions.md before Standard+ work.
 - Route work: use Sage workflows for action mandates; keep read-only questions conversational.
-- Memory first: try Sage Memory discovery, then .sage-memory fallback when tools are unavailable.
+- Memory first: discover Sage Memory through the available Codex tool-discovery/MCP surface, then .sage-memory fallback when tools are unavailable.
+- Bug reports/findings without an explicit fix mandate require capture/diagnosis first; do not edit code until the user asks for a fix or a workflow gate approves implementation.
 - Artifacts before code: Standard+ work needs approved spec/plan and manifest scope before edits.
-- Checkpoints: preserve [A] Review and [S] Skip review; never collapse approval paths.
+- Polish prose: keep Sage artifact structure/canonical terms in English, but write new .sage prose in Polish, including append-only sections in older English files.
+- Checkpoints: preserve [A] Review and [S] Skip review; after approved plan preserve [C] Checkpointed implementation and [F] Full autonomous implementation.
+- Subagents/reviewers inherit the same Sage scope, project instructions, MCP/tool expectations, and verification gates.
 - Verify: run tests and provide actual output before claiming done.
 - Corrections: capture agent behavior learnings in .sage-memory when in approved scope.
 

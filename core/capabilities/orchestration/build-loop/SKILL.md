@@ -31,12 +31,14 @@ asked before anything surprising happens.
 
 ## Alex-native Autonomy
 
-Autonomiczna kontynuacja means the agent can continue through routine
-checkpointami after a spec or plan approval when the user explicitly chose that
-mode. Continue without extra approval only for mechanical execution already
-covered by the approved plan. Stop and ask one question if the next step
-requires scope expansion, destructive action, architecture judgment, ambiguous
-ownership, or a risk the user has not accepted.
+Autonomiczna kontynuacja after an approved plan has two explicit modes:
+`[C] Checkpointed implementation` and `[F] Full autonomous implementation`.
+When the user chooses `[F]`, continue through the approved scope until
+verification/close without intermediate checkpoints. Stop and ask one question
+if the next step requires scope expansion, destructive action, architecture or
+product judgment, ambiguous ownership, conflicting instructions, failing tests
+that require changed assumptions, or a partial-guardrail risk the user has not
+accepted.
 
 ## When to Use
 

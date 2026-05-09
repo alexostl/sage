@@ -4,10 +4,10 @@
 # Plan contract (T1.19):
 #   - Reads disk directly (no MCP — ADR-9 v1).
 #   - Emits 4-block plain text output:
-#     1. Active cycles — title, workflow, phase, status, last update
-#     2. Pending gates — approval-pending hints
-#     3. Recent decisions — last 3 entries from decisions.md
-#     4. Health summary — short version of doctor (warn/fail counts)
+#     1. Aktywne cykle — title, workflow, phase, status, last update
+#     2. Bramki pending — approval-pending hints
+#     3. Ostatnie decyzje — last 3 entries from decisions.md
+#     4. Zdrowie — short version of doctor (warn/fail counts)
 #   - `--json` flag emits scriptable form.
 #   - Bash test passes on target with 1 active cycle + 2 stale cycles.
 #
@@ -126,10 +126,10 @@ EOF
 
 # ─── 4 blocks of plain text output ───────────────────────────────────
 
-@test "status: prints 'Active cycles' block" {
+@test "status: prints Polish active cycles block" {
     seed_cycles
     run run_status
-    echo "$output" | grep -qi 'active cycles'
+    echo "$output" | grep -qi 'Aktywne cykle'
 }
 
 @test "status: lists active cycle title + phase + status" {
@@ -151,25 +151,25 @@ EOF
 @test "status: prints paused/intake work in separate section with next action hint" {
     seed_paused_intake_cycles
     run run_status
-    echo "$output" | grep -qi 'active cycles'
+    echo "$output" | grep -qi 'Aktywne cykle'
     echo "$output" | grep -q '20260430-active'
     echo "$output" | grep -qi 'paused'
     echo "$output" | grep -qi 'intake'
     echo "$output" | grep -q '20260501-paused'
     echo "$output" | grep -q '20260502-intake'
-    echo "$output" | grep -qi 'continue\|resume'
-    echo "$output" | grep -qi 'parked'
+    echo "$output" | grep -qi 'continue'
+    echo "$output" | grep -qi 'zaparkowane'
     echo "$output" | grep -qi 'manifest-only'
-    echo "$output" | grep -qi 'no active implementation'
+    echo "$output" | grep -qi 'brak aktywnej implementacji'
 }
 
-@test "status: prints 'Pending gates' block" {
+@test "status: prints Polish pending gates block" {
     seed_cycles
     run run_status
-    echo "$output" | grep -qi 'pending gates'
+    echo "$output" | grep -qi 'Bramki pending'
 }
 
-@test "status: prints 'Recent decisions' block" {
+@test "status: prints Polish recent decisions block" {
     cat > "$TARGET/.sage/decisions.md" <<'EOF'
 # Decisions
 
@@ -186,7 +186,7 @@ Third decision body.
 Fourth decision body.
 EOF
     run run_status
-    echo "$output" | grep -qi 'recent decisions'
+    echo "$output" | grep -qi 'Ostatnie decyzje'
     echo "$output" | grep -q 'Decision A'
     echo "$output" | grep -q 'Decision B'
     echo "$output" | grep -q 'Decision C'
@@ -194,10 +194,10 @@ EOF
     ! echo "$output" | grep -q 'Decision D'
 }
 
-@test "status: prints 'Health' summary block" {
+@test "status: prints Polish health summary block" {
     seed_cycles
     run run_status
-    echo "$output" | grep -qi 'health'
+    echo "$output" | grep -qi 'Zdrowie'
 }
 
 # ─── --json flag ─────────────────────────────────────────────────────

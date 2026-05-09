@@ -137,6 +137,8 @@ EOF
     # No .codex/config.toml at all still tells Codex to try deferred discovery first.
     PRESET=base run_stage3
     grep -q 'Discover available Sage Memory tools' "$TARGET/AGENTS.md"
+    grep -q 'available Codex' "$TARGET/AGENTS.md"
+    grep -q 'tool-discovery surface' "$TARGET/AGENTS.md"
     grep -q 'Fall back to `.sage-memory/` files only when MCP tools are unavailable' "$TARGET/AGENTS.md"
     grep -q 'Codex built-in Memories are a' "$TARGET/AGENTS.md"
 }
@@ -235,10 +237,32 @@ EOF
 @test "stage3: generated AGENTS.md carries compact Alex-native contract" {
     PRESET=base run_stage3
     grep -q 'Alex-native operating contract' "$TARGET/AGENTS.md"
-    grep -q 'Nowe artefakty `.sage` pisz po polsku' "$TARGET/AGENTS.md"
+    grep -q 'Treść prozatorską nowych sekcji w `.sage` pisz po' "$TARGET/AGENTS.md"
+    grep -q 'starszego angielskiego pliku' "$TARGET/AGENTS.md"
     grep -q 'jedno pytanie naraz' "$TARGET/AGENTS.md"
     grep -q '1-3 klikalne linki' "$TARGET/AGENTS.md"
-    grep -q 'Autonomous continuation' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md preserves no-spontaneous-fix guardrail" {
+    PRESET=base run_stage3
+    grep -q 'bug report/finding/observation' "$TARGET/AGENTS.md"
+    grep -q 'do not edit code' "$TARGET/AGENTS.md"
+    grep -q 'workflow gate approves implementation' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md preserves post-plan implementation mode choice" {
+    PRESET=base run_stage3
+    grep -q '\[C\] Checkpointed implementation' "$TARGET/AGENTS.md"
+    grep -q '\[F\] Full autonomous implementation' "$TARGET/AGENTS.md"
+    grep -q 'no intermediate checkpoints until' "$TARGET/AGENTS.md"
+    grep -q 'partial-guardrail risk' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md covers subagent scope inheritance" {
+    PRESET=base run_stage3
+    grep -q 'subagents/reviewer agents' "$TARGET/AGENTS.md"
+    grep -q 'project instructions' "$TARGET/AGENTS.md"
+    grep -q 'Subagent edits are not exempt' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md explains paused/intake visibility vs implementation-active state" {

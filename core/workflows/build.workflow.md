@@ -14,19 +14,24 @@ Feature development guided by Sage.
 
 ## Alex-native Notes
 
-Nowe artefakty `.sage` pisz po polsku. Keep `brief.md`, `spec.md`,
-`plan.md`, `manifest.md`, frontmatter keys, command names, and Sage terms in
-English/canonical form. In conversation, add junior-friendly context: briefly
-explain why a gate matters and link to 1-3 important artifact sections instead
-of assuming the user read the whole file.
+Sage artifact structure stays canonical: keep `brief.md`, `spec.md`,
+`plan.md`, `manifest.md`, frontmatter keys, command names, workflow names, code
+identifiers, quoted evidence, and Sage/programming terms in English where they
+are canonical. Treść prozatorską nowych sekcji `.sage` pisz po polsku, także
+gdy dopisujesz do starszego angielskiego pliku. In conversation, add
+junior-friendly context: briefly explain why a gate matters and link to 1-3
+important artifact sections instead of assuming the user read the whole file.
 
 **Autonomiczna kontynuacja:** At spec and plan checkpoints, preserve the normal
 review paths and add an explicit autonomous path when appropriate:
 - po spec: the agent may continue into planning only if planning is mechanical
   and no important architecture decision, scope expansion, or open question
   appears; otherwise zatrzymaj sie przed implementation and ask.
-- po plan: the agent may execute the approved plan end-to-end with checkpointami
-  summarized between milestones/tasks, unless a material decision appears.
+- po plan: always offer `[C] Checkpointed implementation` and `[F] Full
+  autonomous implementation`. If the user selects `[F]`, execute the approved
+  plan end-to-end until verification/close without intermediate checkpoints,
+  unless scope expansion, material decision, conflicting instruction, failing
+  test requiring changed assumptions, or partial-guardrail risk appears.
 
 ## Auto-Pickup
 
@@ -328,12 +333,14 @@ Pick A/S/C/R/N, or tell me what to change.
    - If scope is uncertain, stop and ask before implementation.
 5. Proceed to Step 6.
 
-**On [C] Continue autonomously:**
+**On [F] Full autonomous implementation:**
 1. Run the [A] review path unless the user explicitly asked to skip review.
 2. Update `manifest.md` before implementation as above.
-3. Execute Step 6 through Step 8 without stopping at routine checkpointami.
+3. Execute Step 6 through Step 8 without intermediate checkpoints.
 4. Stop and ask one question if a material architecture decision, scope
-   expansion, destructive action, ambiguous ownership, or important risk appears.
+   expansion, destructive action, ambiguous ownership, conflicting instruction,
+   failing test requiring changed assumptions, or partial-guardrail risk
+   appears.
 
 ## Step 6: Implement
 

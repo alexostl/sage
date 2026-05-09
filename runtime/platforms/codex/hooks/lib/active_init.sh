@@ -87,3 +87,80 @@ resumable_cycles_summary() {
     [ "$count" -gt 0 ] && printf '%s\n' "$out"
     return 0
 }
+
+path_cycle_ids() {
+    local path this_id seen="" out=""
+    for path in "$@"; do
+        case "$path" in
+            .sage/work/*/*)
+                this_id="${path#.sage/work/}"
+                this_id="${this_id%%/*}" ;;
+            *) continue ;;
+        esac
+        case " $seen " in
+            *" $this_id "*) ;;
+            *)
+                seen="$seen $this_id"
+                if [ -z "$out" ]; then
+                    out="$this_id"
+                else
+                    out="$out
+$this_id"
+                fi ;;
+        esac
+    done
+    [ -n "$out" ] && printf '%s\n' "$out"
+    return 0
+}
+
+cycle_status() {
+    local project_root="$1"
+    local cycle_id="$2"
+    local manifest="$project_root/.sage/work/$cycle_id/manifest.md"
+    [ -f "$manifest" ] || return 1
+    manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null
+}
+
+resolve_cycle_for_patch() {
+    local project_root="$1"; shift
+    local cycle_ids count cycle_id status
+    cycle_ids="$(path_cycle_ids "$@" || true)"
+    count="$(printf '%s\n' "$cycle_ids" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+    if [ "$count" -gt 1 ]; then
+        printf 'ambiguous:%s\n' "$(printf '%s' "$cycle_ids" | tr '\n' ' ')"
+        return 0
+    fi
+
+    if [ "$count" -eq 1 ]; then
+        cycle_id="$(printf '%s\n' "$cycle_ids" | sed -n '1p')"
+        if bootstrap_cycle_id "$project_root" "$@" >/dev/null 2>&1; then
+            printf 'bootstrap:%s\n' "$cycle_id"
+            return 0
+        fi
+        status="$(cycle_status "$project_root" "$cycle_id" 2>/dev/null || true)"
+        case "$status" in
+            in-progress)
+                printf 'active:%s\n' "$project_root/.sage/work/$cycle_id"
+                return 0 ;;
+            paused|intake)
+                printf 'parked-capture:%s\n' "$project_root/.sage/work/$cycle_id"
+                return 0 ;;
+        esac
+    fi
+
+    local active
+    active="$(active_init_path "$project_root")"
+    if [ -n "$active" ]; then
+        printf 'active:%s\n' "$active"
+        return 0
+    fi
+
+    if cycle_id="$(bootstrap_cycle_id "$project_root" "$@" 2>/dev/null)"; then
+        printf 'bootstrap:%s\n' "$cycle_id"
+        return 0
+    fi
+
+    printf 'none:\n'
+    return 0
+}

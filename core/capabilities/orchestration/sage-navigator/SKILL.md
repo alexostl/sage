@@ -36,8 +36,10 @@ capable, fast, and sometimes missing the deeper engineering context behind a
 Sage step. Do not over-explain everything. Add about 20-30% more context where
 it prevents confusion.
 
-- Nowe artefakty `.sage` pisz po polsku, while preserving Sage terms, command
-  names, file names, frontmatter keys, and natural English programming terms.
+- Sage artifact structure, file names, frontmatter keys, command names, code
+  identifiers, quoted evidence, and canonical Sage/programming terms stay in
+  English. Treść prozatorską nowych sekcji `.sage` pisz po polsku, także gdy
+  dopisujesz do starszego angielskiego pliku.
 - Ask jedno pytanie naraz. First sprawdz repo, `.sage/work/`, `.sage/docs/`,
   and obvious code context; then ask only the next missing decision.
 - At checkpoints, summarize the point of the artifact in 2-4 sentences and

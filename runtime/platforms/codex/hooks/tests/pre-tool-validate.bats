@@ -186,6 +186,58 @@ semantic_reclassification: accepted
     echo "$output" | grep -qi "sage continue"
 }
 
+@test "pre-tool-validate.sh: new-cycle bootstrap allowed even when another cycle is active" {
+    make_cycle_with_scope "20260101-active" "in-progress" "src/**"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/20260103-new/manifest.md\n+---\n+cycle_id: \"20260103-new\"\n+status: in-progress\n+---\n*** Add File: .sage/work/20260103-new/spec.md\n+# Spec\n*** Update File: .sage/decisions.md\n@@\n+decision\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"cycle_id":"20260103-new"' "$log"
+}
+
+@test "pre-tool-validate.sh: path intent chooses touched active cycle over newest active" {
+    make_cycle_with_scope "20260101-target" "in-progress" ".sage/work/20260101-target/*"
+    sleep 1
+    make_cycle_with_scope "20260102-newest" "in-progress" "src/**"
+    cmd="$(make_patch_cmd Update .sage/work/20260101-target/manifest.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"cycle_id":"20260101-target"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: ambiguous multi-cycle patch blocks with selection guidance" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" ".sage/work/20260101-alpha/*"
+    make_cycle_with_scope "20260102-beta" "in-progress" ".sage/work/20260102-beta/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n+a\n*** Update File: .sage/work/20260102-beta/manifest.md\n@@\n+b\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "ambiguous cycle"
+    echo "$output" | grep -q "20260101-alpha"
+    echo "$output" | grep -q "20260102-beta"
+}
+
+@test "pre-tool-validate.sh: parked intake capture allows same-cycle artifact and decisions only" {
+    make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n+capture\n*** Update File: .sage/decisions.md\n@@\n+decision\n*** Add File: .sage-memory/learning.md\n+learned\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: parked intake capture blocks implementation files" {
+    make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n+capture\n*** Add File: src/nope.sh\n+nope\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "parked-cycle capture"
+    echo "$output" | grep -q "src/nope.sh"
+}
+
 @test "pre-tool-validate.sh: risky repo-control/doc/test/CLI path requires semantic reclassification" {
     make_cycle_with_scope "20260101-alpha" "in-progress" ".gitignore" "README.md" "bin/*" "tests/**"
     cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+tmp\n*** Update File: README.md\n@@\n+docs\n*** Update File: bin/sage\n@@\n+cli\n*** Add File: tests/new.bats\n+test\n*** End Patch\n')"

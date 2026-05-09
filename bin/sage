@@ -1197,13 +1197,13 @@ sage_doctor() {
 
   if [ ! -d "$target/.sage" ] && [ ! -d "$target/.codex" ]; then
     echo ""
-    echo -e "  ${RED}❌ No Sage/Codex layout found in this directory.${RESET}"
-    echo "  Run 'sage init --platform codex' first."
+    echo -e "  ${RED}❌ Nie znaleziono układu Sage/Codex w tym katalogu.${RESET}"
+    echo "  Najpierw uruchom 'sage init --platform codex'."
     exit 1
   fi
 
   echo ""
-  echo -e "  ${BOLD}Sage doctor — Codex port checks${RESET}"
+  echo -e "  ${BOLD}Sage doctor — kontrole portu Codex${RESET}"
   echo ""
 
   local pass_n=0 warn_n=0 fail_n=0
@@ -1518,7 +1518,7 @@ sage_status() {
     else
       echo ""
       echo -e "  ${RED}❌ No .sage/ directory in this project.${RESET}"
-      echo "  Run 'sage init' first."
+      echo "  Najpierw uruchom 'sage init'."
     fi
     exit 1
   fi
@@ -1651,7 +1651,7 @@ $line"; fi
   echo -e "  ${BOLD}Sage status${RESET}"
   echo ""
 
-  echo -e "  ${BOLD}Active cycles${RESET}"
+  echo -e "  ${BOLD}Aktywne cykle${RESET}"
   if [ -z "$active_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
@@ -1659,19 +1659,19 @@ $line"; fi
   fi
   echo ""
 
-  echo -e "  ${BOLD}Paused / intake${RESET}"
+  echo -e "  ${BOLD}Zaparkowane / intake${RESET}"
   if [ -z "$parked_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  parked manifest-only; no active implementation; next: sage continue"'
+    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  zaparkowane manifest-only; brak aktywnej implementacji; next: sage continue"'
   fi
   echo ""
 
-  echo -e "  ${BOLD}Pending gates${RESET}"
-  echo -e "    ${DIM}(none — approval-detection deferred to v2 per spec §6.2)${RESET}"
+  echo -e "  ${BOLD}Bramki pending${RESET}"
+  echo -e "    ${DIM}(brak — approval-detection deferred to v2 per spec §6.2)${RESET}"
   echo ""
 
-  echo -e "  ${BOLD}Recent decisions${RESET}"
+  echo -e "  ${BOLD}Ostatnie decyzje${RESET}"
   if [ -z "$decisions_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
@@ -1679,7 +1679,7 @@ $line"; fi
   fi
   echo ""
 
-  echo -e "  ${BOLD}Health${RESET}  ${GREEN}$h_pass ok${RESET}, ${YELLOW}$h_warn warn${RESET}, ${RED}$h_fail fail${RESET}  ${DIM}(run 'sage doctor' for details)${RESET}"
+  echo -e "  ${BOLD}Zdrowie${RESET}  ${GREEN}$h_pass ok${RESET}, ${YELLOW}$h_warn warn${RESET}, ${RED}$h_fail fail${RESET}  ${DIM}(szczegóły: 'sage doctor')${RESET}"
   echo ""
 }
 

@@ -60,6 +60,15 @@ run_stage4() {
     grep -qE '^developer_instructions[[:space:]]*=' "$TARGET/.codex/config.toml"
 }
 
+@test "stage4: developer_instructions carries Alex-native compact enforcement" {
+    PRESET=base run_stage4
+    grep -q 'Bug reports/findings without an explicit fix mandate' "$TARGET/.codex/config.toml"
+    grep -q 'write new .sage prose in Polish' "$TARGET/.codex/config.toml"
+    grep -q '\[C\] Checkpointed implementation' "$TARGET/.codex/config.toml"
+    grep -q '\[F\] Full autonomous implementation' "$TARGET/.codex/config.toml"
+    grep -q 'Subagents/reviewers inherit the same Sage scope' "$TARGET/.codex/config.toml"
+}
+
 @test "stage4: [history] block does not contain developer_instructions" {
     PRESET=base run_stage4
     grep -q '^\[history\]' "$TARGET/.codex/config.toml"
