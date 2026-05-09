@@ -250,15 +250,25 @@ given the active project instructions, Sage scope, and MCP/tool expectations.
 Subagent edits are not exempt from manifest scope, plan approval, or
 verification gates.
 
+Codex subagent authorization must be literal. Only call spawn_agent after the
+user explicitly asks for subagents, delegation, or parallel agent work. Sage
+may obtain that authorization through checkpoint wording such as [A] Subagent
+review — explicitly authorize Codex to spawn a read-only subagent for this
+review. A generic request like "review this" or "review please" does not
+authorize spawning a subagent; ask for subagent review vs self-review instead.
+
 ### State First
 
 Before any substantial response, scan \`.sage/work/\` frontmatter for
 active initiatives. Read \`.sage/decisions.md\` for recent context.
 Never start fresh when there is existing context.
 
-Treat \`status: in-progress\` as implementation-active. Treat \`status: paused\`
-and \`status: intake\` as parked, resumable work. Parked work may be
-manifest-only and is not implementation-active until explicit continuation.
+Treat \`status: in-progress\` as implementation-active, including active
+approval checkpoints such as \`root-cause-gate\`, \`fix-scope-gate\`,
+\`plan-gate\`, or \`findings-checkpoint\`. Checkpoints update \`phase\`; they do
+not pause the cycle. Treat \`status: paused\` and \`status: intake\` as parked,
+resumable work. Parked work may be manifest-only and is not
+implementation-active until explicit continuation.
 \`sage status\` shows active work separately from paused/intake; \`sage doctor\`
 diagnoses structural issues such as actionable work placed in \`.sage/docs/\`.
 
@@ -281,9 +291,14 @@ ADRs, and briefs go through the Artifact Router:
 - Checkpoint decisions → \`.sage/decisions.md\`
 - Agent behavior corrections/learnings → \`.sage-memory/\`
 
-Do not ask the user where to store artifacts. If an actionable finding is
+Do not ask the user where to store artifacts. If an actionable finding belongs
+to another existing cycle, record a capture-only update in that cycle. If it is
 uncertain or unrelated to the current cycle, create a minimal intake manifest
-with \`needs-triage\`; do not put actionable work in \`.sage/docs/\`.
+with \`needs-triage\`. Cross-cycle capture must stay capture-only: same-cycle
+\`.sage/work/<cycle>/\` artifacts, \`.sage/decisions.md\`, and narrow
+\`.sage-memory/\` learning are allowed, but runtime/code/test implementation
+belongs to a resumed or newly approved workflow. Do not put actionable work in
+\`.sage/docs/\`.
 
 ### Recovery-First Safe Auto-Fix
 
@@ -319,8 +334,9 @@ deliverables. Show the work. Wait for approval. Never change scope
 unilaterally.
 
 Build spec and plan checkpoints must preserve both approval paths:
-\`[A] Review\` and \`[S] Skip review\`. Do not collapse them into generic
-approval.
+[A] Subagent review and [S] Skip review. Do not collapse them into
+generic approval. The [A] wording must explicitly authorize Codex to spawn a
+read-only subagent so it satisfies the active spawn_agent tool policy.
 
 Before any completion checkpoint: tests exist, tests pass (paste
 actual output, do not summarize), implementation matches the spec.

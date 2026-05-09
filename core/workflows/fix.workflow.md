@@ -44,8 +44,13 @@ and fix patterns may be relevant.
 **Moderate fixes:** Create/update manifest when fix plan is written
 (Step 3), before any fix code changes.
 **Systemic fixes:** Create manifest at escalation point.
-**Update** at fix scope gate and close checkpoint.
-**Session end ([N]):** Mandatory update for Moderate+ fixes.
+**Update** at root cause gate, fix scope gate, implementation start, and close
+checkpoint.
+**Checkpoint state:** Approval checkpoints keep `status: in-progress` and move
+`phase` to the current gate, such as `root-cause-gate` or `fix-scope-gate`.
+Do not use `paused` for a live approval checkpoint.
+**Session end ([N]) or explicit parking:** Mandatory update for Moderate+
+fixes; this is when `status: paused` is appropriate.
 
 ## Phase Announcements
 
@@ -178,17 +183,20 @@ Sage: Root cause analysis complete.
   Evidence: [what confirms it]
   Confidence: [high/medium/low]
 
-[A] Review — sub-agent verifies diagnosis, then proceed
+[A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
+    to verify diagnosis, then proceed
 [S] Skip review — approve without independent review
 [R] Revise — investigate further
 [K] Stuck — try a different approach (activates problem-solving)
-[N] New session — type /fix to continue
+[N] New session — type sage:fix or natural-language resume to continue
 
 Pick A/S/R/K/N, or tell me what to change.
 
 **On [A]:** Run auto-review (root cause review prompt) before
 proceeding. This catches weak diagnoses — symptom-level fixes that
 will break again. See `sage/core/capabilities/review/auto-review/SKILL.md`.
+Selecting [A] is the user's explicit authorization to spawn a read-only
+subagent for this review when the platform tool is available.
 
 Do not proceed to Step 3 until the user confirms the root cause.
 
@@ -259,16 +267,24 @@ Sage: Fix scope: [Moderate/Systemic]
   Tests: [what tests to add/modify]
   Risk: [what could go wrong]
 
-[A] Review — sub-agent reviews fix plan, then implement
+[A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
+    to review the fix plan, then implement
 [S] Skip review — approve without independent review
 [R] Revise — adjust the approach
 [E] Escalate — type /build or /architect instead
-[N] New session — type /fix to continue
+[N] New session — type sage:fix or natural-language resume to continue
 
 Pick A/S/R/E/N, or tell me what to change.
 
 **On [A]:** Run auto-review (fix plan review prompt) before
 implementing. See `sage/core/capabilities/review/auto-review/SKILL.md`.
+Selecting [A] is the user's explicit authorization to spawn a read-only
+subagent for this review when the platform tool is available.
+
+On approval, update the manifest before implementation: keep `status:
+in-progress`, set `phase: deliver` (or the workflow's implementation phase),
+and ensure `scope:` contains every approved runtime, test, CLI, docs, and
+artifact path to be mutated.
 
 ## Step 4: Implement Fix
 

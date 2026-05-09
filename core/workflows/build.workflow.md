@@ -82,6 +82,10 @@ Use the template from `develop/templates/manifest-template.md`.
 - Phase transitions: update context summary if new information emerged
 - New decisions: append to the manifest's decisions list
 
+Approval checkpoints keep `status: in-progress` and move `phase` to the
+current gate. Do not mark the cycle `paused` unless the user chooses `[N]` New
+session, asks to park the work, or the agent is writing a real handoff.
+
 **Context budget pressure:** If the conversation is very long (many
 tool calls, approaching context limits), write a manifest update BEFORE
 suggesting a session break. This is the critical moment — capture the
@@ -189,7 +193,7 @@ Decision: [key scope decisions]. (prepend to .sage/decisions.md)
 
 [A] Approve — continue to spec in this session
 [R] Revise — tell me what to change
-[N] New session — type /build to continue with spec
+[N] New session — type sage:build or natural-language resume to continue with spec
 
 Pick A/R/N, or tell me what to change.
 
@@ -221,15 +225,17 @@ updated: YYYY-MM-DD
 Sage: Spec saved to .sage/work/YYYYMMDD-slug/spec.md
 Decision: [key technical decisions]. (prepend to .sage/decisions.md)
 
-[A] Review — sub-agent reviews spec, then continue to plan
+[A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
+    to review the spec, then continue to plan
 [S] Skip review — approve without independent review
-[C] Continue autonomously — review, plan, and stop before implementation if needed
+[C] Continue autonomously — explicitly authorize subagent review if available,
+    then plan and stop before implementation if needed
 [R] Revise — tell me what to change
-[N] New session — type /build to continue with planning
+[N] New session — type sage:build or natural-language resume to continue with planning
 
 Pick A/S/C/R/N, or tell me what to change.
 
-**On [A] Review:**
+**On [A] Subagent review:**
 1. Update spec frontmatter to `status: completed`.
 2. Write `handoff` field in frontmatter:
 ```yaml
@@ -243,7 +249,8 @@ handoff: |
 4. **Run auto-review BEFORE proceeding to Step 5:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + Standard+ scope +
-   auto_review ≠ false in config):
+   auto_review ≠ false in config + user chose an option that explicitly
+   authorized subagent review):
      Announce: "⚡ Running spec review (sub-agent)..."
      Spawn sub-agent with the **Spec Review** prompt.
      Pass the spec path and decisions.md path.
@@ -292,20 +299,25 @@ updated: YYYY-MM-DD
 
 Sage: Plan saved to .sage/work/YYYYMMDD-slug/plan.md
 
-[A] Review — sub-agent reviews plan, then start building
+[A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
+    to review the plan, then start building
 [S] Skip review — approve without independent review
-[C] Continue autonomously — approve plan and execute the full cycle
+[C] Checkpointed implementation — approve plan, explicitly authorize required
+    subagent gates if available, and execute with normal checkpoints
+[F] Full autonomous implementation — approve plan, explicitly authorize
+    required subagent gates if available, and execute through final verification
 [R] Revise — tell me what to change
-[N] New session — type /build to start implementation
+[N] New session — type sage:build or natural-language resume to start implementation
 
-Pick A/S/C/R/N, or tell me what to change.
+Pick A/S/C/F/R/N, or tell me what to change.
 
-**On [A] Review:**
+**On [A] Subagent review:**
 1. Prepend plan approach to decisions.md (Rule 7).
 2. **Run auto-review BEFORE proceeding to Step 6:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + Standard+ scope +
-   auto_review ≠ false in config):
+   auto_review ≠ false in config + user chose an option that explicitly
+   authorized subagent review):
      Announce: "⚡ Running plan review (sub-agent)..."
      Spawn sub-agent with the **Plan Review** prompt.
      Pass the plan path and spec path.
@@ -335,6 +347,9 @@ Pick A/S/C/R/N, or tell me what to change.
 
 **On [F] Full autonomous implementation:**
 1. Run the [A] review path unless the user explicitly asked to skip review.
+   Selecting [F] explicitly authorizes read-only subagent review and required
+   subagent quality gates during this approved implementation run when the
+   platform tool is available.
 2. Update `manifest.md` before implementation as above.
 3. Execute Step 6 through Step 8 without intermediate checkpoints.
 4. Stop and ask one question if a material architecture decision, scope

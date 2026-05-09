@@ -204,6 +204,11 @@ if [ -f "$scenario_manifest" ]; then
         rubric_pass=true
         rubric="$(printf '%s' "$row" | jq -c '.state_rubric // {}')"
         rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
+        claim="$(printf '%s' "$row" | jq -r '.claim // ""')"
+        if [ "$rubric_required_count" -eq 0 ] && printf '%s' "$claim" | grep -Eiq 'blocked mutation|blocked|recovery'; then
+            rubric_pass=false
+            rubric_failures="$(jq -c --arg msg "empty rubric for blocked/recovery release blocker" '. + [$msg]' <<< "$rubric_failures")"
+        fi
         if [ ! -f "$state_file" ] && [ "$rubric_required_count" -gt 0 ]; then
             rubric_pass=false
             rubric_failures="$(jq -c --arg msg "missing state snapshot: $state_file" '. + [$msg]' <<< "$rubric_failures")"

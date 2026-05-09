@@ -1663,7 +1663,7 @@ $line"; fi
   if [ -z "$parked_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  zaparkowane manifest-only; brak aktywnej implementacji; next: sage continue"'
+    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  zaparkowane manifest-only; brak aktywnej implementacji; next: sage:continue albo jawne resume tego cyklu"'
   fi
   echo ""
 

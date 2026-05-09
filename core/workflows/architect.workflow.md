@@ -155,7 +155,8 @@ If ANY fails → go back and create the missing artifact.
 Sage: Architecture design saved. ADRs in .sage/docs/decision-*.md
 Decision: [key architecture decisions]. (prepend to .sage/decisions.md)
 
-[A] Review — sub-agent reviews ADRs, then continue to plan
+[A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
+    to review ADRs/design, then continue to plan
 [S] Skip review — approve without independent review
 [R] Revise — here's what needs changing
 [Q] Question — I want to understand [specific decision] better
@@ -163,7 +164,7 @@ Decision: [key architecture decisions]. (prepend to .sage/decisions.md)
 
 Pick A/S/R/Q/N, or tell me what to change.
 
-**On [A] Review:**
+**On [A] Subagent review:**
 1. Update spec frontmatter to `status: completed`.
 2. Write `handoff` field in frontmatter:
 ```yaml
@@ -176,7 +177,8 @@ handoff: |
 3. Prepend architecture decisions to decisions.md (Rule 7).
 4. **Run auto-review BEFORE proceeding to Step 4:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
-   If conditions met (Task tool available + auto_review ≠ false):
+   If conditions met (Task tool available + auto_review ≠ false + user chose
+   an option that explicitly authorized subagent review):
      Announce: "⚡ Running ADR review (sub-agent)..."
      Spawn sub-agent with the **ADR / Architectural Spec Review** prompt.
      Pass the ADR path(s) and brief path.
@@ -206,18 +208,20 @@ Save to `.sage/work/YYYYMMDD-slug/plan.md` with frontmatter.
 🔒 **PLAN CHECKPOINT:**
 Sage: Milestone plan saved to .sage/work/YYYYMMDD-slug/plan.md
 
-[A] Review — sub-agent reviews plan, then start milestone 1
+[A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
+    to review the plan, then start milestone 1
 [S] Skip review — approve without independent review
 [R] Revise — adjust the breakdown
 [N] New session — type /build to start milestone 1
 
 Pick A/S/R/N, or tell me what to change.
 
-**On [A] Review:**
+**On [A] Subagent review:**
 1. Prepend plan approach to decisions.md (Rule 7).
 2. **Run auto-review BEFORE proceeding:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
-   If conditions met (Task tool available + auto_review ≠ false):
+   If conditions met (Task tool available + auto_review ≠ false + user chose
+   an option that explicitly authorized subagent review):
      Announce: "⚡ Running plan review (sub-agent)..."
      Spawn sub-agent with the **Plan Review** prompt.
      Pass the plan path and spec path.

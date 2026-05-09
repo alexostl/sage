@@ -5,6 +5,417 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-09 — Runtime workflow enforcement fix approved and closed
+
+**Decision:** Alex zaakceptował verified fix dla runtime workflow enforcement.
+Cykl `20260509-runtime-workflow-enforcement-hardening` zamknięto jako
+`status: completed`, `phase: closed`.
+
+**Why:** Zaplanowana implementacja przeszła pełny zestaw regresji, a dogfood
+hooki są zsynchronizowane ze źródłem. Dodatkowa uwaga o lockowaniu aktywnie
+obsługiwanego cyklu została zapisana jako osobny intake, żeby nie mieszać
+nowego mechanizmu lease z zamykanym patchem.
+
+**Boundary:** Następna praca nad Cycle Resolver concurrency powinna startować z
+`.sage/work/20260509-active-cycle-lease-lock/`.
+
+### 2026-05-09 — Active cycle lease lock captured
+
+**Decision:** Zapisano follow-up intake
+`.sage/work/20260509-active-cycle-lease-lock/` dla wymagania, że Cycle Resolver
+ma blokować zapis do cyklu `in-progress`, jeśli ten cykl ma aktywną sesję/lease
+innego agenta.
+
+**Why:** Alex doprecyzował, że legalny cross-cycle capture dotyczy parked
+context (`paused`/`intake`), ale nie cyklu, nad którym ktoś właśnie pracuje.
+To wymaga osobnego modelu lock/lease, którego obecny patch nie wprowadzał.
+
+**Boundary:** To jest capture-only follow-up. Obecny verified fix pozostaje
+zaakceptowany i nie jest rozszerzany o nowy mechanizm lease w tym samym
+closeout patchu.
+
+### 2026-05-09 — Runtime workflow enforcement fix verified
+
+**Decision:** Zaimplementowano i zweryfikowano Systemic fix dla modelu cyklu,
+Cycle Resolver/cross-cycle capture, recovery/status wording oraz harness
+release-blocker rubric.
+
+**Why:** Patch domyka główną niespójność: checkpoint w aktywnej rozmowie nie
+pauzuje cyklu, cross-cycle finding capture jest legalny wyłącznie jako
+capture-only, parked/intake nie są traktowane jako implementation-active, a
+harness nie może uznać blocked/recovery claimu z pustą rubryką.
+
+**Verification:** Zielone: `active_init.bats` 15/15, `pre-tool-validate.bats`
+47/47, `status.bats` 15/15, `stage3-agents-md.bats` 44/44,
+`stage5-6-hooks.bats` 13/13, `aggregate-signals.bats` 10/10. Source hooki i
+dogfood `.codex/hooks` są byte-identical dla `pre-tool-validate.sh` oraz
+`lib/active_init.sh`.
+
+**Boundary:** Finalny closeout nadal wymaga akceptacji użytkownika. Zmiany
+powiązane z literalną autoryzacją subagentów oraz intake dla binary asset
+mutation contract pozostają w zapisanym scope tego cyklu.
+
+### 2026-05-09 — Binary asset mutation contract captured as intake
+
+**Decision:** Dodano intake
+`.sage/work/20260509-binary-asset-mutation-contract-fix/` dla problemu:
+`apply_patch` obsługuje tekst UTF-8, ale binarne assety, np. `pdf.png`, wymagają
+jawnej legalnej ścieżki mutacji poza `apply_patch` (`rm`, `cp`, generator,
+eksport), bez fałszywego traktowania jako shell bypass.
+
+**Why:** Alex wskazał realny przypadek migracji legacy skilla, gdzie patch
+tekstowy zatrzymał się na binarnym `pdf.png`. Obecny runtime nie ma prostego,
+czytelnego kontraktu dla takich operacji.
+
+**Boundary:** To jest intake/capture, nie zgoda na implementację. Podczas zapisu
+obecny hook zablokował utworzenie nowego intake poza aktywnym scope, więc
+aktywny manifest `20260509-runtime-workflow-enforcement-hardening` dostał wąską
+ścieżkę capture-only dla tego nowego cyklu.
+
+### 2026-05-09 — Codex subagent workaround: explicit authorization in Sage checkpoints
+
+**Decision:** Nie obchodzimy `spawn_agent` policy. Zmieniamy kontrakt Sage tak,
+żeby checkpointy, które mają uruchamiać subagenta, same zawierały literalną
+zgodę użytkownika: np. `[A] Subagent review — explicitly authorize Codex to
+spawn a read-only subagent for this review`. Wybranie takiej opcji przez `A`
+jest traktowane jako jawna prośba o subagenta/delegację.
+
+**Why:** Codex tool description wymaga, żeby user explicite poprosił o
+subagents/delegation/parallel agent work. Dotychczasowe `[A] Review` było dla
+modelu semantycznie jasne w Sage, ale nie spełnia literalnie nowej reguły
+narzędziowej. To powodowało self-review po kompakcji albo ryzyko naruszenia
+tool policy.
+
+**Boundary:** To jest scope expansion aktywnego cyklu
+`20260509-runtime-workflow-enforcement-hardening`, dodany na prośbę Alexa.
+Implementacja ma najpierw zaktualizować workflow/checkpoint wording i testy,
+potem dopiero polegać na subagentach w cyklach.
+
+### 2026-05-09 — Runtime workflow enforcement scope approved
+
+**Decision:** Po poprawionym review planu zaakceptowano fix scope i przesunięto
+cykl `20260509-runtime-workflow-enforcement-hardening` z `fix-scope-gate` do
+`deliver`. Pliki runtime, hooków, workflow docs, harness i testów z planu
+zostały przeniesione do realnego `manifest.scope`. Manifest oznaczono też
+`semantic_reclassification: accepted`, bo zaakceptowany scope obejmuje testy,
+CLI entrypoint i hook/runtime files.
+
+**Why:** Alex zatwierdził przejście dalej (`a`), a review planu zwrócił `PASS`.
+Manifest musi być źródłem prawdy dla hooków zanim zacznie się implementacja,
+szczególnie przy Systemic fix.
+
+**Boundary:** Implementacja nadal ma trzymać się zatwierdzonego scope. Nowe
+pliki albo decyzje architektoniczne poza tym zakresem wymagają kolejnego
+checkpointu.
+
+### 2026-05-09 — Runtime workflow enforcement plan revised after review
+
+**Decision:** Poprawiono plan i manifest po auto-review `NEEDS REVISION`.
+Dodano brakujące scope/test paths: `core/workflows/build.workflow.md`,
+`runtime/platforms/codex/hooks/tests/active_init.bats` oraz
+`runtime/platforms/codex/harness/tests/aggregate-signals.bats`. Zmieniono też
+frontmatter planu z `status: pending-approval` na `status: in-progress`.
+
+**Why:** Review wskazał, że plan i manifest scope muszą być spójne przed
+implementacją, a testy resolvera i harness aggregate muszą pokrywać zmieniane
+powierzchnie. `pending-approval` w planie mógłby odtworzyć dwuznaczność gated
+state vs parked state.
+
+**Boundary:** Nadal jesteśmy przed implementacją runtime. Poprawka dotyczy
+wyłącznie artefaktów scope gate.
+
+### 2026-05-09 — Runtime workflow enforcement fix scope prepared
+
+**Decision:** Root cause review zakończył się `PASS`, a plan Systemic fix
+zapisano w `.sage/work/20260509-runtime-workflow-enforcement-hardening/plan.md`.
+
+**Why:** Diagnoza ma konkretne evidence i nie wymaga eskalacji do
+`/sage:architect`, dopóki patch ogranicza się do uszczelnienia istniejącego
+modelu: active gated checkpoints, cycle resolver, cross-cycle capture,
+recovery wording i harness release blockers.
+
+**Boundary:** Plan czeka na scope gate. Runtime, hooki, skille i testy nie są
+jeszcze zmienione.
+
+### 2026-05-09 — Runtime workflow enforcement cycle resumed for gated checkpoint
+
+**Decision:** Odpauzowano cykl
+`.sage/work/20260509-runtime-workflow-enforcement-hardening/` z `status: paused`
+na `status: in-progress`, zachowując `phase: root-cause-gate`. Dopisano do root
+cause wymagania: cross-cycle capture oraz checkpoint jako aktywny gated state,
+nie pauza.
+
+**Why:** Alex doprecyzował, że pauzowanie cyklu na checkpointach nie ma sensu.
+Oryginalny model Sage/Claude zostawiał inicjatywę `in-progress` i zmieniał phase
+oraz status artefaktów; `paused` powinno oznaczać session handoff albo realne
+odłożenie pracy. Cycle Resolver ma też pozwalać na capture findingu do innego
+istniejącego cyklu albo nowego minimalnego intake, jeśli mutacja jest
+capture-only.
+
+**Boundary:** To jest recovery/state update w artefaktach cyklu, nie
+implementacja runtime. Plan Systemic fix nadal wymaga osobnego scope gate.
+
+### 2026-05-09 — Runtime workflow enforcement root cause diagnosed
+
+**Decision:** Zapisano root cause diagnosis w
+`.sage/work/20260509-runtime-workflow-enforcement-hardening/root-cause.md` i
+zapauzowano cykl na `root-cause-gate`.
+
+**Why:** Evidence wskazuje na niespójny enforcement contract między deployed
+`.codex/hooks`, source `runtime/platforms/codex/hooks`, `bin/sage status`,
+mutation classification i harness rubric. To jest Systemic fix, więc wymaga
+zatwierdzenia diagnozy oraz planu przed jakąkolwiek zmianą runtime/testów.
+
+**Boundary:** Nie wykonano jeszcze implementacji. Następny legalny krok to
+akceptacja albo korekta diagnozy, potem scope gate z planem Systemic fix.
+
+### 2026-05-09 — Runtime workflow enforcement hardening fix started
+
+**Decision:** Po akceptacji kierunku z consolidation pass uruchomiono umbrella
+fix cycle `.sage/work/20260509-runtime-workflow-enforcement-hardening/`.
+
+**Why:** Otwarte intake cycles mają wspólny rdzeń: Sage musi spójnie wybierać
+bieżący cykl dla mutacji, klasyfikować `.sage/**` closeout/capture mutations,
+prowadzić agenta wykonalnym recovery guidance i łapać real-agent enforcement
+gaps w harnessie.
+
+**Boundary:** Startujemy od root cause diagnosis. Runtime, hooki, skille i
+testy nie są jeszcze w scope do edycji, dopóki diagnoza i plan fixu nie przejdą
+checkpointów.
+
+### 2026-05-09 — Codex task-plan visibility captured
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-codex-task-plan-visibility-fix/`.
+
+**Why:** Alex zauważył, że podczas consolidation pass Codex pierwszy raz pokazał
+czytelny widok wykonywanych tasków. Źródłem był natywny `update_plan`, nie sam
+stan Sage. To jest pożądany UX dla Standard+ workflow, bo łączy formalne
+artefakty Sage z żywym postępem widocznym w aplikacji.
+
+**Boundary:** Capture only. Przyszły fix ma zdecydować, gdzie dopisać invariant
+używania `update_plan` w Codex dla Standard+ pracy Sage i jak odróżnić go od
+lekkich rozmów/read-only.
+
+### 2026-05-09 — Open initiatives consolidation analysis completed
+
+**Decision:** Zapisano raport
+`.sage/docs/analysis-open-initiatives-consolidation.md` i zapauzowano cykl
+`.sage/work/20260509-open-initiatives-consolidation/` na findings checkpoint.
+
+**Why:** Analiza pokazuje, że otwarte intake cycles najlepiej zebrać w jeden
+umbrella patchset z etapami: cycle/scope/closeout model, recovery guidance,
+harness enforcement, a potem skill surface hygiene i disclosure.
+
+**Boundary:** To nie zamyka źródłowych intake cycles i nie zatwierdza
+implementacji. Następny legalny krok po akceptacji to osobny `/sage:fix` dla
+umbrella patcha.
+
+### 2026-05-09 — Open initiatives consolidation analysis started
+
+**Decision:** Utworzono analyze cycle
+`.sage/work/20260509-open-initiatives-consolidation/` dla consolidation pass
+otwartych intake cycles.
+
+**Why:** Alex poprosił o formalne zebranie otwartych inicjatyw przed decyzją o
+jednym dużym patchu. To jest analiza zależności i klastrów, nie implementacja.
+
+**Boundary:** Scope obejmuje tylko raport analizy, decyzję i odczyt źródłowych
+manifestów. Runtime, hooki, skille i testy nie są zmieniane w tym cyklu.
+
+### 2026-05-09 — Resume requirement for closeout captured
+
+**Decision:** Dopisano do intake fixów, że przyszła naprawa ma osobno
+przemyśleć, czy formalne wznowienie `paused/intake` cyklu jest konieczne do
+samego zamknięcia cyklu.
+
+**Why:** Zamknięcie review aktywacji metodologii pokazało edge case: użytkownik
+zaakceptował findings i poprosił o closeout, ale hook wymagał aktywnego
+`in-progress` cycle nawet dla metadanychowego zakończenia. To może być poprawne
+dla implementacji, ale niekoniecznie dla closeoutu zaakceptowanych findings.
+
+**Boundary:** Capture only. Implementacja należy do
+`.sage/work/20260509-agent-resume-intake-cycle-fix/` oraz
+`.sage/work/20260509-closeout-documentation-mutation-model/`.
+
+### 2026-05-09 — Sage methodology activation review closed
+
+**Decision:** Zamknięto cykl
+`.sage/work/20260509-sage-methodology-activation-review/` jako completed.
+
+**Why:** Review ma już werdykt, rekomendację i osobne follow-up intake fixy.
+Alex potwierdził, że rozmowa jest semantycznie zamknięta i poprosił o
+zamknięcie wątku.
+
+**Boundary:** Closeout tylko dla review. Otwarte pozostają konkretne cykle
+wykonawcze: `multi-active-cycle-model-fix`, `file-change-enforcement-fix`,
+`fix-trigger-gate-fix`, `duplicate-sage-entrypoint-fix` i
+`sage-navigator-skill-drift-fix`.
+
+### 2026-05-09 — Cycle state disclosure captured
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-cycle-state-disclosure-fix/`.
+
+**Why:** Alex wskazał, że agent powinien jawniej mówić użytkownikowi, w jakim
+stanie Sage się znajduje przy granicach cyklu. Ważne rozróżnienie: to nie ma
+być deklaracja intencji ("wejdę w cykl"), tylko potwierdzenie po fakcie, że
+agent już wszedł w cykl albo już z niego wyszedł.
+
+**Boundary:** Capture only. Przyszły fix ma ustalić invariant komunikacyjny i
+miejsce jego egzekwowania w instrukcjach/workflow, bez zmieniania jeszcze samej
+mechaniki resume/closeout.
+
+### 2026-05-09 — Blocking hook guidance review captured
+
+**Decision:** Utworzono intake review cycle
+`.sage/work/20260509-blocking-hook-guidance-review/`.
+
+**Why:** Alex wskazał, że hooki blokujące nie powinny tylko mówić "nie", ale
+powinny prowadzić agenta na prawidłową ścieżkę naprawy: co odblokować, jaki
+stan zmienić, który workflow/cycle wybrać i jaka jest następna legalna akcja.
+Problem z `sage continue` jest jednym przykładem; potrzebny jest przegląd
+wszystkich hooków blokujących pod kątem jakości recovery guidance.
+
+**Boundary:** Review ma najpierw zebrać wszystkie blocking hook paths i ocenić
+ich komunikaty. Implementacja zmian należy do późniejszego `/sage:fix`, np.
+przez istniejący `20260509-hook-routing-command-audit` albo nowy scope.
+
+### 2026-05-09 — Agent resume intake-cycle failure captured
+
+**Decision:** Utworzono osobny intake fix cycle
+`.sage/work/20260509-agent-resume-intake-cycle-fix/`.
+
+**Why:** W cyklu review aktywacji metodologii Sage użytkownik jawnie powiedział
+"kontynuujmy ten cykl review", ale agent nie wykonał formalnego resume cyklu:
+nie zmienił `status: intake` na aktywny stan przed próbą utworzenia
+`review-report.md`. Hook zablokował zapis poprawnie z perspektywy frontmatter,
+ale główny błąd operacyjny był po stronie agenta: rozmowną intencję
+"kontynuuj" potraktował jako zgodę, a nie jako wymaganą mutację stanu cyklu.
+
+**Boundary:** Ten fix dotyczy rozpoznawania i wykonywania formalnego resume
+intake/paused cycle przez agenta. Osobne follow-upy pokrywają komunikaty hooków
+oraz model wielu aktywnych cykli.
+
+### 2026-05-09 — Hook routing command audit captured
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-hook-routing-command-audit/`.
+
+**Why:** Po wyjaśnieniu, że `sage:continue` istnieje jako skill, ale
+`bin/sage continue` nie istnieje jako CLI subcommand, Alex wskazał, że trzeba
+kompleksowo sprawdzić wszystkie hooki i related routing surfaces. Problem nie
+jest tylko jednym stringiem: hook/status/guidance mogą emitować "next legal
+move", którego agent nie może realnie wykonać, co zachęca do obejść zamiast
+legalnego routingu.
+
+**Boundary:** Capture only. Przyszły `/sage:fix` ma zrobić pełny inventory
+hook/status/workflow/guidance strings, zwalidować command-like routes przeciwko
+realnym CLI commands albo jawnej składni skill/slash, i dopiero potem poprawić
+komunikaty albo dodać aliasy.
+
+### 2026-05-09 — Cross-cycle scope workaround captured
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-cross-cycle-scope-workaround-fix/`.
+
+**Why:** Review końcówki wątku
+`codex://threads/019e0781-7a63-7761-bbce-01fbee72f470` pokazał, że po blokadzie
+hooka agent zamknął Fireflies manifest przez tymczasowe dopisanie Fireflies
+paths do scope aktywnego cyklu PDF/OCR, a potem usunął ten scope. To jest
+konkretny wariant problemu multi-active cycle: zamiast wybierać właściwy cykl z
+path intentu, agent manipuluje scope niezwiązanego cyklu, żeby przejść przez
+hook.
+
+**Boundary:** Capture only. Podczas `/sage:fix` zdecydować, czy ten intake
+zostaje osobnym fixem, czy zostaje wciągnięty do
+`20260509-multi-active-cycle-model-fix`. Acceptance musi pokryć wariant
+"temporary scope expansion", nie tylko pauzowanie innego cyklu.
+
+### 2026-05-09 — Sage methodology activation review captured
+
+**Decision:** Utworzono intake review cycle
+`.sage/work/20260509-sage-methodology-activation-review/`.
+
+**Why:** Po analizie 10 ostatnich wątków Codexa okazało się, że sama metryka
+"czy odpalił się `sage-navigator` albo ogólny `sage`" jest zbyt płaska.
+Navigator pojawił się około 3/10 razy, a ogólny Sage około 2/10 razy, ale
+subagenci ocenili adekwatność metodologii na około 23/30 punktów. W wielu
+wątkach poprawne było bezpośrednie wejście w `sage:review`, `sage:build`,
+`sage:analyze`, `sage:status` albo brak workflow dla pytań read-only.
+
+**Boundary:** Capture only. Następny krok to `/sage:review`, które oceni, czy
+realną luką jest aktywacja Navigatora, duplikat entrypointu, czy raczej moment
+przełączenia z rozmowy/read-only w mutację wymagającą artifacts/gates.
+
+### 2026-05-09 — Duplicate Sage entrypoint captured
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-duplicate-sage-entrypoint-fix/`.
+
+**Why:** W Codex public skill surface istnieją dwa ogólne wejścia:
+`.agents/skills/sage/SKILL.md` oraz wygenerowany
+`.agents/skills/sage:sage/SKILL.md`. To tworzy mylące UI typu Sage / Sage /
+Sage, a obserwacje z badań agentów sugerują, że pierwotny `sage` entrypoint
+jest używany, natomiast `sage:sage` nie jest realnie potrzebny. Alex wskazał
+kierunek: zachować pierwotny ogólny Sage w jakiejś formie i usunąć redundantny
+stub.
+
+**Boundary:** Capture only. Implementacja wymaga osobnego `/sage:fix`, diagnozy
+czy `sage` powinien być specjalnym entrypointem poza workflow loader listą, oraz
+regresji pilnującej, że `sage:sage` nie wraca po `bin/sage update`.
+
+---
+
+### 2026-05-09 — Sage navigator skill drift captured
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-sage-navigator-skill-drift-fix/`.
+
+**Why:** Porównanie `core/capabilities/orchestration/sage-navigator/SKILL.md`
+z `.agents/skills/sage-navigator/SKILL.md` pokazało drift: wystawiony Codex
+skill jest starszą kopią i nie zawiera najnowszego Alex-native operating
+contract. To może osłabiać routing dla ambiguous Standard+ work, bo `AGENTS.md`
+odsyła agenta do router/navigator skill.
+
+**Boundary:** Capture only. Implementacja wymaga osobnego `/sage:fix`, decyzji
+czy navigator ma być pełną kopią czy loader stubem, oraz testu regresyjnego dla
+braku driftu.
+
+---
+
+### 2026-05-09 — Multi-active cycle model captured as follow-up fix
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-multi-active-cycle-model-fix/`.
+
+**Why:** Review wątku `codex://threads/019e0cf4-9ed9-7972-b4d1-af11f5ca086d`
+pokazał, że agent zapauzował niezwiązany aktywny cykl, żeby utworzyć osobny
+cykl MCP. To ujawnia błędny invariant runtime: w projekcie może istnieć tylko
+jeden aktywny cykl. Sage powinien pozwalać na wiele `status: in-progress`
+cykli i wybierać bieżący kontekst per mutacja, a nie przez globalny newest
+active.
+
+**Boundary:** Capture only. Implementacja wymaga osobnego `/sage:fix`, planu i
+testów regresyjnych dla wielu aktywnych cykli.
+
+---
+
+### 2026-05-09 — Closeout documentation mutation model captured as P1 fix
+
+**Decision:** Utworzono intake fix cycle
+`.sage/work/20260509-closeout-documentation-mutation-model/`.
+
+**Why:** Alex wskazał, że P1 z review końcówki procesu jest realnym problemem:
+hooki nie powinny traktować porządkowych zmian dokumentacyjnych w `.sage/**` jak
+Moderate+ implementation fix, a limit 3 plików nie powinien obejmować
+capture/closeout documentation-only mutations.
+
+**Boundary:** P2 z review nie jest tutaj rozwijane. Ten cycle dotyczy wyłącznie
+inteligentniejszego modelu hooków dla documentation/capture/closeout mutations.
+
+---
+
 ### 2026-05-09 — Follow-up fix cycles captured from Project Dummy QA
 
 **Decision:** Utworzono trzy follow-up fix cycles z findings po

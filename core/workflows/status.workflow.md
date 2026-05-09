@@ -50,8 +50,12 @@ Gates: [mode config summary]
 - Compute from artifacts — never read progress.md.
 - If `.sage/work/` is empty, say so. Don't fabricate state.
 - Always suggest the next slash command.
-- `in-progress` is implementation-active. `paused` and `intake` are visible
-  and resumable, but not implementation-active for hooks.
+- `in-progress` is active workflow state, including gated checkpoints where
+  `phase` is `root-cause-gate`, `fix-scope-gate`, `plan-gate`, or another
+  approval gate. Hooks may still block implementation until artifacts/scope are
+  approved, but the cycle is not parked.
+- `paused` and `intake` are visible and resumable, but not
+  implementation-active for hooks.
 - `status` surfaces current active/resumable work and brief next actions.
   `doctor` diagnoses structural inconsistencies such as actionable work placed
   in `.sage/docs/`.

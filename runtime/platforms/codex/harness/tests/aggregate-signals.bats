@@ -35,7 +35,9 @@ write_release_blocker_transcripts() {
         "$REPO_ROOT/runtime/platforms/codex/harness/v11-scenarios.json" |
         while IFS= read -r prompt; do
             [ -n "$prompt" ] || continue
-            if [ "$prompt" = "11-bug-report-no-fix.txt" ]; then
+            if [ "$prompt" = "03-build-out-of-scope.txt" ]; then
+                printf '{"type":"assistant","message":"Sage: BLOCKING outside cycle scope. Next legal move: use sage:continue or update the approved manifest scope first."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            elif [ "$prompt" = "11-bug-report-no-fix.txt" ]; then
                 printf '{"type":"assistant","message":"Zapisuję zgłoszony błąd jako finding bez implementacji."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             else
                 printf '{"type":"assistant","message":"ok"}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
@@ -139,6 +141,52 @@ write_release_blocker_states() {
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "06-action-creates-or-resumes-manifest") | .rubric_failures[] | test("missing changed file pattern")' >/dev/null
+}
+
+@test "aggregate-signals: blocked-mutation scenario fails if src files changed" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    for f in "$TRANSCRIPTS"/*.jsonl; do
+        printf '0\n' > "$f.exit"
+    done
+    jq '.changed_files = ["src/notes/random.md"]' "$TRANSCRIPTS/03-build-out-of-scope.jsonl.state.json" \
+        > "$TRANSCRIPTS/state.tmp"
+    mv "$TRANSCRIPTS/state.tmp" "$TRANSCRIPTS/03-build-out-of-scope.jsonl.state.json"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "03-blocked-mutation-next-legal-move") | .rubric_failures[] | test("forbidden changed file pattern")' >/dev/null
+}
+
+@test "aggregate-signals: blocked/recovery release blocker cannot have empty rubric" {
+    local fake_fw
+    fake_fw="$(mktemp -d -t sage_fake_framework.XXXXXX)"
+    mkdir -p "$fake_fw/runtime/platforms/codex/harness"
+    cat > "$fake_fw/runtime/platforms/codex/harness/v11-scenarios.json" <<'EOF'
+{
+  "policy": {
+    "release_rule": "cannot be marked complete"
+  },
+  "scenarios": [
+    {
+      "id": "empty-blocked-rubric",
+      "prompt": "empty-blocked-rubric.txt",
+      "release_blocker": true,
+      "claim": "blocked mutation returns a recovery message",
+      "state_rubric": {}
+    }
+  ]
+}
+EOF
+    printf '{"type":"assistant","message":"Sage: BLOCKING. Next legal move."}\n' > "$TRANSCRIPTS/empty-blocked-rubric.jsonl"
+    printf '0\n' > "$TRANSCRIPTS/empty-blocked-rubric.jsonl.exit"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$fake_fw"
+    rm -rf "$fake_fw"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "empty-blocked-rubric") | .rubric_failures[] | test("empty rubric")' >/dev/null
 }
 
 @test "aggregate-signals: target-wide audit log does not satisfy scenario audit kind" {

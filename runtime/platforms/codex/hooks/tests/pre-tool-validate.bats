@@ -183,7 +183,18 @@ semantic_reclassification: accepted
     [ "$status" -eq 2 ]
     echo "$output" | grep -qi "parked"
     echo "$output" | grep -qi "manifest-only"
-    echo "$output" | grep -qi "sage continue"
+    echo "$output" | grep -qi "sage:continue"
+}
+
+@test "pre-tool-validate.sh: active gated checkpoint allows same-cycle artifact update" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" ".sage/work/20260101-alpha/*"
+    sed -i.bak 's/phase: implement/phase: root-cause-gate/' "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md"
+    rm -f "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md.bak"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/root-cause.md\n@@\n+evidence\n*** Update File: .sage/decisions.md\n@@\n+decision\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"cycle_id":"20260101-alpha"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: new-cycle bootstrap allowed even when another cycle is active" {
@@ -195,6 +206,15 @@ semantic_reclassification: accepted
     log="$PROJECT_ROOT/.sage/.session-mutations.log"
     [ -f "$log" ]
     grep -q '"cycle_id":"20260103-new"' "$log"
+}
+
+@test "pre-tool-validate.sh: new intake manifest bootstrap allowed while another cycle is active" {
+    make_cycle_with_scope "20260101-active" "in-progress" "src/**"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/20260104-new-intake/manifest.md\n+---\n+cycle_id: \"20260104-new-intake\"\n+status: intake\n+phase: intake\n+tags:\n+  - needs-triage\n+---\n+\n+# Intake\n*** Update File: .sage/decisions.md\n@@\n+captured intake\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"cycle_id":"20260104-new-intake"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: path intent chooses touched active cycle over newest active" {
@@ -228,9 +248,30 @@ semantic_reclassification: accepted
     [ "$status" -eq 0 ]
 }
 
+@test "pre-tool-validate.sh: cross-cycle capture to existing intake works while another cycle is active" {
+    make_cycle_with_scope "20260101-active" "in-progress" "src/**"
+    make_cycle_with_scope "20260102-intake" "intake" ".sage/work/20260102-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260102-intake/manifest.md\n@@\n+finding captured from active cycle\n*** Update File: .sage/decisions.md\n@@\n+decision\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"cycle_id":"20260102-intake"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
 @test "pre-tool-validate.sh: parked intake capture blocks implementation files" {
     make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
     cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n+capture\n*** Add File: src/nope.sh\n+nope\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "parked-cycle capture"
+    echo "$output" | grep -q "src/nope.sh"
+}
+
+@test "pre-tool-validate.sh: cross-cycle capture with implementation file blocks while another cycle is active" {
+    make_cycle_with_scope "20260101-active" "in-progress" "src/**"
+    make_cycle_with_scope "20260102-intake" "intake" ".sage/work/20260102-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260102-intake/manifest.md\n@@\n+capture\n*** Add File: src/nope.sh\n+nope\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]

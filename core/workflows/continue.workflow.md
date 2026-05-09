@@ -18,8 +18,11 @@ to remember which workflow or initiative was in progress.
 Scan `.sage/work/*/manifest.md` for cycles where
 `status: in-progress`, `status: paused`, or `status: intake`.
 
-Treat `in-progress` as implementation-active. Treat `paused` and `intake` as
-resumable but not mutation-active until the user confirms continuation.
+Treat `in-progress` as implementation-active, including active approval
+checkpoints where the next move is to review/approve/revise the current gate.
+Do not "resume" an in-progress checkpoint by changing it to paused first. Treat
+`paused` and `intake` as parked/resumable but not mutation-active until the user
+confirms continuation.
 
 ### One cycle found (Zone 2: Approval)
 

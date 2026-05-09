@@ -157,7 +157,7 @@ EOF
     echo "$output" | grep -qi 'intake'
     echo "$output" | grep -q '20260501-paused'
     echo "$output" | grep -q '20260502-intake'
-    echo "$output" | grep -qi 'continue'
+    echo "$output" | grep -qi 'sage:continue'
     echo "$output" | grep -qi 'zaparkowane'
     echo "$output" | grep -qi 'manifest-only'
     echo "$output" | grep -qi 'brak aktywnej implementacji'

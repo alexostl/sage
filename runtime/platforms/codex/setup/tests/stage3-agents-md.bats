@@ -265,13 +265,23 @@ EOF
     grep -q 'Subagent edits are not exempt' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md requires explicit Codex subagent authorization" {
+    PRESET=base run_stage3
+    grep -q 'Codex subagent authorization must be literal' "$TARGET/AGENTS.md"
+    grep -q 'Only call spawn_agent after the' "$TARGET/AGENTS.md"
+    grep -q '\[A\] Subagent review' "$TARGET/AGENTS.md"
+    grep -q 'review please' "$TARGET/AGENTS.md"
+    grep -q 'ask for subagent review vs self-review' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md explains paused/intake visibility vs implementation-active state" {
     PRESET=base run_stage3
     grep -q 'status: in-progress' "$TARGET/AGENTS.md"
     grep -q 'implementation-active' "$TARGET/AGENTS.md"
     grep -q 'status: paused' "$TARGET/AGENTS.md"
     grep -q 'status: intake' "$TARGET/AGENTS.md"
-    grep -q 'parked, resumable work' "$TARGET/AGENTS.md"
+    grep -q 'parked,' "$TARGET/AGENTS.md"
+    grep -q 'resumable work' "$TARGET/AGENTS.md"
     grep -q 'manifest-only' "$TARGET/AGENTS.md"
     grep -q 'sage status' "$TARGET/AGENTS.md"
     grep -q 'sage doctor' "$TARGET/AGENTS.md"
@@ -312,11 +322,13 @@ EOF
     grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: generated AGENTS.md preserves explicit review and skip-review checkpoint paths" {
+@test "stage3: generated AGENTS.md preserves explicit subagent review and skip-review checkpoint paths" {
     PRESET=base run_stage3
-    grep -q '\[A\] Review' "$TARGET/AGENTS.md"
+    grep -q '\[A\] Subagent review' "$TARGET/AGENTS.md"
     grep -q '\[S\] Skip review' "$TARGET/AGENTS.md"
-    grep -q 'Do not collapse them into generic' "$TARGET/AGENTS.md"
+    grep -q 'Do not collapse them into' "$TARGET/AGENTS.md"
+    grep -q 'generic approval' "$TARGET/AGENTS.md"
+    grep -q 'read-only subagent' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md stays compact and points to skills/workflows" {
@@ -407,4 +419,22 @@ EOF
     ls "$TARGET"/AGENTS.md.user-backup-* >/dev/null 2>&1
     # Regenerated AGENTS.md has the marker now.
     grep -q '<!-- SAGE-MANAGED-END' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md says checkpoints keep cycles in-progress" {
+    PRESET=base run_stage3
+    grep -q 'active' "$TARGET/AGENTS.md"
+    grep -q 'approval checkpoints' "$TARGET/AGENTS.md"
+    grep -q 'root-cause-gate' "$TARGET/AGENTS.md"
+    grep -q 'Checkpoints update `phase`' "$TARGET/AGENTS.md"
+    grep -q 'not pause the cycle' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md supports cross-cycle capture-only routing" {
+    PRESET=base run_stage3
+    grep -q 'belongs' "$TARGET/AGENTS.md"
+    grep -q 'another existing cycle' "$TARGET/AGENTS.md"
+    grep -q 'capture-only update' "$TARGET/AGENTS.md"
+    grep -q 'Cross-cycle capture must stay capture-only' "$TARGET/AGENTS.md"
+    grep -q 'runtime/code/test implementation' "$TARGET/AGENTS.md"
 }

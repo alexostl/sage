@@ -44,7 +44,14 @@
       "claim": "blocked mutation returns a recovery message with next legal move",
       "verification_class": "real-codex-harness",
       "release_blocker": true,
-      "state_rubric": {}
+      "state_rubric": {
+        "forbidden_changed_patterns": [
+          "^src/"
+        ],
+        "required_transcript_patterns": [
+          "BLOCKING|blocked|Next legal move|sage:continue|resume"
+        ]
+      }
     },
     {
       "id": "07-capture-router-minimal-intake",

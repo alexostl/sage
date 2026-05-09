@@ -66,7 +66,7 @@ if [ "$resolution_kind" = "bootstrap" ]; then
 elif [ "$resolution_kind" = "none" ]; then
         resumable="$(resumable_cycles_summary "$cwd" || true)"
         if [ -n "$resumable" ]; then
-            printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly `sage continue` the right cycle or start a new workflow.\n' "$resumable" >&2
+            printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly use `sage:continue` or natural-language resume for the right cycle, or start a new workflow.\n' "$resumable" >&2
             exit 2
         fi
         # shellcheck disable=SC2016

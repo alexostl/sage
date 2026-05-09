@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# active_init.sh — return path of newest in-progress cycle.
+# active_init.sh — resolve active, parked, and bootstrap Sage cycles.
 #
 # Usage (sourced by hook scripts):
 #   source "$(dirname "$0")/lib/active_init.sh"
 #   cycle_dir="$(active_init_path "$PROJECT_ROOT")"
 #
-# Echoes cycle dir path (e.g. /repo/.sage/work/20260101-foo) or empty.
-# When multiple in-progress cycles exist, picks newest manifest mtime
-# and writes warning to <root>/.sage/.skipped-checks.log.
+# active_init_path echoes the newest in-progress cycle dir path (for legacy
+# callers). resolve_cycle_for_patch is the canonical mutation resolver: path
+# intent wins over global newest active, and parked/intake cycles are returned
+# only as capture targets, not as implementation-active cycles.
 #
 # v1 spec ref: §6.6 (cross-script common helpers).
 # v1 plan ref: T1.2 (Group A foundation).

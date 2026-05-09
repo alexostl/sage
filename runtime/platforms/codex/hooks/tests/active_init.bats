@@ -226,3 +226,12 @@ EOF
     result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260101-parked/manifest.md")"
     [ "$result" = "parked-capture:$PROJECT_ROOT/.sage/work/20260101-parked" ]
 }
+
+@test "resolve_cycle_for_patch: parked capture path beats unrelated active cycle" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    make_cycle "20260101-active" "in-progress"
+    make_cycle "20260102-intake" "intake"
+    result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260102-intake/manifest.md" ".sage/decisions.md")"
+    [ "$result" = "parked-capture:$PROJECT_ROOT/.sage/work/20260102-intake" ]
+}
