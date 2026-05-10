@@ -367,7 +367,7 @@ stage_10_sanity_sweep() {
 
   Deployed summary:
     AGENTS.md           ✓ (Rule 1A v1 filesystem variant)
-    .codex/config.toml  ✓ (managed block, codex_hooks=true)
+    .codex/config.toml  ✓ (managed block, hooks=true)
     .codex/hooks.json   ✓ (4 events: SessionStart, PreToolUse, PostToolUse, Stop)
     .codex/hooks/       ✓ (4 hook scripts, mode 0755)
     .agents/skills/     ✓ (${_skill_count} skill loaders)

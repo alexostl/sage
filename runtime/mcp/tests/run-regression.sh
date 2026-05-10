@@ -103,6 +103,13 @@ assert_json_check "$PROJECT/.sage/mcp-manifest.json" 'data["failures"]["broken-l
 assert_contains "$PROJECT/.sage/mcp-snippet.md" 'dummy-local: echo, repo_brief'
 assert_contains "$PROJECT/.sage/mcp-snippet.md" 'broken-local: unavailable'
 
+step "json_to_toml scaffold uses current hooks feature flag"
+python3 "$REPO_ROOT/runtime/mcp/json_to_toml.py" "$PROJECT" >"$LOG_DIR/json-to-toml.stdout"
+assert_contains "$LOG_DIR/json-to-toml.stdout" '# hooks = true'
+if rg -q 'codex_hooks' "$LOG_DIR/json-to-toml.stdout"; then
+  fail "json_to_toml scaffold must not mention codex_hooks"
+fi
+
 step "summary"
 echo "PASS: MCP regression checks"
 echo "  Project fixture: $PROJECT"

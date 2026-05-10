@@ -114,6 +114,14 @@ run_stage_10() {
     echo "$output" | grep -qi 'hook'
 }
 
+@test "stage10: summary reports hooks=true and not codex_hooks=true" {
+    build_complete_target
+    run run_stage_10
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q 'hooks=true'
+    ! echo "$output" | grep -q 'codex_hooks=true'
+}
+
 @test "stage10: summary mentions skills loaders" {
     build_complete_target
     run run_stage_10

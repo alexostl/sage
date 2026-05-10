@@ -4,7 +4,7 @@
 # Responsibilities:
 #   1. Build the Sage managed block (paired markers START/END).
 #   2. Inside the block: top-level developer_instructions, [features]
-#      codex_hooks=true, and [history] persistence.
+#      hooks=true, and [history] persistence.
 #   3. v1: NO [[mcp_servers]] block (§8 deferred entirely).
 #   4. Apply block-managed write strategy:
 #      - Marker pair found  → replace content between markers.
@@ -46,7 +46,7 @@ AGENTS.md contains the compact project router; .agents/skills and core/workflows
 """
 
 [features]
-codex_hooks = true            # required for L1 — confirms hooks loaded
+hooks = true                  # required for L1 — confirms hooks loaded
 
 # Optional review / model tuning (commented out by default; user-owned)
 # review_model = "..."
@@ -251,7 +251,7 @@ compose_config_toml() {
     cat <<EOF
 [stage 4] composed .codex/config.toml
   path=$target/.codex/config.toml
-  managed_block=present (developer_instructions top-level, codex_hooks=true, [history].persistence)
+  managed_block=present (developer_instructions top-level, hooks=true, [history].persistence)
   mcp_servers=absent (v1 §8 deferred)
 EOF
 }

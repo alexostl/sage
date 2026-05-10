@@ -3,7 +3,7 @@
 #
 # Plan contract (T1.12):
 #   - Block-managed pattern with paired markers START/END.
-#   - [features] codex_hooks = true MUST be inside managed block.
+#   - [features] hooks = true MUST be inside managed block.
 #   - v1: NO [[mcp_servers]] (§8 deferred entirely).
 #   - developer_instructions present as a top-level key before [history].
 #   - [history] contains history settings only.
@@ -44,10 +44,11 @@ run_stage4() {
     grep -q '# <<< SAGE MANAGED BLOCK END' "$TARGET/.codex/config.toml"
 }
 
-@test "stage4: config.toml contains 'codex_hooks = true' inside [features]" {
+@test "stage4: config.toml contains 'hooks = true' inside [features]" {
     PRESET=base run_stage4
     grep -q '^\[features\]' "$TARGET/.codex/config.toml"
-    grep -qE '^codex_hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    grep -qE '^hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    ! grep -qE '^codex_hooks[[:space:]]*=' "$TARGET/.codex/config.toml"
 }
 
 @test "stage4: v1 config.toml does NOT contain [[mcp_servers]] block" {
@@ -153,7 +154,8 @@ EOF
     PRESET=base run run_stage4
     [ "$status" -eq 0 ]
     [ "$(grep -c '^\[features\]$' "$TARGET/.codex/config.toml")" = "1" ]
-    grep -qE '^codex_hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    grep -qE '^hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    ! grep -qE '^codex_hooks[[:space:]]*=' "$TARGET/.codex/config.toml"
     if command -v python3 >/dev/null 2>&1 && python3 -c 'import tomllib' >/dev/null 2>&1; then
         python3 - "$TARGET/.codex/config.toml" <<'PY'
 import pathlib
