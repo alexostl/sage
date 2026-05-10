@@ -5,6 +5,41 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Captured post-closeout handoff documentation mutation fix
+
+**Decision:** Utworzono intake fix
+`20260510-post-closeout-handoff-doc-mutation-fix` dla sytuacji, w ktorej agent
+po zamknieciu cyklu i po poleceniu local worktree handoff probuje jeszcze
+dopisywac epilog do `manifest`, `qa-report` albo `.sage/decisions.md`.
+
+**Why:** Analiza watku `019e10d0-a5a2-7a33-9c9d-5d7b1514b6f6` pokazala, ze po
+closeoucie focused fixa agent powinien byl przygotowac branch, testy, staging,
+commit i handoff. Dodatkowa dokumentacyjna mutacja nie byla potrzebna; po
+blokadzie hooka wlasciwa reakcja to kontynuowac handoff i opisac stan w finalnej
+odpowiedzi, nie domykac albo mutowac inne manifesty.
+
+**Boundary:** To jest TODO/intake, nie implementacja. Przyszly fix ma najpierw
+sprawdzic overlap z `closeout-documentation-mutation-model`,
+`closeout-ordering-workflow-hook-fix` i worktree support build, a dopiero potem
+doprecyzowac guidance/hook/harness.
+
+### 2026-05-10 — Captured Codex worktree support build intake
+
+**Decision:** Utworzono intake build
+`20260510-codex-worktree-support-build` dla natywnej obslugi pracy z worktree w
+porcie Codexa.
+
+**Why:** Lokalny model integracji sprawdzil sie przy klastrach C/D, a
+`20260510-sage-git-tracking-policy` uporzadkowal baseline `.gitignore`, ale
+Sage nadal wymaga recznego wklejania procedury closeout/merge. Przyszly build
+ma wbudowac role worktree agenta i integratora, handoff, walidacje runtime
+junku oraz lokalny merge do `selfhost`.
+
+**Boundary:** SageMemory i `.sage-memory` merge/import sa poza zakresem.
+Zewnetrzny intake w `alex-os-dev`
+`20260510-new-worktree-initialization-script` jest tylko referencja dopoki Alex
+nie zatwierdzi cross-repo pracy.
+
 ### 2026-05-10 — Cluster C integrated locally into selfhost
 
 **Decision:** Zintegrowano lokalnie branch
