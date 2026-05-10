@@ -10,6 +10,14 @@ user-role: "Define scope, approve design deliverables"
 
 # Design Workflow
 
+## Artifact Language Contract
+
+When this workflow writes or updates `.sage` artifacts, natural-language prose
+follows the target project language contract. Keep artifact filenames,
+frontmatter keys and values, workflow/status/phase names, command names, paths,
+code identifiers, quoted evidence, and raw tool/test output canonical or
+verbatim.
+
 Shape solutions. Reads research context, produces specs ready for build.
 
 ## Alex-native Notes

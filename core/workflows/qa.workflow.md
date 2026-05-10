@@ -10,6 +10,14 @@ user-role: "Provide URL, confirm test scope, review findings"
 
 # QA Workflow
 
+## Artifact Language Contract
+
+When this workflow writes or updates `.sage` artifacts, natural-language prose
+follows the target project language contract. Keep artifact filenames,
+frontmatter keys and values, workflow/status/phase names, command names, paths,
+code identifiers, quoted evidence, and raw tool/test output canonical or
+verbatim.
+
 Browser-based functional testing. Finds integration failures that
 live in the gap between "code is correct" and "product works."
 

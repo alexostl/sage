@@ -10,6 +10,14 @@ user-role: "Accept findings, revise, or discuss"
 
 # Review Workflow
 
+## Artifact Language Contract
+
+When this workflow writes or updates `.sage` artifacts, natural-language prose
+follows the target project language contract. Keep artifact filenames,
+frontmatter keys and values, workflow/status/phase names, command names, paths,
+code identifiers, quoted evidence, and raw tool/test output canonical or
+verbatim.
+
 Independent evaluation of Sage artifacts. Designed to work in a fresh
 session for maximum objectivity, but also works within an existing session.
 

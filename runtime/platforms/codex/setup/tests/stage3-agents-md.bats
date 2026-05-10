@@ -253,6 +253,8 @@ EOF
     grep -q 'Alex-native operating contract' "$TARGET/AGENTS.md"
     grep -q 'Treść prozatorską nowych sekcji w `.sage` pisz po' "$TARGET/AGENTS.md"
     grep -q 'starszego angielskiego pliku' "$TARGET/AGENTS.md"
+    grep -q 'explain bugs/findings first as impact and cause' "$TARGET/AGENTS.md"
+    grep -q 'technical mechanism' "$TARGET/AGENTS.md"
     grep -q 'jedno pytanie naraz' "$TARGET/AGENTS.md"
     grep -q '1-3 klikalne linki' "$TARGET/AGENTS.md"
 }
@@ -262,6 +264,14 @@ EOF
     grep -q 'bug report/finding/observation' "$TARGET/AGENTS.md"
     grep -q 'do not edit code' "$TARGET/AGENTS.md"
     grep -q 'workflow gate approves implementation' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md preserves Codex plan/progress visibility contract" {
+    PRESET=base run_stage3
+    grep -q 'For Standard+ Codex work' "$TARGET/AGENTS.md"
+    grep -q 'native plan/progress view' "$TARGET/AGENTS.md"
+    grep -q 'never replaces Sage artifacts' "$TARGET/AGENTS.md"
+    grep -q 'lightweight and read-only conversation' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md preserves post-plan implementation mode choice" {

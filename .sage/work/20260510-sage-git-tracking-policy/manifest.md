@@ -2,8 +2,8 @@
 cycle_id: "20260510-sage-git-tracking-policy"
 title: "Polityka Git dla artefaktow Sage i worktree"
 workflow: fix
-phase: plan-approved
-status: in-progress
+phase: completed
+status: completed
 created: 2026-05-10
 updated: 2026-05-10
 owner: alexostl
@@ -28,13 +28,13 @@ scope:
 
 ## State
 
-**Current phase:** plan-approved - Alex zatwierdzil uproszczona polityke:
+**Current phase:** completed - Alex zatwierdzil uproszczona polityke:
 `.sage/docs` i `.sage/work` sa traktowane jako dokumentacja projektowa
 wchodzaca do PR, a `.sage-memory` i lokalne logi/runtime state zostaja poza Git.
 
-**Next step:** Zaktualizowac `.gitignore`, zdjac z indeksu stare runtime
-transkrypty QA oraz przygotowac commit bazowy do merge/rebase w pozostalych
-worktree branches.
+**Next step:** Brak w tym cyklu. Polityka zostala wdrozona i wypchnieta do
+`origin/selfhost`; dalsze worktree sa integrowane lokalnie w osobnych cyklach
+handoff/integration.
 
 **Merge resolution addendum:** Podczas integrowania `origin/selfhost` z branchem
 Klastra B scope tymczasowo obejmuje pliki runtime/harness z konfliktami merge.

@@ -10,6 +10,14 @@ user-role: "Specify what to learn, verify findings before storage"
 
 # Learn Workflow
 
+## Artifact Language Contract
+
+When this workflow writes or updates `.sage` artifacts, natural-language prose
+follows the target project language contract. Keep artifact filenames,
+frontmatter keys and values, workflow/status/phase names, command names, paths,
+code identifiers, quoted evidence, and raw tool/test output canonical or
+verbatim.
+
 Deliberate knowledge capture. Use to onboard to a new codebase, deeply
 understand a module, or build persistent memory for a project area.
 

@@ -10,6 +10,14 @@ user-role: "Configure goal and metric, approve brief, interrupt when satisfied"
 
 # Autoresearch Workflow
 
+## Artifact Language Contract
+
+When this workflow writes or updates `.sage` artifacts, natural-language prose
+follows the target project language contract. Keep artifact filenames,
+frontmatter keys and values, workflow/status/phase names, command names, paths,
+code identifiers, quoted evidence, and raw tool/test output canonical or
+verbatim.
+
 Autonomous iteration toward a measurable outcome. Read the full skill
 at `skills/autoresearch/SKILL.md` before proceeding.
 
