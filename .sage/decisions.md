@@ -5,6 +5,26 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Cluster C integrated locally into selfhost
+
+**Decision:** Zintegrowano lokalnie branch
+`codex/cluster-c-realharness-fix` z `selfhost` jako merge bez GitHub PR.
+Konflikty rozwiązano jako union dokumentacji i decyzji, z wydzielonym parserem
+`runtime/platforms/codex/harness/lib/log-parser.sh` jako źródłem prawdy dla
+czytania audit logów.
+
+**Why:** Po learnings z Klastra B/D lokalne merge są prostsze i lepiej pasują do
+modelu, w którym `origin/selfhost` jest jedynym źródłem prawdy, a worktree
+agenci kończą pracę lokalnym commitem i handoffem.
+
+**Verification:** Zielone: `stage4-config-toml.bats` 17/17,
+`stage7-skills.bats` 12/12, `stage10-tighten.bats` 14/14,
+`run-harness-log-parser.bats` 4/4, `runtime/mcp/tests/run-regression.sh` PASS,
+`git diff --cached --check` clean, staged junk audit clean.
+
+**Boundary:** To jest merge-resolution commit dla zamkniętego worktree C, nie
+nowy zakres poza integracją dostarczonych zmian.
+
 ### 2026-05-10 — Captured mutation-intent preflight gap
 
 **Decision:** Utworzono intake fix
@@ -693,6 +713,266 @@ wymagany dla claimow o agent/runtime behavior. Aggregate pokazal
 
 **Boundary:** To jest raport QA, nie fix. Bugi z QA wymagaja osobnej decyzji o
 powrocie do `/sage:fix` albo zaparkowania jako follow-up.
+### 2026-05-10 — RealHarness safe auto-fix audit parser fix closed
+
+**Decision:** Zamknieto focused fix
+`20260510-realharness-safe-autofix-audit-fix`.
+
+**Why:** Zakres fixa byl waski: RealHarness mial rozpoznawac opisowe wpisy
+`.sage/.auto-fixes.log` jako audit kind `safe_auto_fix`. Targeted tests
+przeszly, a pelny rerun potwierdzil, ze scenario `08-safe-autofix-metadata`
+ma teraz `auto_fixes: [{ "kind": "safe_auto_fix" }]`.
+
+**Accepted non-blocker:** Scenario `06-action-creates-or-resumes-manifest`
+nadal sprawia, ze caly `v11_release_blocker_harness.complete=false`, ale Alex
+zaakceptowal to jako non-blocking rubric mismatch dla tego cyklu. Agent uzyl
+istniejacego cyklu zamiast zmieniac manifest w tym konkretnym scenariuszu; to
+nie podwaza naprawy parsera 08.
+
+**Boundary:** Ewentualna naprawa albo doprecyzowanie scenariusza 06 jest osobnym
+follow-upem. Ten fix jest zamkniety bez kolejnego RealHarness rerunu.
+
+### 2026-05-10 — RealHarness rerun fixed scenario 08 but found scenario 06 blocker
+
+**Decision:** Wykonano pelny RealHarness rerun po focused fixie parsera audit
+logu.
+
+**Run:** `/Users/alexostl/tmp/codex-realharness-cluster-c-rerun-20260510142503`
+na `gpt-5.4`, `model_reasoning_effort=low`, bez `service_tier=flex`.
+
+**Result:** Wszystkie 11 scenariuszy `codex exec` mialy exit code 0.
+Scenario `08-safe-autofix-metadata` teraz wystawia
+`auto_fixes: [{ "kind": "safe_auto_fix" }]`, wiec BUG-QA-1 jest naprawiony.
+Pelny `v11_release_blocker_harness` nadal jest czerwony: `present=7/8`,
+`complete=false`, tym razem przez `06-action-creates-or-resumes-manifest`.
+
+**Why scenario 06 failed:** State snapshot scenario 06 ma changed files
+`.sage/decisions.md` i `AGENTS.md`, ale nie ma zmienionego
+`.sage/work/*/manifest.md`, a rubryka wymaga
+`^\\.sage/work/[^/]+/manifest\\.md$`. Agent uzyl istniejacego cyklu
+`20260510-agents-kombucha` zamiast stworzyc albo zmienic manifest w tym
+scenariuszu.
+
+**Boundary:** Raw RealHarness artifacts zostaja w TMP. To nie zmienia faktu,
+ze focused parser fix przeszedl targeted tests i potwierdzil naprawe scenario
+08; nowy blocker wymaga osobnej decyzji/scope.
+
+### 2026-05-10 — RealHarness safe auto-fix audit parser fixed
+
+**Decision:** Zaimplementowano focused fix
+`20260510-realharness-safe-autofix-audit-fix` i ustawiono go na
+`verification-complete`.
+
+**Root cause:** `run-harness.sh` parsowal nowe linie `.sage/.auto-fixes.log`
+tylko jako JSONL, pipe-delimited `kind=...` albo Markdown `### ...`. Realny
+scenario 08 zapisywal opisowe wpisy jako `## 2026-... severity: low`, wiec
+state snapshot dostawal `auto_fixes: []`.
+
+**Fix:** Parser audit logu zostal przeniesiony do
+`runtime/platforms/codex/harness/lib/log-parser.sh` i rozpoznaje realny format
+`.auto-fixes.log` jako `kind: safe_auto_fix`. `run-harness.sh` source'uje te
+biblioteke, a regresje parsera sa w
+`runtime/platforms/codex/harness/tests/run-harness-log-parser.bats`.
+
+**Verification:** Zielone:
+`bats runtime/platforms/codex/harness/tests/run-harness-log-parser.bats`,
+`bats runtime/platforms/codex/harness/tests/aggregate-signals.bats`, `bash -n`
+dla runnera/parsera i `git diff --check`. Manualny check na raw logu z TMP
+zwrocil dwa wpisy `safe_auto_fix`.
+
+**Boundary:** Pelny RealHarness rerun nie zostal jeszcze wykonany po patchu.
+Do oficjalnego przestawienia QA verdict potrzeba rerunu na `gpt-5.4 low`, bez
+`flex`, z outputem w TMP.
+
+### 2026-05-10 — RealHarness audit parser semantic reclassification accepted
+
+**Decision:** Zaakceptowano semantic reclassification dla
+`20260510-realharness-safe-autofix-audit-fix`.
+
+**Why:** Patch celowo dotyka harness runtime i testow, czyli powierzchni, ktora
+PreToolUse klasyfikuje jako ryzykowna bez jawnej reclassification. To nie jest
+scope expansion: sciezki sa juz w waskim manifeście i planie focused fixa.
+
+**Boundary:** Reclassification dotyczy tylko parsera RealHarness audit logu i
+jego testow. Nie obejmuje hookow, kontraktu safe auto-fix ani raw outputu w
+`.sage`.
+
+### 2026-05-10 — Focused fix for RealHarness safe auto-fix audit approved
+
+**Decision:** Uruchomiono focused Moderate `/sage:fix`
+`20260510-realharness-safe-autofix-audit-fix` dla BUG-QA-1 z raportu Cluster C
+RealHarness.
+
+**Why:** QA pokazalo, ze scenario `08-safe-autofix-metadata` zapisuje
+opisowy `.sage/.auto-fixes.log`, ale harnessowy parser nie rozpoznaje go jako
+`safe_auto_fix`, wiec `v11_release_blocker_harness.complete=false`.
+
+**Scope:** Naprawa ogranicza sie do parsera audit logu wyciagnietego z
+`runtime/platforms/codex/harness/run-harness.sh` do
+`runtime/platforms/codex/harness/lib/log-parser.sh` oraz testow parsera i
+agregatora w `runtime/platforms/codex/harness/tests/`.
+
+**Boundary:** Nie zmieniamy kontraktu safe auto-fix, hookow ani zachowania
+agenta. Raw RealHarness output nadal zostaje w TMP.
+
+### 2026-05-10 — Cluster C RealHarness QA recorded
+
+**Decision:** Zapisano oficjalny raport QA dla RealHarness w
+`.sage/work/20260510-codex-surface-reachability-cluster-fix/qa-report.md`.
+
+**Why:** Alex chce mieć dokumentacyjny artefakt Sage z wynikiem QA i
+rekomendacjami, ale bez kopiowania raw transcriptów z harnessa do `.sage`.
+Raw output pozostaje w
+`/Users/alexostl/tmp/codex-realharness-cluster-c-20260510132601/out`.
+
+**Result:** RealHarness technicznie zakończył się kodem 0 i wszystkie 11
+scenariuszy miały exit 0, na profilu `gpt-5.4` z `low` reasoning i bez
+`service_tier=flex`. Werdykt QA dla release-blockera jest czerwony:
+`v11_release_blocker_harness.complete=false`, bo scenariusz
+`08-safe-autofix-metadata` nie wystawia audit kind `safe_auto_fix`.
+
+**Boundary:** To jest raport QA, nie fix. Następny legalny ruch to decyzja,
+czy zamknąć Cluster C jako deterministic verified z osobnym RealHarness
+blockerem, czy uruchomić focused fix dla BUG-QA-1.
+
+### 2026-05-10 — Cluster C implementation verified
+
+**Decision:** Zakończono implementację umbrella fixa
+`20260510-codex-surface-reachability-cluster-fix` i ustawiono manifest na
+`verification-complete`.
+
+**Why:** Patch domyka cały klaster C: Stage 7 nie generuje już `sage:sage`,
+publiczny `sage` router i `sage-navigator` są osiągalne, selfhost loader paths
+wskazują na istniejące `core/workflows/**`, a generated Codex config i MCP
+scaffold używają `hooks = true` zamiast aktywnego `codex_hooks = true`.
+
+**Verification:** Zielone: Stage 4 config tests, Stage 7 skills tests, Stage 10
+tighten tests, MCP regression harness, targeted reachability checks i
+`git diff --check`.
+
+**Boundary:** `alex-os-dev` nie był mutowany. Follow-up dla tamtego repo jest
+zapisany w
+`.sage/work/20260510-codex-surface-reachability-cluster-fix/alex-os-dev-handoff.md`.
+
+### 2026-05-10 — Cluster C semantic reclassification accepted
+
+**Decision:** Zaakceptowano semantic reclassification dla zatwierdzonego scope
+`20260510-codex-surface-reachability-cluster-fix`.
+
+**Why:** Implementacja klastra C celowo dotyka testów, generatorów, tracked
+`.codex/config.toml` i wystawionych selfhost skilli. To są repo-control/test/
+config/instruction surfaces, więc runtime wymaga jawnej akceptacji mimo że
+wszystkie ścieżki są już w approved plan i manifest scope.
+
+**Boundary:** Reclassification dotyczy tylko `manifest.scope`; nowe pliki albo
+mutacja `alex-os-dev` nadal są stop condition.
+
+### 2026-05-10 — Cluster C full autonomous implementation approved
+
+**Decision:** Alex wybrał `[F] Full autonomous implementation` dla
+`20260510-codex-surface-reachability-cluster-fix`.
+
+**Why:** Zrewidowany plan był zatwierdzony po review, a tryb `[F] pozwala
+wykonać cały zatwierdzony scope bez checkpointów pośrednich aż do
+verification/close.
+
+**Boundary:** Grant dotyczy tylko aktualnego snapshotu planu i `manifest.scope`.
+Stop conditions z planu nadal obowiązują, w szczególności sprzeczny kontrakt
+`hooks` vs `codex_hooks`, potrzeba mutacji `alex-os-dev` albo nowe pliki poza
+scope.
+
+### 2026-05-10 — Cluster C revised plan approved
+
+**Decision:** Alex zatwierdził zrewidowany plan dla
+`20260510-codex-surface-reachability-cluster-fix` po niezależnym review i
+poprawkach scope/test coverage.
+
+**Why:** Review findings zostały włączone do planu: path-aware publiczny router
+`sage`, tracked `.codex/config.toml`, MCP regression harness i Stage 10 summary
+regression. Plan obejmuje cały klaster C, a `alex-os-dev` pozostaje wyłącznie
+handoffem.
+
+**Boundary:** Implementacja jeszcze nie ruszyła. Następny krok to wybór trybu:
+`[C] Checkpointed implementation` albo `[F] Full autonomous implementation`.
+
+### 2026-05-10 — Cluster C independent review revisions applied
+
+**Decision:** Po niezależnym read-only review plan klastra C został poprawiony
+przed approval: dodano path-aware reachability publicznego routera `sage`,
+tracked `.codex/config.toml`, MCP regression harness oraz Stage 10 summary
+regression do scope i verification.
+
+**Why:** Review zwróciło `APPROVE WITH CHANGES`: bez tych poprawek patch mógłby
+naprawić część generated surface, ale zostawić nieosiągalny selfhost router,
+stary aktywny `codex_hooks` w tracked project config albo nieprzetestowany
+summary/scaffold drift.
+
+**Boundary:** To nadal jest plan-gate. Implementacja nie ruszyła; cross-repo
+`alex-os-dev` pozostaje wyłącznie handoffem.
+
+### 2026-05-10 — Cluster C plan separates live hooks config from generator cleanup
+
+**Decision:** Skorygowano punkt hooks w planie klastra C: brak ostrzeżenia w GUI
+oznacza, że globalny/live config może być już poprawny, ale tracked generator
+Sage nadal wymaga cleanupu, jeśli emituje albo testuje `codex_hooks = true`.
+Dodano też deliverable `alex-os-dev-handoff.md`.
+
+**Why:** Alex zauważył, że GUI już nie pokazuje deprecated hooks warning.
+Sprawdzenie lokalne potwierdziło rozjazd: `~/.codex/config.toml` ma
+`hooks = true`, ale projektowy generated `.codex/config.toml`, Stage 4 tests,
+generator summary i MCP TOML scaffold nadal zawierają `codex_hooks`.
+
+**Boundary:** `alex-os-dev` nie jest mutowany w tym cyklu. Efektem ma być plik
+handoffu z rekomendacją i evidence dla osobnej decyzji.
+
+### 2026-05-10 — Cluster C umbrella plan prepared
+
+**Decision:** Przygotowano plan dla całego klastra C w
+`20260510-codex-surface-reachability-cluster-fix/plan.md` i ustawiono cykl na
+`plan-gate`.
+
+**Why:** Alex zatwierdził przejście dalej po korekcie, że klaster C ma być
+jednym większym patchem. Plan spina cztery source intakes: selfhost/target
+loader paths, `codex_hooks` -> `hooks`, `sage-navigator` drift i duplicate
+`sage:sage`.
+
+**Boundary:** Implementacja nadal nie ruszyła. Następny legalny krok to approval
+planu albo rewizja. Cross-repo `alex-os-dev` pozostaje poza scope bez osobnej
+zgody.
+
+### 2026-05-10 — Cluster C will be handled as one umbrella patch
+
+**Decision:** Skorygowano kurs: klaster C ma być prowadzony jako jeden większy
+Systemic `/sage:fix` w cyklu
+`20260510-codex-surface-reachability-cluster-fix`, a nie jako samotny fix
+loaderów.
+
+**Why:** Cluster map mówi wprost, że otwarte manifesty z 2026-05-09 mają być
+traktowane jako kilka większych patchy, nie lista samotnych intake'ów. Alex
+przypomniał, że tak się umawialiśmy. Loader selfhost/target pozostaje pierwszym
+diagnostycznym obszarem, ale patch ma objąć całą powierzchnię Codex:
+config/hooks flag, loader stubs, `sage-navigator` drift i duplicate
+`sage:sage`.
+
+**Boundary:** Wąski cykl `20260509-selfhost-codex-loader-path-fix` został
+folded into umbrella cluster. Implementacja nadal nie ruszyła; następny legalny
+krok to root-cause checkpoint dla całego klastra C, potem jeden plan/scope.
+
+### 2026-05-10 — Cluster C starts with selfhost loader path root cause
+
+**Decision:** Rozpoczęto formalny fix cycle
+`20260509-selfhost-codex-loader-path-fix` i zapisano root cause dla
+selfhostowych loaderów Codex.
+
+**Why:** Klaster C dotyczy reachability powierzchni Codex. Najwęższy pierwszy
+blokujący problem to Stage 7: wygenerowane `.agents/skills/sage:*` w selfhost
+wskazują na `sage/core/workflows/**`, czyli ścieżkę target repo, a nie
+`core/workflows/**` istniejące w framework repo. Lokalny scan pokazał 16/16
+selfhost loaderów z nieistniejącą ścieżką.
+
+**Boundary:** Implementacja jeszcze nie ruszyła. Duplicate `sage:sage` jest
+realnym sąsiednim findingiem, ale zostaje poza tym wąskim fixem do osobnego
+checkpointu, bo wymaga decyzji o publicznym skill surface.
 
 ### 2026-05-10 — Mutation enforcement implementation verified
 

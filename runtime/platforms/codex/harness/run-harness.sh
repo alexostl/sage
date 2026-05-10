@@ -25,6 +25,9 @@ HARNESS_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRAMEWORK_ROOT="$(cd "$HARNESS_DIR/../../../.." && pwd)"
 SAGE_BIN="$FRAMEWORK_ROOT/bin/sage"
 
+# shellcheck source=runtime/platforms/codex/harness/lib/log-parser.sh
+source "$HARNESS_DIR/lib/log-parser.sh"
+
 # Pre-flight: tools we need.
 for cmd in jq codex git; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -42,75 +45,6 @@ log_line_count() {
         printf '0\n'
     fi
 }
-
-read_json_or_key_value_log() {
-    local file="${1:?log file required}"
-    local start_line="${2:-1}"
-    local tmp
-    tmp="$(mktemp)"
-    if [ -f "$file" ]; then
-        tail -n +"$start_line" "$file" > "$tmp"
-    fi
-
-    if jq -sc '.' "$tmp" >/dev/null 2>&1; then
-        jq -sc '.' "$tmp"
-        rm -f "$tmp"
-        return
-    fi
-
-    awk -F'|' -v source_file="$file" '
-        function emit_entry() {
-            if (kind != "") {
-                print kind "\t" severity
-            }
-            kind = ""
-            severity = ""
-        }
-        {
-            if ($0 ~ /^#{2,3} /) {
-                emit_entry()
-                heading = tolower($0)
-                if (source_file ~ /\.auto-fixes\.log$/ || heading ~ /safe/ || heading ~ /auto-fix/ || heading ~ /scope repair/ || heading ~ /scope update/) {
-                    kind = "safe_auto_fix"
-                }
-                next
-            }
-            if (kind != "" && $0 ~ /^-?[[:space:]]*Severity:/) {
-                severity = $0
-                sub(/^-?[[:space:]]*Severity:[[:space:]]*/, "", severity)
-                next
-            }
-            pipe_kind = ""
-            pipe_severity = ""
-            for (i = 1; i <= NF; i++) {
-                part = $i
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", part)
-                if (part ~ /^kind=/) {
-                    pipe_kind = substr(part, 6)
-                }
-                if (part ~ /^severity=/) {
-                    pipe_severity = substr(part, 10)
-                }
-            }
-            if (pipe_kind != "") {
-                emit_entry()
-                kind = pipe_kind
-                severity = pipe_severity
-                emit_entry()
-            }
-        }
-        END { emit_entry() }
-    ' "$tmp" | jq -Rsc '
-        split("\n")
-        | map(select(length > 0) | split("\t") | {kind: .[0], severity: (.[1] // "")})
-    '
-    rm -f "$tmp"
-}
-
-if [ "${HARNESS_TEST_READ_LOG:-}" = "1" ]; then
-    read_json_or_key_value_log "${1:?log file required}" "${2:-1}"
-    exit 0
-fi
 
 OUT_DIR="${HARNESS_OUT:-$(mktemp -d -t codex-harness.XXXXXX)}"
 TARGET="$OUT_DIR/target"

@@ -9,7 +9,8 @@
 #       * frontmatter `description: <Tier C preamble>` (≤300 chars,
 #         extracted via lib/extract-preamble.sh from T1.8)
 #       * body referring to the source workflow file
-#   - 16 stubs total (the 16 public workflows currently on disk).
+#   - 15 workflow stubs total; `sage` is the public router, not `sage:sage`.
+#   - `sage-navigator` is deployed from the core source of truth.
 #   - Re-run is idempotent (same content, no diff).
 #   - Stage 7 fails when SAGE_FRAMEWORK invalid.
 #
@@ -31,22 +32,28 @@ run_stage7() {
         --target "$TARGET" --preset base --stage 7
 }
 
+run_stage7_selfhost_fixture() {
+    mkdir -p "$TARGET/core/workflows" "$TARGET/core/capabilities"
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" \
+        --target "$TARGET" --preset base --stage 7
+}
+
 @test "stage7: creates .agents/skills/ directory" {
     run run_stage7
     [ "$status" -eq 0 ]
     [ -d "$TARGET/.agents/skills" ]
 }
 
-@test "stage7: deploys 16 workflow loader skills" {
+@test "stage7: deploys 15 workflow loader skills" {
     run_stage7
     local count
     count="$(find "$TARGET/.agents/skills" -mindepth 1 -maxdepth 1 -type d -name 'sage:*' | wc -l | tr -d ' ')"
-    [ "$count" = "16" ]
+    [ "$count" = "15" ]
 }
 
 @test "stage7: every public workflow has a loader stub" {
     run_stage7
-    for wf in build fix architect research design analyze sage qa design-review reflect continue learn status review map autoresearch; do
+    for wf in build fix architect research design analyze qa design-review reflect continue learn status review map autoresearch; do
         [ -f "$TARGET/.agents/skills/sage:$wf/SKILL.md" ] || {
             echo "MISSING: sage:$wf/SKILL.md"
             return 1
@@ -56,7 +63,7 @@ run_stage7() {
 
 @test "stage7: each SKILL.md has name field matching sage:<wf>" {
     run_stage7
-    for wf in build fix architect research design analyze sage qa design-review reflect continue learn status review map autoresearch; do
+    for wf in build fix architect research design analyze qa design-review reflect continue learn status review map autoresearch; do
         local f="$TARGET/.agents/skills/sage:$wf/SKILL.md"
         local name
         name="$(awk '/^---$/{c++; next} c==1 && /^name:/{sub(/^name:[[:space:]]*/,""); print; exit}' "$f")"
@@ -69,7 +76,7 @@ run_stage7() {
 
 @test "stage7: each SKILL.md has non-empty description (≤300 chars)" {
     run_stage7
-    for wf in build fix architect research design analyze sage qa design-review reflect continue learn status review map autoresearch; do
+    for wf in build fix architect research design analyze qa design-review reflect continue learn status review map autoresearch; do
         local f="$TARGET/.agents/skills/sage:$wf/SKILL.md"
         local desc
         desc="$(awk '/^---$/{c++; next} c==1 && /^description:/{sub(/^description:[[:space:]]*[">]?[[:space:]]*/,""); print; exit}' "$f")"
@@ -83,11 +90,30 @@ run_stage7() {
     grep -q 'sage/core/workflows/build.workflow.md' "$TARGET/.agents/skills/sage:build/SKILL.md"
 }
 
-@test "stage7: sage loader keeps router/entry-point discovery strong" {
+@test "stage7: does not generate duplicate sage:sage workflow loader" {
     run_stage7
-    grep -q 'Sage.s intelligent entry point' "$TARGET/.agents/skills/sage:sage/SKILL.md"
-    grep -q 'Read and follow the full workflow definition' "$TARGET/.agents/skills/sage:sage/SKILL.md"
-    grep -q 'sage/core/workflows/sage.workflow.md' "$TARGET/.agents/skills/sage:sage/SKILL.md"
+    [ ! -e "$TARGET/.agents/skills/sage:sage/SKILL.md" ]
+}
+
+@test "stage7: deploys public sage router with target-repo navigator path" {
+    run_stage7
+    [ -f "$TARGET/.agents/skills/sage/SKILL.md" ]
+    grep -q 'sage/core/capabilities/orchestration/sage-navigator/SKILL.md' "$TARGET/.agents/skills/sage/SKILL.md"
+}
+
+@test "stage7: deploys sage-navigator from core source" {
+    run_stage7
+    [ -f "$TARGET/.agents/skills/sage-navigator/SKILL.md" ]
+    grep -q 'Alex-native operating contract' "$TARGET/.agents/skills/sage-navigator/SKILL.md"
+    diff -u "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md" \
+        "$TARGET/.agents/skills/sage-navigator/SKILL.md" >/dev/null
+}
+
+@test "stage7: selfhost target uses framework-root paths" {
+    run_stage7_selfhost_fixture
+    grep -q 'core/workflows/build.workflow.md' "$TARGET/.agents/skills/sage:build/SKILL.md"
+    ! grep -q 'sage/core/workflows/build.workflow.md' "$TARGET/.agents/skills/sage:build/SKILL.md"
+    grep -q 'core/capabilities/orchestration/sage-navigator/SKILL.md' "$TARGET/.agents/skills/sage/SKILL.md"
 }
 
 @test "stage7: re-run produces identical output (idempotent)" {

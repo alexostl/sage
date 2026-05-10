@@ -48,7 +48,7 @@ run_stage4() {
     PRESET=base run_stage4
     grep -q '^\[features\]' "$TARGET/.codex/config.toml"
     grep -qE '^hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
-    ! grep -qE '^codex_hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    ! grep -qE '^codex_hooks[[:space:]]*=' "$TARGET/.codex/config.toml"
 }
 
 @test "stage4: v1 config.toml does NOT contain [[mcp_servers]] block" {
@@ -157,7 +157,7 @@ EOF
     [ "$status" -eq 0 ]
     [ "$(grep -c '^\[features\]$' "$TARGET/.codex/config.toml")" = "1" ]
     grep -qE '^hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
-    ! grep -qE '^codex_hooks[[:space:]]*=[[:space:]]*true' "$TARGET/.codex/config.toml"
+    ! grep -qE '^codex_hooks[[:space:]]*=' "$TARGET/.codex/config.toml"
     if command -v python3 >/dev/null 2>&1 && python3 -c 'import tomllib' >/dev/null 2>&1; then
         python3 - "$TARGET/.codex/config.toml" <<'PY'
 import pathlib
