@@ -24,26 +24,28 @@ dist/
 .env
 .env.local
 
-# Internal Docs
-docs/
-.mcp.json
-.sage/
+# Internal generated/platform files
+/docs/
+/.mcp.json
 .sage-memory/
-sage/
-.claude/
-CLAUDE.md
-.agents/
-.codex/
-AGENTS.md
+/sage/
+/.claude/
+/CLAUDE.md
+/.agents/
+/.codex/
+/AGENTS.md
 
-# Python
-__pycache__/
-*.pyc
-
-# Sage hook artifacts (managed by `bin/sage init` — remove this block to commit hook logs)
+# Sage local/runtime state
+.sage/*.log
+.sage/.auto-fixes.log
 .sage/.mcp-incidents.log
 .sage/.session-mutations.log
 .sage/.skipped-checks.log
 .sage/.approval-pending
 .sage/.codex-validated-version
-# end Sage hook artifacts
+.sage/.doctor-cursor
+.sage/**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc

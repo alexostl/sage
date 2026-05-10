@@ -5,6 +5,22 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Captured closeout ordering workflow/hook fix
+
+**Decision:** Utworzono intake fix
+`20260510-closeout-ordering-workflow-hook-fix` dla uniwersalnej poprawy
+closeout guidance we wszystkich workflow oraz lepszego komunikatu hooka, gdy
+manifest zostanie zamkniety przed domknieciem pozostalych artefaktow.
+
+**Why:** Podczas zamykania `20260509-mutation-enforcement-target-safety-fix`
+manifest zostal ustawiony na `complete` przed ostatnia edycja `plan.md`, przez
+co hook poprawnie zablokowal dalsza mutacje jako brak aktywnego cyklu. To jest
+bardziej problem orderingu workflow niz samego guardraila, ale komunikat hooka
+moze lepiej prowadzic agenta.
+
+**Boundary:** Intake ma disclaimer: przed implementacja trzeba sprawdzic, czy
+inne closeout/hook hardening fixy nie adresuja juz tego problemu.
+
 ### 2026-05-10 — Mutation enforcement cycle closed
 
 **Decision:** Zamknieto cykl `20260509-mutation-enforcement-target-safety-fix` po implementacji QA follow-upu, deterministic verification, generated smoke oraz targeted real probes 03/04.

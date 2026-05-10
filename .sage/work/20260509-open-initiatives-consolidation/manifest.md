@@ -2,11 +2,12 @@
 cycle_id: "20260509-open-initiatives-consolidation"
 title: "Analyze: consolidation pass otwartych inicjatyw Sage"
 workflow: analyze
-phase: findings-checkpoint
-status: paused
+phase: superseded
+status: completed
 created: 2026-05-09
 updated: 2026-05-09
 owner: alexostl
+superseded_by: "20260509-runtime-workflow-enforcement-hardening"
 scope:
   - ".sage/work/20260509-open-initiatives-consolidation/*"
   - ".sage/docs/analysis-open-initiatives-consolidation.md"
@@ -29,10 +30,14 @@ scope:
 
 ## State
 
-**Current phase:** findings-checkpoint - raport analizy zapisany, czeka na
-akceptację findings przed przejściem do umbrella `/sage:fix`.
+**Current phase:** superseded - findings zostały skonsumowane przez
+`20260509-runtime-workflow-enforcement-hardening`.
 
 **Artifact:** `.sage/docs/analysis-open-initiatives-consolidation.md`
+
+**Resolution:** Rekomendowany umbrella `/sage:fix` został utworzony,
+zaimplementowany, zweryfikowany i zamknięty jako
+`.sage/work/20260509-runtime-workflow-enforcement-hardening/`.
 
 ## Scope
 

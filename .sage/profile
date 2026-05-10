@@ -1,0 +1,9 @@
+## Sage framework profile (per ADR-2).
+##
+## Marker for `bin/sage` so generators know this checkout uses
+## aggressive self-host enforcement defaults (`codex_hooks: true` in
+## generated `.codex/config.toml`, etc.). DO NOT commit this file on
+## upstream branches — see decision-self-host-aggressive-defaults.md
+## for branch policy.
+
+profile: self-host
