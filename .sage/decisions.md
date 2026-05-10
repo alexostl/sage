@@ -5,6 +5,24 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Captured mutation-intent preflight gap
+
+**Decision:** Utworzono intake fix
+`20260510-mutation-intent-preflight-gap` dla luki, w ktorej `PreToolUse`
+blokuje konkretna pozniejsza edycje, ale dopiero po tym, jak wczesniejsza
+operacja Bash/git zdazyla realnie zmutowac working tree.
+
+**Why:** Research na watku `019e0ec0-b0f4-7482-a92e-30ad16c33d3f` pokazal, ze
+hook byl pre wobec `apply_patch`, ale post wobec `mv` i `git merge
+origin/selfhost`, ktory zostawil konflikty. Swiezy Bash hook fix moze poprawiac
+proste mutacje i recovery guidance, ale nie mamy jeszcze danych, ze adresuje
+szersza klase mutation-intent/preflight.
+
+**Boundary:** To nie jest zalozenie "blokuj git merge". Przyszly fix ma najpierw
+zdiagnozowac realne powierzchnie mutacji, porownac je ze swiezym Bash guardem i
+dopiero potem zaproponowac model dla konfliktow, cross-repo mutacji,
+`file_change` oraz innych indirect working-tree writes.
+
 ### 2026-05-10 — Cluster B branch merged with origin/selfhost
 
 **Decision:** Zintegrowano `origin/selfhost` z branchem
