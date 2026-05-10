@@ -122,6 +122,14 @@ cycle_status() {
     manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null
 }
 
+cycle_active_session_id() {
+    local project_root="$1"
+    local cycle_id="$2"
+    local manifest="$project_root/.sage/work/$cycle_id/manifest.md"
+    [ -f "$manifest" ] || return 1
+    manifest_yaml "$manifest" | yq eval -r '.active_session_id // ""' - 2>/dev/null
+}
+
 resolve_cycle_for_patch() {
     local project_root="$1"; shift
     local cycle_ids count cycle_id status

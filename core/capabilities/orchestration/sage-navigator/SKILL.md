@@ -195,6 +195,18 @@ Future / "should" / "let's create" → ENVISION or soft confirmation
 Action / "add" / "implement" → DELIVER → /build or /fix
 Ambiguous → present all matching options.
 
+### State Transition Boundary
+
+Lightweight/Surgical work may finish with code plus a conversation summary; do
+not create `.sage` records unless the small task creates a durable decision,
+follow-up, learning/correction, incident/recovery, or touches an active cycle.
+For Standard+/Moderate+ work, workflow entry or resume is a real state
+transition: create/update the manifest before writing artifacts or code, then
+say which `status`/`phase` changed.
+
+If a hook blocks with a next legal move, treat it as recovery guidance. Retry
+through the legal path, or stop for the user decision named by the hook.
+
 ### Confirmation (Zone 1)
 
 After routing, ALWAYS present options with chain visibility:

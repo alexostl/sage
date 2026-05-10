@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-tool-validate.sh — Codex PreToolUse(apply_patch).
+# pre-tool-validate.sh — Codex PreToolUse(apply_patch, Bash).
 set -euo pipefail
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
@@ -31,12 +31,34 @@ fi
 
 cwd="$(printf '%s' "$payload" | jq -r '.cwd // empty')"
 [ -n "$cwd" ] && [ -d "$cwd" ] || cwd="$PWD"
+cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
 turn_id="$(printf '%s' "$payload" | jq -r '.turn_id // "unknown"')"
+tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty')"
+
+if [ "$tool_name" = "Bash" ]; then
+    mutating=0
+    targets_guarded=0
+    if [[ "$cmd" =~ (^|[[:space:];|&])(cat[[:space:]].*\>|tee([[:space:]]|$)|sed[[:space:]][^;\|\&]*-i|perl[[:space:]][^;\|\&]*-.*pi|touch|mkdir|rm|mv|cp|install)([[:space:]]|$) ]] || [[ "$cmd" =~ (^|[^\<])\>\>?([^\|]|$) ]]; then
+        mutating=1
+    fi
+    if [[ "$cmd" == *".sage/work/"* ]] || [[ "$cmd" == *".sage/decisions.md"* ]] || [[ "$cmd" == *".sage-memory/"* ]] || [[ "$cmd" == *"src/"* ]] || [[ "$cmd" == *"tests/"* ]] || [[ "$cmd" == *"runtime/"* ]] || [[ "$cmd" == *"core/"* ]] || [[ "$cmd" == *"bin/"* ]]; then
+        targets_guarded=1
+    fi
+    if [ "$mutating" -eq 1 ] && [ "$targets_guarded" -eq 1 ]; then
+        printf 'Sage: BLOCKING mutating Bash command against managed/project paths. Bash cannot claim exact Sage scope before execution. Next legal move: use apply_patch so PreToolUse can validate exact paths, or update the approved manifest scope/plan first.\n' >&2
+        exit 2
+    fi
+    exit 0
+fi
+
+case "$tool_name" in
+    apply_patch|Edit|Write|file_change|"") ;;
+    *) exit 0 ;;
+esac
 
 claimed_paths=()
 claimed_ops=()
-cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 while IFS= read -r line; do
     case "$line" in
         '*** Add File: '*)
@@ -116,6 +138,14 @@ else
     cycle_dir="$resolution_value"
     cycle_id="$(basename "$cycle_dir")"
     manifest="$cycle_dir/manifest.md"
+    if [ "$resolution_kind" = "active" ]; then
+        active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
+        if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
+            printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.\n' \
+                "$cycle_id" "$active_session_id" "$session_id" >&2
+            exit 2
+        fi
+    fi
     if [ "$resolution_kind" = "parked-capture" ]; then
         capture_out_of_scope=()
         for path in "${claimed_paths[@]}"; do

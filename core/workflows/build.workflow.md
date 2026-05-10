@@ -29,9 +29,9 @@ review paths and add an explicit autonomous path when appropriate:
   appears; otherwise zatrzymaj sie przed implementation and ask.
 - po plan: always offer `[C] Checkpointed implementation` and `[F] Full
   autonomous implementation`. If the user selects `[F]`, execute the approved
-  plan end-to-end until verification/close without intermediate checkpoints,
-  unless scope expansion, material decision, conflicting instruction, failing
-  test requiring changed assumptions, or partial-guardrail risk appears.
+  plan end-to-end until verification/close without intermediate checkpoints.
+  Stop only when a key assumption, product/architecture decision, conflict, or
+  material risk changes the plan.
 
 ## Auto-Pickup
 
@@ -95,6 +95,10 @@ judgment that's about to be lost.
 guidance and context summary before ending.
 
 **Completion:** Set `status: complete` at Step 8.
+
+After every `status` or `phase` change, tell the user what changed after the
+frontmatter has been updated. If the platform exposes a session id, record it
+as `active_session_id` when moving a cycle to `status: in-progress`.
 
 **Anti-lazy-manifest contract:**
 Context summary MUST NOT be:
@@ -352,10 +356,8 @@ Pick A/S/C/F/R/N, or tell me what to change.
    platform tool is available.
 2. Update `manifest.md` before implementation as above.
 3. Execute Step 6 through Step 8 without intermediate checkpoints.
-4. Stop and ask one question if a material architecture decision, scope
-   expansion, destructive action, ambiguous ownership, conflicting instruction,
-   failing test requiring changed assumptions, or partial-guardrail risk
-   appears.
+4. Stop and ask one question if a key assumption, product/architecture
+   decision, accepted risk, ownership, or conflict changes the approved plan.
 
 ## Step 6: Implement
 

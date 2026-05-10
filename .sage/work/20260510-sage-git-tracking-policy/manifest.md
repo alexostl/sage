@@ -16,6 +16,12 @@ scope:
   - ".gitignore"
   - ".sage/work/20260508-alex-native-operating-model/*"
   - ".sage/work/20260509-runtime-process-dummy-qa/*"
+  - "runtime/platforms/codex/harness/lib/aggregate-signals.sh"
+  - "runtime/platforms/codex/harness/tests/aggregate-signals.bats"
+  - "runtime/platforms/codex/hooks/pre-tool-validate.sh"
+  - "runtime/platforms/codex/hooks/tests/pre-tool-validate.bats"
+  - "runtime/platforms/codex/setup/lib/hooks-deploy.sh"
+  - "runtime/platforms/codex/setup/tests/stage5-6-hooks.bats"
 ---
 
 # Polityka Git dla artefaktow Sage i worktree
@@ -29,6 +35,11 @@ wchodzaca do PR, a `.sage-memory` i lokalne logi/runtime state zostaja poza Git.
 **Next step:** Zaktualizowac `.gitignore`, zdjac z indeksu stare runtime
 transkrypty QA oraz przygotowac commit bazowy do merge/rebase w pozostalych
 worktree branches.
+
+**Merge resolution addendum:** Podczas integrowania `origin/selfhost` z branchem
+Klastra B scope tymczasowo obejmuje pliki runtime/harness z konfliktami merge.
+Cel nie jest nowy feature work, tylko zachowanie obu stron: baseline policy z
+`origin/selfhost` oraz zmian Klastra B w jednym poprawnym merge commit.
 
 ## Problem
 
@@ -44,4 +55,3 @@ ryzyko, ze PR przeniesie kod bez aktualnej dokumentacji pracy.
 - Pozostawic `.sage/docs` i `.sage/work` jako naturalnie sledzone przez Git.
 - Usunac z indeksu stare transkrypty/run artefakty, ktore zostaly juz usuniete z
   drzewa roboczego.
-

@@ -193,6 +193,37 @@ EOF
     tail -n1 "$log" | jq -e '.severity == "critical"' >/dev/null
 }
 
+@test "turn-audit.sh: shell edit to active_session_id manifest is bypass_mutation" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage/work/20260510-random-note
+    cat > .sage/work/20260510-random-note/manifest.md <<'EOF'
+---
+cycle_id: "20260510-random-note"
+workflow: build
+phase: deliver
+status: in-progress
+active_session_id: "unknown"
+scope:
+  - "src/notes/random.md"
+---
+
+# Cycle
+EOF
+    git add .sage/work/20260510-random-note/manifest.md
+    git commit -q -m "seed active cycle"
+
+    perl -0pi -e 's/active_session_id: "unknown"/active_session_id: "test-session"/' \
+        .sage/work/20260510-random-note/manifest.md
+
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "bypass_mutation" "$log"
+    grep -q ".sage/work/20260510-random-note/manifest.md" "$log"
+}
+
 @test "turn-audit.sh: absolute path in session-mutations.log matches relative porcelain → no false bypass" {
     # T2.7 follow-up (2026-04-30): the harness baseline run logged absolute
     # claimed paths to session-mutations.log (Codex 0.126 apply_patch DSL
