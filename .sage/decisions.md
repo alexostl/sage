@@ -43,6 +43,40 @@ green release pass.
 **Boundary:** Dalsza praca nad residual `03` lub `12` wymaga osobnego follow-upu
 albo wznowienia odpowiedniej inicjatywy, nie mutacji zamkniętego cyklu B.
 
+### 2026-05-10 — Captured manual SageMemory worktree repair
+
+**Decision:** Utworzono intake fix
+`20260510-manual-sagememory-worktree-repair` dla recznego scalenia
+rozjechanych `.sage-memory/memory.db` w main repo i Codex worktree
+`sage-selfhost`.
+
+**Why:** Projektowe SageMemory zostalo fizycznie skopiowane do kilku
+ephemeral worktree. Findings zapisane tylko w lokalnym DB/WAL moglyby zniknac
+przy usunieciu worktree. To wymaga manualnego inventory, backupu i merge/importu
+do jednego canonical project memory.
+
+**Boundary:** Nie projektujemy tu resolvera ani `sage memory doctor`; te tematy
+sa odlozone. Inicjalizacja nowych worktree jest osobnym intake w
+`alex-os-dev`: `20260510-new-worktree-initialization-script`.
+
+### 2026-05-10 — Captured subagent self-learning recall fix
+
+**Decision:** Utworzono intake fix
+`20260510-subagent-self-learning-recall-fix` dla dwoch malych prompt-policy
+poprawek: niespojnego uzycia SageMemory przez subagentow oraz blednego
+self-learning query z `filter_tags: ["learning"]` zamiast kanonicznego
+`filter_tags: ["self-learning"]`.
+
+**Why:** Audit ostatnich watkow `sage-selfhost` pokazal, ze problem nie lezy w
+upstream SageMemory. Store/search dziala poprawnie, ale Sage SelfHost prompt
+policy nie wymusza jawnego recallu w subagentach, a jeden agent zadal bledne
+zapytanie tagowe, przez co relevantne learningi nie zostaly wyciagniete.
+
+**Boundary:** Intake ma tylko uchwycic follow-up. Implementacja powinna wejsc w
+osobny `/sage:fix`, potwierdzic root cause na transcriptach i dodac regresje
+dla `filter_tags: ["self-learning"]`, obowiazkowego recall block w promptach
+subagentow oraz fallbacku `.sage-memory/self-learning.md`.
+
 ### 2026-05-10 — Captured closeout ordering workflow/hook fix
 
 **Decision:** Utworzono intake fix
