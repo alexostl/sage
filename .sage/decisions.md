@@ -5,6 +5,24 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Cluster B cycle closed
+
+**Decision:** Zamknięto cykl
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/` jako
+`status: completed`, `phase: completed`.
+
+**Why:** Alex zaakceptował closeout kierunkowo: nie zaostrzamy dalej Bash hooka,
+residual `03` zostaje jako QA note / follow-up do recovery-first guidance
+adresowanej przez Klaster A, a `12` przechodzi do Language Invariant Matching.
+
+**Verification:** Deterministyczne testy wykonane wcześniej dla patcha Klastra B
+pozostają zielone; ostatnia zmiana closeout dotyczy wyłącznie artefaktów
+`.sage` i decyzji. RealHarness uwagi są zapisane jawnie zamiast udawania pełnego
+green release pass.
+
+**Boundary:** Dalsza praca nad residual `03` lub `12` wymaga osobnego follow-upu
+albo wznowienia odpowiedniej inicjatywy, nie mutacji zamkniętego cyklu B.
+
 ### 2026-05-10 — Captured closeout ordering workflow/hook fix
 
 **Decision:** Utworzono intake fix
