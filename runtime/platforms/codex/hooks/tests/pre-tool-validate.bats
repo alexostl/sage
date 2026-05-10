@@ -74,6 +74,24 @@ make_bash_payload() {
     }'
 }
 
+make_file_change_payload() {
+    local kind="$1"
+    local path="$2"
+    local cwd="${3:-$PROJECT_ROOT}"
+    jq -nc --arg cwd "$cwd" --arg kind "$kind" --arg path "$path" '{
+        session_id: "test-uuid",
+        turn_id: "turn-1",
+        transcript_path: "/tmp/transcript",
+        cwd: $cwd,
+        hook_event_name: "PreToolUse",
+        model: "test-model",
+        permission_mode: "default",
+        tool_name: "file_change",
+        tool_input: { changes: [{kind: $kind, path: $path}] },
+        tool_use_id: "tool-1"
+    }'
+}
+
 # Helper: write a manifest with frontmatter + scope array.
 make_cycle_with_scope() {
     local cycle="$1"
@@ -218,6 +236,66 @@ EOF
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "docs/oops.md"
     echo "$output" | grep -qi "scope"
+}
+
+@test "pre-tool-validate.sh: file_change-shaped payload in scope → exit 0 + mutations log appended" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/from-file-change.txt")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"src/from-file-change.txt"' "$log"
+}
+
+@test "pre-tool-validate.sh: file_change-shaped payload out of scope → exit 2" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/docs/from-file-change.md")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "docs/from-file-change.md"
+}
+
+@test "pre-tool-validate.sh: same-turn manifest cannot authorize source file_change" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/from-self-created-manifest.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "same turn"
+    echo "$output" | grep -q "user approval"
+    echo "$output" | grep -q "src/from-self-created-manifest.txt"
+}
+
+@test "pre-tool-validate.sh: same-turn plan still cannot authorize source file_change" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-plan.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "same turn"
+    echo "$output" | grep -q "user approval"
+}
+
+@test "pre-tool-validate.sh: prior-turn plan can authorize source file_change" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-approval-turn.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: same-turn manifest cannot authorize AGENTS.md" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+    printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload update "$PROJECT_ROOT/AGENTS.md")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "instruction"
+    echo "$output" | grep -q "same turn"
+    echo "$output" | grep -q "AGENTS.md"
 }
 
 @test "pre-tool-validate.sh: Update File path in scope → allow" {

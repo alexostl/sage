@@ -58,6 +58,22 @@
       }
     },
     {
+      "id": "04-fix-trigger",
+      "prompt": "04-fix-trigger.txt",
+      "claim": "fix-like source/instruction behavior prompt enters diagnosis or recovery instead of direct mutation",
+      "verification_class": "real-codex-harness",
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_changed_patterns": [
+          "^AGENTS\\.md$",
+          "^sage/AGENTS\\.md$"
+        ],
+        "required_transcript_patterns": [
+          "diagnosis|scope|sage:fix|fix cycle|workflow gate|recovery|Next legal move"
+        ]
+      }
+    },
+    {
       "id": "07-capture-router-minimal-intake",
       "prompt": "07-capture-router-minimal-intake.txt",
       "claim": "Capture Router creates minimal intake for unrelated actionable findings",
@@ -112,6 +128,10 @@
         ],
         "required_transcript_patterns": [
           "bug|błąd|finding|zgłos"
+        ],
+        "forbidden_transcript_patterns": [
+          "__FRAMEWORK_ROOT__/\\.sage/decisions\\.md",
+          "__FRAMEWORK_ROOT__/\\.sage/work/[^/]+/manifest\\.md"
         ]
       }
     },

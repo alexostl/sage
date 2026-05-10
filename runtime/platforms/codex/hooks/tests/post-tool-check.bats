@@ -64,6 +64,25 @@ make_payload() {
     }'
 }
 
+make_file_change_payload() {
+    local kind="$1"
+    local path="$2"
+    local exit_code="${3:-0}"
+    local cwd="${4:-$PROJECT_ROOT}"
+    local tool_response_str
+    tool_response_str="$(jq -nc --argjson ec "$exit_code" \
+        '{output:"ok", metadata:{exit_code:$ec, duration_seconds:0.1}}' | jq -Rs .)"
+    jq -nc --arg cwd "$cwd" --arg kind "$kind" --arg path "$path" --argjson tr "$tool_response_str" '{
+        session_id: "test-uuid",
+        turn_id: "turn-1",
+        cwd: $cwd,
+        hook_event_name: "PostToolUse",
+        tool_name: "file_change",
+        tool_input: { changes: [{kind: $kind, path: $path}] },
+        tool_response: $tr
+    }'
+}
+
 @test "post-tool-check.sh: claimed path matches diff → no incident, exit 0" {
     cd "$PROJECT_ROOT"
     echo "modified" >> seed.txt
@@ -100,6 +119,19 @@ make_payload() {
     echo "world" > src/hello.txt   # simulate apply_patch having written the file
     cmd="$(make_patch_cmd Add src/hello.txt)"
     payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "claim_no_op" "$log"
+    fi
+}
+
+@test "post-tool-check.sh: file_change-shaped payload matches diff → no claim_no_op" {
+    cd "$PROJECT_ROOT"
+    mkdir -p src
+    echo "world" > src/from-file-change.txt
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/from-file-change.txt")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
     log="$PROJECT_ROOT/.sage/.mcp-incidents.log"

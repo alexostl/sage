@@ -190,6 +190,7 @@ EOF
     [ -f "$log" ]
     grep -q "bypass_mutation" "$log"
     grep -q "src/sneaky.txt" "$log"
+    tail -n1 "$log" | jq -e '.severity == "critical"' >/dev/null
 }
 
 @test "turn-audit.sh: shell edit to active_session_id manifest is bypass_mutation" {

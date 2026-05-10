@@ -33,6 +33,7 @@ cwd="$(printf '%s' "$payload" | jq -r '.cwd // empty')"
 [ -n "$cwd" ] && [ -d "$cwd" ] || cwd="$PWD"
 cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
+turn_id="$(printf '%s' "$payload" | jq -r '.turn_id // "unknown"')"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty')"
 
 if [ "$tool_name" = "Bash" ]; then
@@ -51,7 +52,10 @@ if [ "$tool_name" = "Bash" ]; then
     exit 0
 fi
 
-[ "$tool_name" = "apply_patch" ] || exit 0
+case "$tool_name" in
+    apply_patch|Edit|Write|file_change|"") ;;
+    *) exit 0 ;;
+esac
 
 claimed_paths=()
 claimed_ops=()
@@ -69,7 +73,46 @@ while IFS= read -r line; do
     esac
 done <<< "$cmd"
 
+while IFS=$'\t' read -r kind path; do
+    [ -n "$path" ] || continue
+    case "$kind" in
+        add|Add) op="Add" ;;
+        delete|Delete) op="Delete" ;;
+        update|Update|modify|Modify|*) op="Update" ;;
+    esac
+    claimed_ops+=("$op")
+    claimed_paths+=("$(normalize_path "$path" "$cwd")")
+done < <(printf '%s' "$payload" | jq -r '
+    (.tool_input.changes // .changes // .item.changes // [])[]? |
+    [(.kind // "update"), (.path // empty)] | @tsv
+' 2>/dev/null || true)
+
 [ "${#claimed_paths[@]}" -eq 0 ] && exit 0
+
+is_implementation_boundary_path() {
+    case "$1" in
+        AGENTS.md|CLAUDE.md|.codex/*|.claude/*|runtime/*|src/*|tests/*|*/tests/*|*.bats|bin/*|scripts/*|package.json|package-lock.json|pnpm-lock.yaml|yarn.lock|pyproject.toml|uv.lock|Cargo.toml|Cargo.lock|go.mod|go.sum|Makefile|Dockerfile|docker-compose*.yml|.github/workflows/*|.gitignore)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+same_turn_bootstrapped_cycle() {
+    local cwd="$1"
+    local session_id="$2"
+    local cycle_id="$3"
+    local turn_id="$4"
+    local log="$cwd/.sage/.session-mutations.log"
+    local manifest_path=".sage/work/$cycle_id/manifest.md"
+    local plan_path=".sage/work/$cycle_id/plan.md"
+
+    [ -f "$log" ] || return 1
+
+    jq -e --arg sid "$session_id" --arg turn "$turn_id" --arg cycle "$cycle_id" --arg manifest "$manifest_path" --arg plan "$plan_path" '
+        select(.session_id == $sid and .turn_id == $turn and .cycle_id == $cycle and (((.files // []) | index($manifest)) or ((.files // []) | index($plan))))
+    ' "$log" >/dev/null 2>&1
+}
 
 resolution="$(resolve_cycle_for_patch "$cwd" "${claimed_paths[@]}")"
 resolution_kind="${resolution%%:*}"
@@ -153,6 +196,21 @@ else
         exit 2
     fi
 
+    boundary_paths=()
+    for path in "${claimed_paths[@]}"; do
+        case "$path" in
+            ".sage/work/$cycle_id/"*|".sage/decisions.md"|.sage-memory/*.md) continue ;;
+        esac
+        if is_implementation_boundary_path "$path"; then
+            boundary_paths+=("$path")
+        fi
+    done
+    if [ "${#boundary_paths[@]}" -gt 0 ] && same_turn_bootstrapped_cycle "$cwd" "$session_id" "$cycle_id" "$turn_id"; then
+        printf 'Sage: BLOCKING implementation/instruction mutation from a self-created cycle in the same turn: %s. Active cycle: %s. A manifest/plan created by this same turn is capture/planning state, not approval to edit source/runtime/test/config/instruction files. Next legal move: present the plan and wait for user approval, then continue in a later turn.\n' \
+            "${boundary_paths[*]}" "$cycle_id" >&2
+        exit 2
+    fi
+
     risky_paths=()
     reclass_ack="$(manifest_yaml "$manifest" | yq eval -r '.semantic_reclassification // .scope_change_checkpoint // .risk_checkpoint // ""' - 2>/dev/null || true)"
     for i in "${!claimed_paths[@]}"; do
@@ -187,8 +245,8 @@ fi
 
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 files_json="$(printf '%s\n' "${claimed_paths[@]}" | jq -R . | jq -sc .)"
-log_line="$(jq -nc --arg sid "$session_id" --arg ts "$ts" --arg cycle "$cycle_id" --argjson files "$files_json" \
-    '{session_id:$sid, ts:$ts, cycle_id:$cycle, files:$files}')"
+log_line="$(jq -nc --arg sid "$session_id" --arg turn "$turn_id" --arg ts "$ts" --arg cycle "$cycle_id" --argjson files "$files_json" \
+    '{session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files}')"
 json_log_append "$cwd/.sage/.session-mutations.log" "$log_line"
 
 exit 0

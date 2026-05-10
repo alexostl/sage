@@ -238,7 +238,10 @@ Run in your terminal:
 
 The Codex port uses Codex-native lifecycle hooks generated under
 `.codex/hooks/`: `SessionStart`, `PreToolUse`, `PostToolUse`, and `Stop`.
-Run `sage init --platform codex` or `sage update` to regenerate them.
+Run `sage init --platform codex` or `sage update` to regenerate them. Generated
+Codex config enables Desktop hooks with `[features].hooks = true`; the
+release harness also checks transcript-level target ownership, not only final
+files.
 
 Sage no longer ships the legacy git `pre-commit` close-out model or its
 standalone wiring/closeout commands. Workflow scope, artifact order, recovery,

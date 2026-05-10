@@ -5,6 +5,26 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Cluster B branch merged with origin/selfhost
+
+**Decision:** Zintegrowano `origin/selfhost` z branchem
+`codex/fix-klaster-b` przez merge, bez ponownego cherry-picku `117b744`, bez
+resetu i bez amendu. Konflikty rozwiązano jako union zmian: zachowano Cluster B
+runtime/harness changes oraz selfhost mutation-enforcement/bootstrap changes.
+
+**Why:** Branch miał już baseline dokumentacji jako `d818792`, ale przed
+finalnym PR-em musiał zostać zsynchronizowany z aktualnym `origin/selfhost`.
+Najważniejsze konfliktowe miejsca dotyczyły współistnienia `Bash` guardu z
+`Edit|Write|file_change` matcherami, `forbidden_audit_kinds` z
+`forbidden_transcript_patterns`, oraz decyzji z obu cykli.
+
+**Verification:** Zielone: 182/182 Bats dla Codex setup, hooks i harness;
+`rg` contract check przeszedł; `git diff --check` czysty; markerów konfliktu
+brak.
+
+**Boundary:** To jest merge-resolution commit, nie nowy runtime feature poza
+połączeniem zaakceptowanych zmian z obu stron.
+
 ### 2026-05-10 — Cluster B cycle closed
 
 **Decision:** Zamknięto cykl
@@ -4713,7 +4733,6 @@ elicitation Round 1 (Vision). Required steps: 3 sequential rounds, each
 with visible artifact, brief.md saved only after Round 3, elicitation
 gate before any design work.
 
-
 ### 2026-04-29 — Claude port logic map captured (input for Codex redesign)
 
 Mapa logiki portu Claude Code zapisana w
@@ -5925,7 +5944,6 @@ slash commands). Deferred: M2 deterministic tool gating via PreToolUse
 (separate engineering track, already an open follow-up in README). Full
 analysis: [.sage/docs/analysis-codex-enforcement-gap.md](.sage/docs/analysis-codex-enforcement-gap.md).
 
-
 ### 2026-04-23 — BSD sed portability fix closed; upstream PR tracks on xoai/sage#3
 The `20260422-sed-i-bsd-portability` fix-plan is marked `completed`. The
 three edited call sites (`bin/sage`, `runtime/platforms/claude-code/setup/generate-claude-code.sh`,
@@ -6029,3 +6047,204 @@ focus on consolidating working knowledge into `.sage/` and define a parity
 condition after which `to-rewrite-in-sage/` can be deleted.
 
 - [2026-04-21] Sage initialized for sage-codex
+
+### 2026-05-10 — QA follow-up implemented: same-turn self-created cycles block source/instructions
+
+**Decision:** Zaimplementowano QA follow-up dla
+`20260509-mutation-enforcement-target-safety-fix`: RealHarness dostaje CLI
+compatibility flags, parser audit logow rozpoznaje markdown `##`, a
+`pre-tool-validate` blokuje source/runtime/test/config/instruction mutacje,
+gdy manifest lub plan zostaly utworzone w tym samym turnie.
+
+**Why:** Pierwszy real probe pokazal, ze samo wymaganie `plan.md` jest za
+slabe: agent moze sam stworzyc manifest+plan i natychmiast zapisac `src/**`.
+`turn_id` daje prostsza, bezpieczniejsza granice: plan moze byc zatwierdzony w
+kolejnej turze, ale nie moze byc self-approval w tym samym autonomicznym runie.
+
+**Evidence:** Deterministic Bats pass dla pre-tool, stage3/stage4 i harness
+tests. Targeted real probe 03 nie utworzyl `src/notes/random.md`; targeted
+real probe 04 nie zmienil `AGENTS.md` i zatrzymal sie na checkpointcie.
+
+### 2026-05-10 — QA fix root cause: CLI harness compatibility plus bootstrap gate
+
+**Decision:** Po QA FAIL doprecyzowano root cause i plan naprawy w
+`20260509-mutation-enforcement-target-safety-fix`. Nie cofamy generated Desktop
+config do `codex_hooks`; zamiast tego harness dostanie CLI compatibility path,
+a hook dostanie bramke blokujaca implementacje source/instruction behavior po
+samym manifest bootstrapie.
+
+**Why:** Probe pokazal, ze `codex exec --ignore-user-config` nie laduje
+skutecznie project-local hookow w CLI 0.126. Po zdjeciu tej flagi oraz dodaniu
+trust override i `--enable codex_hooks` hooki zaczynaja dzialac. Drugi probe
+pokazal jednak, ze agent moze zalozyc manifest i potem wykonac `src/**` przez
+native `file_change`, bo obecny hook traktuje manifest+scope jako wystarczajace
+nawet bez plan gate.
+
+**Boundary:** To nadal jest plan/scope gate po QA. Kod runtime nie zostal
+zmieniony w tym kroku; nastepny legalny krok to approval planu albo rewizja.
+
+### 2026-05-10 — Mutation enforcement QA failed real-agent release blockers
+
+**Decision:** W ramach aktywnego cyklu uruchomiono pelny real Codex harness
+`runtime/platforms/codex/harness/run-harness.sh`. QA zapisano w
+`.sage/work/20260509-mutation-enforcement-target-safety-fix/qa-report.md` i
+oznaczono cykl jako `qa-complete`, ale nie jako gotowy do closeout.
+
+**Why:** Deterministic tests byly zielone, ale real-agent harness jest
+wymagany dla claimow o agent/runtime behavior. Aggregate pokazal
+`v11_release_blocker_harness: total=9, present=5, complete=false`.
+
+**Boundary:** To jest raport QA, nie fix. Bugi z QA wymagaja osobnej decyzji o
+powrocie do `/sage:fix` albo zaparkowania jako follow-up.
+
+### 2026-05-10 — Mutation enforcement implementation verified
+
+**Decision:** Zakończono implementację aktywnego fixa
+`20260509-mutation-enforcement-target-safety-fix` i oznaczono go jako
+`verification-complete` po deterministic test pass.
+
+**Why:** Patch realizuje approved scope: feature flag migration do `hooks`,
+szerszy hook registry, defensywny parser mutacji, krytyczny audit bypassów,
+minimalne generated guidance oraz harness release blockers dla `04` i
+transcript-level target ownership.
+
+**Boundary:** Real Codex harness rerun pozostaje rekomendowanym follow-upem;
+lokalny `.codex/config.toml` workspace nie był ręcznie edytowany, bo fix
+dotyczy generatora i tracked runtime.
+
+### 2026-05-10 — Config activation scope includes generator summary
+
+**Decision:** Rozszerzono scope aktywnego fixa o
+`runtime/platforms/codex/setup/generate-codex.sh`, wyłącznie dla aktualizacji
+summary z `codex_hooks=true` na `hooks=true`.
+
+**Why:** Implementacja migracji feature flag zostawiłaby inaczej sprzeczny
+komunikat w generatorze. To jest ten sam config activation surface, a nie
+nowa funkcjonalność.
+
+**Boundary:** Zmiana w `generate-codex.sh` ogranicza się do tekstu raportowania
+stage output; logika stage pozostaje w `lib/config-toml.sh`.
+
+### 2026-05-10 — Mutation enforcement semantic reclassification accepted
+
+**Decision:** Po approval implementacji oznaczono aktywny fix
+`20260509-mutation-enforcement-target-safety-fix` jako
+`semantic_reclassification: accepted`, bo patch celowo dotyka testów, README,
+hooków i generated config.
+
+**Why:** PreToolUse poprawnie zablokował pierwszą próbę edycji testów jako
+ryzykowną mutację bez explicit semantic reclassification. To nie jest scope
+expansion: te pliki są już wymienione w zatwierdzonym planie i manifeście, ale
+runtime wymaga jawnego checkpointu dla testów/public docs/repo-control paths.
+
+**Boundary:** Reclassification dotyczy tylko plików w `manifest.scope`; nowe
+runtime/API powierzchnie nadal wymagają rewizji planu.
+
+### 2026-05-10 — Codex Desktop GUI confirms hooks feature rename
+
+**Decision:** Po sprawdzeniu GUI Codex Desktop dla workspace `sage-selfhost`
+wracamy do migracji generated config z `[features].codex_hooks = true` na
+`[features].hooks = true`.
+
+**Why:** GUI pokazuje runtime warning: `[features].codex_hooks is deprecated.
+Use [features].hooks instead.` Publiczny docs/cache i lokalny CLI 0.126 nadal
+pokazują `codex_hooks`, ale to jest platform drift. Generated project config ma
+być zgodny z aktualnym Desktop validator, bo to on pokazuje użytkownikowi błąd
+i prawdopodobnie reprezentuje nowszą powierzchnię workspace.
+
+**Boundary:** Implementacja ma usunąć aktywne `codex_hooks = true` z generated
+config i testów, ale nie ma dodawać rozbudowanej teorii do generated
+`AGENTS.md`.
+
+### 2026-05-10 — Codex hooks feature flag correction (superseded)
+
+**Decision:** Przed implementacją skorygowano Task 1: Sage nie będzie migrować
+`[features].codex_hooks = true` na `[features].hooks = true`. Oficjalny Codex
+config reference wskazuje `features.codex_hooks` jako canonical boolean dla
+lifecycle hooks, a `hooks` jako tabelę inline hooków.
+
+**Why:** Plan opierał się na wcześniejszym podejrzeniu, że `codex_hooks` jest
+deprecated. Sprawdzenie aktualnej dokumentacji OpenAI pokazało, że taka
+migracja prawdopodobnie osłabiłaby aktywację hooków. Poprawny fix ma utrzymać
+`codex_hooks = true`, nie emitować fałszywego `hooks = true`, i wzmocnić
+harness/audit bez udawania nieistniejącej flagi.
+
+**Boundary:** Superseded przez nowszą decyzję powyżej po sprawdzeniu realnego
+Codex Desktop GUI. Nie wdrażać tego wariantu.
+
+### 2026-05-10 — Mutation enforcement plan review revisions applied
+
+**Decision:** Po read-only review plan został skorygowany przed implementacją:
+dodano `runtime/platforms/codex/hooks/turn-audit.sh` do scope, nazwano
+`forbidden_transcript_patterns` jako negatywne pole harnessu i doprecyzowano
+płaską, testowalną rubrykę scenariusza `04-fix-trigger`.
+
+**Why:** Review potwierdziło minimalistyczne podejście do generated
+`AGENTS.md`, ale wskazało, że Stop/turn audit był opisany w planie bez pliku w
+scope, a harness task 4 wymagał dokładniejszej semantyki pass/fail przed
+approval.
+
+**Boundary:** To nadal jest plan/scope gate. Nie rozpoczęto implementacji
+runtime; następny legalny krok to akceptacja zrewidowanego planu albo kolejna
+rewizja.
+
+### 2026-05-10 — Mutation enforcement generated guidance stays minimal
+
+**Decision:** Przed review planu zawężono task `Guidance` tak, żeby generated
+`AGENTS.md` dostało tylko minimalistyczny kontrakt: state należy do target
+repo, nie pisać do `.sage/**` poza target repo, a source/runtime/test/config/
+instruction behavior wymaga właściwego Sage workflow i approved scope.
+
+**Why:** Alex nie chce dodawać dużo kontekstu do `AGENTS.md`. Ten plik jest
+hot-path instrukcją dla agenta, więc pełniejsza taksonomia mutation model,
+binary asset contract i uzasadnienia mają mieszkać w konstytucji, README albo
+harness docs/testach, nie w generated AGENTS.
+
+**Boundary:** Review ma sprawdzić także, czy implementacja nie rozszerzy
+generated `AGENTS.md` ponad ten krótki kontrakt.
+
+### 2026-05-10 — Mutation enforcement systemic fix plan prepared
+
+**Decision:** Alex wybrał `[3] Proceed as /sage:fix anyway` dla Systemic scope.
+Zapisano plan i rozszerzono `manifest.scope` dla
+`20260509-mutation-enforcement-target-safety-fix` przed implementacją.
+
+**Why:** Root cause jest konkretny mimo szerokiej powierzchni: Codex hook
+activation/config, real mutation paths, source-vs-docs taxonomy, binary asset
+contract, harness scenario 04 i transcript-level target ownership assertions.
+Pełny `/architect` byłby cięższy niż potrzebny, a bez planu/scope patch byłby
+metodologicznie nielegalny.
+
+**Boundary:** Implementacja nadal czeka na fix scope approval. Plan obejmuje
+tylko wymienione pliki; wszelkie dodatkowe runtime/API zmiany wymagają rewizji
+planu.
+
+### 2026-05-10 — Mutation enforcement root cause approved
+
+**Decision:** Alex zatwierdził zrewidowaną diagnozę root cause dla
+`20260509-mutation-enforcement-target-safety-fix` przez `[S] Skip review` po
+read-only subagent review.
+
+**Why:** Diagnoza rozdziela teraz trzy warstwy: `file_change` poza matcherem
+`apply_patch`, historyczny brak hook traces przez `codex_hooks -> hooks`, oraz
+braki harnessu w scenariuszach 04/11 i transcript-level assertions.
+
+**Boundary:** Fix pozostaje Systemic. Przed planem implementacji wymagany jest
+systemic escalation checkpoint: `/build`, `/architect` albo świadome
+kontynuowanie jako duży `/fix`.
+
+### 2026-05-10 — Mutation enforcement root cause reviewed
+
+**Decision:** Read-only subagent review potwierdził diagnozę klastra
+`20260509-mutation-enforcement-target-safety-fix` z dwiema korektami: rubryka
+03 musi być opisana jako historical QA-run evidence, a scenariusz 04 wymaga
+osobnego ujęcia jako brakujący release-blocker/assertion.
+
+**Why:** Current source ma już część coverage dla scenariusza 03 i check na
+puste rubryki blocked/recovery, więc plan nie powinien zakładać, że source jest
+nadal w stanie z archived `report.json`. Jednocześnie `04-fix-trigger` nadal
+nie ma stabilnego miejsca w `v11-scenarios.json`, mimo że QA wskazało go jako
+realny failure.
+
+**Boundary:** Nadal bez implementacji. Root cause pozostaje Systemic; następny
+legalny krok to approval tej zrewidowanej diagnozy albo dalsza rewizja.

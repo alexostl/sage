@@ -42,7 +42,10 @@ if [ "$exit_code" != "0" ] && [ -n "$exit_code" ]; then
     exit 0
 fi
 
-# Parse claimed_paths from apply_patch DSL.
+# Parse claimed_paths from apply_patch DSL or native file-change shaped
+# payloads. Current Codex hook docs expose file edits through apply_patch/
+# Edit/Write aliases; the extra changes[] parsing is defensive for real-agent
+# transcript shapes and future hook payloads.
 cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 claimed_paths=()
 while IFS= read -r line; do
@@ -52,6 +55,14 @@ while IFS= read -r line; do
             ;;
     esac
 done <<< "$cmd"
+
+while IFS=$'\t' read -r _kind path; do
+    [ -n "$path" ] || continue
+    claimed_paths+=("$(normalize_path "$path" "$cwd")")
+done < <(printf '%s' "$payload" | jq -r '
+    (.tool_input.changes // .changes // .item.changes // [])[]? |
+    [(.kind // "update"), (.path // empty)] | @tsv
+' 2>/dev/null || true)
 
 [ "${#claimed_paths[@]}" -eq 0 ] && exit 0
 

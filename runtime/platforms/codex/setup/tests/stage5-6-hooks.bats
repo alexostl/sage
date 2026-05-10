@@ -3,8 +3,8 @@
 #
 # Plan contract (T1.13):
 #   Stage 5: full regenerate of `<target>/.codex/hooks.json` registry —
-#     4 events (SessionStart, PreToolUse[apply_patch+Bash],
-#     PostToolUse[apply_patch], Stop). Backup user file
+#     4 events (SessionStart, PreToolUse[apply_patch|Edit|Write + Bash],
+#     PostToolUse[apply_patch|Edit|Write], Stop). Backup user file
 #     before overwrite when content differs.
 #   Stage 6: copy `<sage>/runtime/platforms/codex/hooks/*.sh` →
 #     `<target>/.codex/hooks/*.sh` with mode 0755 + lib/ subdir.
@@ -48,11 +48,11 @@ run_stage() {
     [ "$cmd" = ".codex/hooks/session-init.sh" ]
 }
 
-@test "stage5: PreToolUse uses matcher=apply_patch → pre-tool-validate.sh" {
+@test "stage5: PreToolUse uses file-edit matcher aliases → pre-tool-validate.sh" {
     run_stage 5
     matcher="$(jq -r '.hooks.PreToolUse[0].matcher' "$TARGET/.codex/hooks.json")"
     cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
-    [ "$matcher" = "apply_patch" ]
+    [ "$matcher" = "apply_patch|Edit|Write" ]
     [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
 }
 
@@ -64,11 +64,11 @@ run_stage() {
     [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
 }
 
-@test "stage5: PostToolUse uses matcher=apply_patch → post-tool-check.sh" {
+@test "stage5: PostToolUse uses file-edit matcher aliases → post-tool-check.sh" {
     run_stage 5
     matcher="$(jq -r '.hooks.PostToolUse[0].matcher' "$TARGET/.codex/hooks.json")"
     cmd="$(jq -r '.hooks.PostToolUse[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
-    [ "$matcher" = "apply_patch" ]
+    [ "$matcher" = "apply_patch|Edit|Write" ]
     [ "$cmd" = ".codex/hooks/post-tool-check.sh" ]
 }
 
