@@ -203,7 +203,7 @@ if [ -f "$scenario_manifest" ]; then
         rubric_failures='[]'
         rubric_pass=true
         rubric="$(printf '%s' "$row" | jq -c '.state_rubric // {}')"
-        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
+        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .forbidden_audit_kinds[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
         claim="$(printf '%s' "$row" | jq -r '.claim // ""')"
         if [ "$rubric_required_count" -eq 0 ] && printf '%s' "$claim" | grep -Eiq 'blocked mutation|blocked|recovery'; then
             rubric_pass=false
@@ -235,6 +235,13 @@ if [ -f "$scenario_manifest" ]; then
                     rubric_failures="$(jq -c --arg msg "missing audit kind: $kind" '. + [$msg]' <<< "$rubric_failures")"
                 fi
             done < <(jq -r '.required_audit_kinds[]? // empty' <<< "$rubric")
+            while IFS= read -r kind; do
+                [ -n "$kind" ] || continue
+                if jq -e --arg kind "$kind" '(.incidents[]?, .auto_fixes[]?) | select(.kind == $kind)' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "forbidden audit kind present: $kind" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.forbidden_audit_kinds[]? // empty' <<< "$rubric")
             while IFS= read -r pattern; do
                 [ -n "$pattern" ] || continue
                 if ! jq -e --arg pattern "$pattern" '.changed_files[]? | select(test($pattern))' "$state_file" >/dev/null; then

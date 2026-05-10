@@ -49,6 +49,9 @@ checkpoint.
 **Checkpoint state:** Approval checkpoints keep `status: in-progress` and move
 `phase` to the current gate, such as `root-cause-gate` or `fix-scope-gate`.
 Do not use `paused` for a live approval checkpoint.
+After every `status` or `phase` change, tell the user what changed after the
+frontmatter has been updated. If the platform provides a session id, store it as
+`active_session_id` when moving a cycle to `status: in-progress`.
 **Session end ([N]) or explicit parking:** Mandatory update for Moderate+
 fixes; this is when `status: paused` is appropriate.
 

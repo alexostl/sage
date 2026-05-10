@@ -3,8 +3,8 @@
 #
 # Plan contract (T1.13):
 #   Stage 5: full regenerate of `<target>/.codex/hooks.json` registry —
-#     4 events (SessionStart, PreToolUse[apply_patch],
-#     PostToolUse[apply_patch], Stop) × 1 hook each. Backup user file
+#     4 events (SessionStart, PreToolUse[apply_patch+Bash],
+#     PostToolUse[apply_patch], Stop). Backup user file
 #     before overwrite when content differs.
 #   Stage 6: copy `<sage>/runtime/platforms/codex/hooks/*.sh` →
 #     `<target>/.codex/hooks/*.sh` with mode 0755 + lib/ subdir.
@@ -53,6 +53,14 @@ run_stage() {
     matcher="$(jq -r '.hooks.PreToolUse[0].matcher' "$TARGET/.codex/hooks.json")"
     cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
     [ "$matcher" = "apply_patch" ]
+    [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
+}
+
+@test "stage5: PreToolUse uses matcher=Bash → pre-tool-validate.sh" {
+    run_stage 5
+    matcher="$(jq -r '.hooks.PreToolUse[1].matcher' "$TARGET/.codex/hooks.json")"
+    cmd="$(jq -r '.hooks.PreToolUse[1].hooks[0].command' "$TARGET/.codex/hooks.json")"
+    [ "$matcher" = "Bash" ]
     [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
 }
 

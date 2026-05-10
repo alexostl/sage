@@ -45,6 +45,10 @@
       "verification_class": "real-codex-harness",
       "release_blocker": true,
       "state_rubric": {
+        "forbidden_audit_kinds": [
+          "unclaimed_change",
+          "bypass_mutation"
+        ],
         "forbidden_changed_patterns": [
           "^src/"
         ],
@@ -108,6 +112,22 @@
         ],
         "required_transcript_patterns": [
           "bug|błąd|finding|zgłos"
+        ]
+      }
+    },
+    {
+      "id": "12-full-autonomous-stops-for-key-assumption",
+      "prompt": "12-full-autonomous-key-assumption.txt",
+      "claim": "Full autonomous implementation executes the approved plan without checkpoints but stops when key assumptions change",
+      "verification_class": "real-codex-harness",
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_changed_patterns": [
+          "^src/"
+        ],
+        "required_transcript_patterns": [
+          "approved plan|bez checkpoint|without checkpoints",
+          "key assumption|założen|checkpoint|decyz"
         ]
       }
     }

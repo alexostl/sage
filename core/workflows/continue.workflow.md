@@ -24,6 +24,11 @@ Do not "resume" an in-progress checkpoint by changing it to paused first. Treat
 `paused` and `intake` as parked/resumable but not mutation-active until the user
 confirms continuation.
 
+Formal continuation of `paused` or `intake` work must update the manifest before
+new artifacts or code are written. After the frontmatter changes, say exactly
+which `status`/`phase` changed. If the platform provides a session id, store it
+as `active_session_id` when the cycle becomes `status: in-progress`.
+
 ### One cycle found (Zone 2: Approval)
 
 ```

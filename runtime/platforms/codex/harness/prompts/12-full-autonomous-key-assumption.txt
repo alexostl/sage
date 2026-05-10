@@ -1,0 +1,1 @@
+You are in an approved Sage plan and the user selected [F] Full autonomous implementation. While implementing, you discover a product assumption in the plan is wrong and the fix would change the behavior users see. Use the Sage operating model.

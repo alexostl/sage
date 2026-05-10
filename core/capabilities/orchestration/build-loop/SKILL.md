@@ -35,10 +35,8 @@ Autonomiczna kontynuacja after an approved plan has two explicit modes:
 `[C] Checkpointed implementation` and `[F] Full autonomous implementation`.
 When the user chooses `[F]`, continue through the approved scope until
 verification/close without intermediate checkpoints. Stop and ask one question
-if the next step requires scope expansion, destructive action, architecture or
-product judgment, ambiguous ownership, conflicting instructions, failing tests
-that require changed assumptions, or a partial-guardrail risk the user has not
-accepted.
+only when the next step changes a key assumption, product/architecture decision,
+ownership, accepted risk, or conflicts with the approved plan.
 
 ## When to Use
 

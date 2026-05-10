@@ -55,6 +55,25 @@ make_payload() {
     }'
 }
 
+make_bash_payload() {
+    local cmd="$1"
+    local cwd="${2:-$PROJECT_ROOT}"
+    local cmd_json
+    cmd_json="$(printf '%s' "$cmd" | jq -Rs .)"
+    jq -nc --arg cwd "$cwd" --argjson cmd "$cmd_json" '{
+        session_id: "test-uuid",
+        turn_id: "turn-1",
+        transcript_path: "/tmp/transcript",
+        cwd: $cwd,
+        hook_event_name: "PreToolUse",
+        model: "test-model",
+        permission_mode: "default",
+        tool_name: "Bash",
+        tool_input: { command: $cmd },
+        tool_use_id: "tool-1"
+    }'
+}
+
 # Helper: write a manifest with frontmatter + scope array.
 make_cycle_with_scope() {
     local cycle="$1"
@@ -85,6 +104,28 @@ make_cycle_with_scope() {
     echo "$stderr" "$output" | grep -qi "no active cycle"
 }
 
+@test "pre-tool-validate.sh: Bash read command is allowed without active cycle" {
+    payload="$(make_bash_payload "pwd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: Bash shell edit to manifest active_session_id is blocked" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    payload="$(make_bash_payload "perl -0pi -e 's/active_session_id: unknown/active_session_id: test-uuid/' .sage/work/20260101-alpha/manifest.md")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 2 ]
+    echo "$stderr" "$output" | grep -q "mutating Bash command"
+    echo "$stderr" "$output" | grep -q "Next legal move"
+}
+
+@test "pre-tool-validate.sh: Bash write to project path is blocked" {
+    payload="$(make_bash_payload "mkdir -p src/notes && cat > src/notes/random.md <<'EOF'\nhello\nEOF")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 2 ]
+    echo "$stderr" "$output" | grep -q "use apply_patch"
+}
+
 @test "pre-tool-validate.sh: active cycle, path in scope → exit 0 + mutations log appended" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
     cmd="$(make_patch_cmd Add src/foo.txt)"
@@ -94,6 +135,48 @@ make_cycle_with_scope() {
     log="$PROJECT_ROOT/.sage/.session-mutations.log"
     [ -f "$log" ]
     grep -q "src/foo.txt" "$log"
+}
+
+@test "pre-tool-validate.sh: active_session_id mismatch blocks with handoff recovery path" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+active_session_id: other-session
+scope:
+  - "src/**"
+---
+EOF
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "active cycle owned by another session"
+    echo "$output" | grep -q "return to the original session"
+    echo "$output" | grep -q "handoff/parking"
+    echo "$output" | grep -q "separate intake"
+}
+
+@test "pre-tool-validate.sh: matching active_session_id allows in-progress cycle mutation" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+active_session_id: test-uuid
+scope:
+  - "src/**"
+---
+EOF
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: blocks Moderate+ implementation before plan.md exists" {

@@ -227,6 +227,15 @@ verification-before-done remain mandatory.
 Moderate+ fixes must update plan.md and manifest.md before code changes.
 Writing plan.md or manifest.md after code does not cure the violation.
 
+State transitions are part of the contract:
+- Lightweight/Surgical work may finish with code plus conversation summary; do
+  not create \`.sage\` records unless there is a durable decision, follow-up,
+  learning, incident/recovery, or active-cycle mutation.
+- Standard+/Moderate+ entry or resume must create/update the manifest before
+  artifacts or code. After changing \`status\` or \`phase\`, say what changed.
+- A recoverable hook block is correction guidance: retry via the named legal
+  path, or stop for the named user decision.
+
 ### Alex-native operating contract
 
 Sage artifact structure, filenames, frontmatter keys, command names, workflow
@@ -239,11 +248,9 @@ unclear, ask jedno pytanie naraz after checking repo/artifacts first, and add
 
 After an approved plan checkpoint, preserve two implementation paths:
 \`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.
-The full autonomous path means no intermediate checkpoints until
-verification/close, but stop for scope expansion, architecture/product
-decisions, conflicting instructions, failing tests that require changed
-assumptions, partial-guardrail risk, or mutations outside approved manifest
-scope.
+The full autonomous path means executing the approved plan without intermediate
+checkpoints until verification/close. Stop only when a key assumption,
+product/architecture decision, conflict, or material risk changes the plan.
 
 When using subagents/reviewer agents, verify they inherit or are explicitly
 given the active project instructions, Sage scope, and MCP/tool expectations.
@@ -266,7 +273,9 @@ Never start fresh when there is existing context.
 Treat \`status: in-progress\` as implementation-active, including active
 approval checkpoints such as \`root-cause-gate\`, \`fix-scope-gate\`,
 \`plan-gate\`, or \`findings-checkpoint\`. Checkpoints update \`phase\`; they do
-not pause the cycle. Treat \`status: paused\` and \`status: intake\` as parked,
+not pause the cycle. If an in-progress manifest has \`active_session_id\`, only
+that session may mutate the cycle; otherwise ask for handoff/parking or create
+a separate intake. Treat \`status: paused\` and \`status: intake\` as parked,
 resumable work. Parked work may be manifest-only and is not
 implementation-active until explicit continuation.
 \`sage status\` shows active work separately from paused/intake; \`sage doctor\`

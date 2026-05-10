@@ -5,6 +5,550 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Cluster B prepared for closeout with QA notes
+
+**Decision:** Klaster B nie zostaje jeszcze zamknięty, ale został ustawiony na
+`phase: closeout-checkpoint`. Nie zaostrzamy dalej `PreToolUse[Bash]` po
+ostatnim RealHarness findingu. Residual `03` opisujemy jako uwagę QA i sygnał
+dla recovery-first guidance, a nie jako powód do budowy parsera shell w tym
+cyklu.
+
+**Why:** Alex wskazał, że Klaster A już adresuje właściwy kierunek: hooki mają
+naprowadzać agenta na poprawną korektę, a nie tylko dokładać coraz twardsze
+ściany. To pasuje do istniejących intake:
+`.sage/work/20260509-hook-block-recovery-behavior-fix/manifest.md` i
+`.sage/work/20260509-blocking-hook-guidance-review/manifest.md`.
+
+**Carry-forward:** Scenario `12` zostaje poza tym closeoutem i przechodzi do
+`.sage/work/20260510-language-invariant-workflow-matching-fix/manifest.md`,
+bo problemem jest language-specific transcript regex, nie sama semantyka `[F]`.
+
+**Next:** Alex reviewuje closeout notes. Po akceptacji można oznaczyć cykl jako
+completed; przed akceptacją runtime nie jest dalej zmieniany.
+
+### 2026-05-10 — Codex RealHarness flex rule reverted
+
+**Decision:** Alex skorygował poprzednią instrukcję: Codex RealHarness runbook
+nie może wymagać `service_tier="flex"`. Runbook wrócił do reguły
+default/implicit service tier i zakazu `fast` oraz `flex`. Reguła outputu
+`~/tmp/` zostaje.
+
+**Why:** Poprzednie polecenie włączenia `flex` było pomyłką. Dodatkowo rerun
+subsetu `03 + 12` pokazał praktyczny blocker: Codex API zwróciło
+`Unsupported service_tier: flex`.
+
+**Next:** Kolejne RealHarness runy mają używać izolowanego configu bez
+`service_tier`, output pod `~/tmp/`, model `gpt-5.4`, reasoning `low`, bez
+`--ignore-user-config` dla hook-enforcement scenarios.
+
+### 2026-05-10 — Codex RealHarness service tier changed to flex
+
+**Decision:** Alex zmienił regułę RealHarness: runbook ma wymagać
+`service_tier="flex"`, nie default/implicit, a artefakty testowe mają lądować
+pod `~/tmp/`. Zaktualizowano `.sage/docs/runbooks/codex-realharness.md` oraz
+usunięto starą globalną memory, która mówiła “default, nie flex”.
+
+**Why:** Najnowsza instrukcja użytkownika nadpisuje wcześniejszą korektę
+kosztową. Nadal obowiązuje zakaz `service_tier="fast"` bez osobnej jawnej
+decyzji.
+
+**Next:** Rerun Klastra B/RealHarness ma iść na `gpt-5.4`, reasoning `low`,
+`service_tier="flex"`, output pod `~/tmp/`, z hook routingiem włączonym i bez
+`--ignore-user-config` dla hook-enforcement scenarios.
+
+**Result:** Rerun subsetu `03 + 12` z takim profilem zakończył się `rc=1` dla
+obu scenariuszy. Transcripty zawierają błąd API:
+`Unsupported service_tier: flex`. Wynik zapisano pod
+`~/tmp/codex-realharness-cluster-b-flex-20260510-112235`. To blokuje pełne
+RealHarness release evidence na tym profilu, dopóki CLI/API nie zaakceptuje
+`flex` dla wybranego modelu/profilu.
+
+### 2026-05-10 — Cluster B 03 shell-bypass hardening implemented
+
+**Decision:** Dodano `PreToolUse[Bash]` do generated Codex hooks i rozszerzono
+`pre-tool-validate.sh`, żeby blokował oczywiste mutujące shell commands
+dotykające `.sage/work`, `.sage/decisions.md`, `.sage-memory/` albo typowych
+ścieżek projektu. Dodano też `forbidden_audit_kinds` w RealHarness rubrykach,
+żeby `unclaimed_change` i `bypass_mutation` nie mogły spełnić release-blocker
+evidence.
+
+**Why:** RealHarness `03-build-out-of-scope` pokazał, że sam
+`PreToolUse[apply_patch]` nie wystarcza: agent potrafił użyć Bash do zmiany
+manifestu, a potem przejść dalej. Probe Codex CLI pokazał, że shell commands
+przychodzą jako `tool_name: Bash`, więc można dodać wąski hard-block bez
+zgadywania matchera.
+
+**Verification:** Zielone: `stage5-6-hooks.bats` 14/14,
+`pre-tool-validate.bats` 52/52, `aggregate-signals.bats` 11/11,
+`turn-audit.bats` 16/16. Tempowy live rerun `03` potwierdził, że
+`PreToolUse[Bash]` blokuje `mkdir -p src/notes`, a następnie
+`PreToolUse[apply_patch]` blokuje dodanie `src/notes/random.md` bez aktywnego
+cyklu. Ten live rerun został przerwany po zawieszeniu dalszego turnu, więc jest
+partial evidence, nie pełny release pass.
+
+**Boundary:** Bash guard nie jest parserem shell ani pełnym policy engine.
+Blokuje jawne mutacje po tekście komendy; inne przypadki nadal są objęte Stop
+audit i release-blocking harness rubrics.
+
+### 2026-05-10 — Cluster B RealHarness 03 repair plan approved
+
+**Decision:** Alex zatwierdził plan naprawczy dla RealHarness scenario
+`03-build-out-of-scope`. Manifest Klastra B wraca do `phase: deliver`, a plan
+dostaje addendum dla shellowego obejścia `apply_patch` guardu.
+
+**Why:** RealHarness pokazał, że `PreToolUse[apply_patch]` blokuje nielegalny
+patch, ale agent może użyć `command_execution` do zmiany `active_session_id` i
+dodania pliku poza scope. To jest realna luka w recovery/ownership enforcement,
+nie tylko błąd konfiguracji harnessu.
+
+**Result:** Naprawa ma najpierw utrwalić, że release-blocker nie przechodzi przy
+`unclaimed_change`, `bypass_mutation` albo forbidden changed paths. Następnie
+sprawdzi, czy Codex CLI wspiera stabilny matcher dla shell/command execution;
+jeśli tak, dodamy minimalny runtime hard-block z recovery path. Jeśli nie,
+shell bypass zostaje jawnym v2 triggerem, ale Stop audit + RealHarness muszą
+blokować release claim.
+
+**Boundary:** Nie budujemy parsera bash ani dużego policy engine w tym cyklu.
+
+### 2026-05-10 — Language-invariant matching intake broadened
+
+**Decision:** Istniejąca inicjatywa
+`.sage/work/20260510-language-invariant-workflow-matching-fix/` została
+doprecyzowana jako repo-wide audit natural-language matchingu, nie tylko fix
+jednej rubryki `[F]`.
+
+**Why:** Scenario `12-full-autonomous-key-assumption` zachowało się
+semantycznie poprawnie po polsku, ale oblało angielski regex. Alex wskazał, że
+to klasa błędów: workflow/hook/harness checks nie mogą zależeć od konkretnego
+języka, gdy sprawdzają znaczenie.
+
+**Next:** Wznowić tę inicjatywę osobno jako `/sage:fix`; obecny Klaster B tylko
+odnotowuje finding i nie próbuje teraz przebudować wszystkich rubryk.
+
+### 2026-05-10 — Codex RealHarness runbook created
+
+**Decision:** Utworzono runbook
+`.sage/docs/runbooks/codex-realharness.md` jako canonical config dla kolejnych
+agentów uruchamiających Codex RealHarness.
+
+**Why:** Alex poprosił, żeby konfiguracja testów RealHarness była zapisana w
+oddzielnym pliku i żeby kolejni agenci wiedzieli, gdzie jej szukać.
+
+**Result:** Plik definiuje model `gpt-5.4`, reasoning `low`, ordinary/default
+service tier, zakaz `fast` i `flex`, zakaz `--ignore-user-config` dla
+hook-enforcement scenarios, poprawny matcher `apply_patch`, oraz aktualny zestaw
+promptów Klastra B.
+
+**Next:** Każdy kolejny RealHarness run dla tego cyklu ma najpierw przeczytać
+ten runbook.
+
+### 2026-05-10 — RealHarness tests must never use service_tier fast
+
+**Decision:** Zapisano global memory `671a570ac0b240e4bf0b7907b2c3df7f`:
+testy, probes i RealHarness nie mogą używać `service_tier="fast"`.
+Następnie Alex doprecyzował regułę szerzej i zapisano memory
+`a0bcd9bdbd0744bb8fda8a6b5e58abed`: testy nie powinny wymuszać ani `fast`,
+ani `flex`; mają iść zwykłym/domyslnym tierem.
+
+**Why:** Podczas probe Klastra B agent użył `service_tier="fast"`, żeby obejść
+problem `flex` na `gpt-5.4-mini`. Alex skorygował, że to jest bardzo drogie i
+nieakceptowalne dla testów.
+
+**Result:** Dalsze RealHarness/probe runy muszą używać taniego tieru. Jeśli
+wybrany tani model nie wspiera `flex`, należy zmienić model albo zatrzymać się i
+zgłosić trade-off, a nie przełączać testy na `fast`.
+
+**Correction:** “Tani tier” oznacza tu brak jawnego `service_tier` override
+(`default/implicit`), a nie `flex`. Jeśli globalny config wymusza `flex`, test
+musi użyć izolowanego/oczyszczonego configu albo zatrzymać się.
+
+### 2026-05-10 — CLI hook routing probe completed for Cluster B
+
+**Decision:** Wykonano mały probe routingu Codex CLI hooków po niepełnym
+RealHarnessie Klastra B. Output:
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/cli-hook-routing-probe-20260510-112238/`.
+
+**Why:** RealHarness używał `codex exec --json --ignore-user-config`, a Alex
+przypomniał, że Codex CLI i Codex GUI mogą mieć różne routingi hooków. Trzeba
+było oddzielić realny brak hook evidence od pochopnej diagnozy configu.
+
+**Result:** Dla `--ignore-user-config` projektowe hooki nie odpaliły się w
+żadnym wariancie testowanym w probe. Z user configiem hooki odpaliły:
+`SessionStart`, `Stop`, a `PreToolUse` z matcherem `apply_patch` poprawnie
+zablokował file edit. Payload PreToolUse ma `tool_name: apply_patch`, mimo że
+JSONL transcript pokazuje item type `file_change`. Uwaga korekcyjna: część
+probe użyła `service_tier="fast"`, co jest błędem kosztowym i nie może być
+powtarzane w testach.
+
+**Implication:** Problem RealHarnessu nie jest “repo ma na pewno zły generator
+hooków”. Bardziej precyzyjnie: obecny RealHarness CLI z `--ignore-user-config`
+nie jest ważnym testem live hook enforcement, bo odcina routing/stan potrzebny
+do odpalenia hooków. Dla CLI obecny matcher `apply_patch` jest poprawny.
+
+**Next:** Naprawić albo wydzielić tryb RealHarnessu: bez
+`--ignore-user-config` z kontrolowanym config override na tanim tierze, albo z
+izolowanym `CODEX_HOME`, który zawiera wymagany hook routing/state. Rerun
+Klastra B dopiero po tej korekcie harnessu i bez `service_tier="fast"` ani
+`service_tier="flex"`.
+
+### 2026-05-10 — Language-invariant workflow matching captured
+
+**Decision:** Zapisano osobny intake
+`.sage/work/20260510-language-invariant-workflow-matching-fix/` dla szerszego
+fiksu: dopasowania w hookach/harnessie/workflow activation nie powinny zależeć
+od konkretnego języka i dokładnych fraz typu `approved plan`.
+
+**Why:** Scenariusz `[F]` w RealHarnessie zachował się semantycznie poprawnie,
+ale rubric nie złapała polskiego sformułowania. Alex wskazał, że to szersza
+luka: liczy się znaczenie, nie dokładne wyrażenie w konkretnym języku.
+
+**Boundary:** To jest capture-only finding. Nie zmieniamy teraz wszystkich
+rubryk/hooków w ramach QA Klastra B bez osobnego planu.
+
+### 2026-05-10 — Cluster B RealHarness found no CLI hook execution evidence
+
+**Decision:** Uruchomiono RealHarness dla Klastra B na `gpt-5.4` z
+`model_reasoning_effort=low`, w trybie `codex exec --json --ignore-user-config`
+na dummy-project. Wynik zapisano w
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/realharness-cluster-b-20260510-105933/`.
+
+**Why:** Alex poprosił o live-agent QA dla Klastra B i o tani model. Test miał
+zweryfikować realne zachowanie agenta, nie tylko shellowe predicate tests.
+
+**Result:** RealHarness Klastra B nie jest kompletny: 2/4 release-blocker
+scenariuszy przeszły, 2/4 nie. Krytyczny finding w warstwie dowodu:
+scenariusz `03-build-out-of-scope` faktycznie dodał `src/notes/random.md`, a w
+transcriptach/logach nie ma evidence, że hook CLI zablokował albo audytował tę
+mutację.
+
+**Correction:** Pierwsza interpretacja, że przyczyną jest na pewno
+`codex_hooks` vs `hooks`, była zbyt mocna. Alex przypomniał istniejący kontekst:
+Codex GUI i Codex CLI mogą działać na różnych routingach hooków. RealHarness
+udowadnia brak skutecznego hook enforcement w tym CLI run, ale nie rozstrzyga
+samodzielnie, czy winne jest feature flag, trust/routing, `hooks.json`, matcher
+tool name, `--ignore-user-config`, czy różnica GUI/CLI.
+
+**Boundary:** Następny krok to diagnoza routingu RealHarness dla CLI i
+porównanie z GUI/new-routing assumptions. Nie wolno jeszcze przepisywać
+generatora configu jako pewnej przyczyny.
+
+### 2026-05-10 — Cluster B code-only QA passed with warnings
+
+**Decision:** Wykonano code-only `/sage:qa` w cyklu
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/`. Raport
+zapisano jako `qa-report.md`.
+
+**Why:** Alex poprosił o QA w ramach cyklu i zaznaczył, żeby dać znać przed
+użyciem RealHarness. QA uruchomiło świeże deterministyczne testy oraz review
+diffu, bez RealHarness.
+
+**Result:** `PASS WITH WARNINGS`: 105 testów passed, 0 failed. Warningi:
+RealHarness nie został uruchomiony, więc live-agent behavior nie jest
+potwierdzone transcriptami; `active_session_id` enforcement działa tylko, gdy
+manifest ma pole `active_session_id`.
+
+**Boundary:** QA report wymaga akceptacji użytkownika. RealHarness pozostaje
+opcjonalnym następnym krokiem, jeśli Alex chce wyższej pewności co do zachowania
+realnego agenta.
+
+### 2026-05-10 — Cluster B fix verified
+
+**Decision:** Wdrożono i zweryfikowano patch Klastra B:
+workflow entry/resume boundary, recovery-first hook guidance, explicit
+status/phase communication, prosty `active_session_id` lease check oraz miękkie
+`[F]` jako zatwierdzony plan bez checkpointów do czasu zmiany kluczowych
+założeń.
+
+**Why:** Patch domyka rozjazd między rozmową, `.sage` state i runtime
+enforcement bez automatycznego logowania Lightweight/Surgical pracy do `.sage`
+i bez budowy ciężkiego lease systemu.
+
+**Verification:** Zielone: `stage3-agents-md.bats` 46/46,
+`pre-tool-validate.bats` 49/49, `aggregate-signals.bats` 10/10 oraz `rg`
+contract check.
+
+**Boundary:** Finalny closeout nadal wymaga akceptacji użytkownika.
+
+### 2026-05-10 — Cluster B plan approved for deliver
+
+**Decision:** Alex zatwierdził plan Klastra B po subagent review i po
+dodatkowym checkpointcie. Manifest
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/` ustawiono na
+`phase: deliver` z `semantic_reclassification: accepted`.
+
+**Why:** Plan został poprawiony po review i obejmuje testy/hooki, więc approval
+musi być jawny przed jakąkolwiek mutacją runtime. Teraz implementacja jest
+autoryzowana wyłącznie w scope manifestu.
+
+**Boundary:** Jeśli w trakcie implementacji pojawi się potrzeba TTL/heartbeat
+dla lease lock albo zmiana założeń `[F]`, praca musi wrócić do checkpointu.
+
+### 2026-05-10 — Subagent review still requires user approval after changes
+
+**Decision:** Zapisano intake
+`.sage/work/20260510-subagent-review-approval-boundary-fix/` dla błędnego
+wordingu gate: `[A] Subagent review ... then implement`. Po subagent review,
+szczególnie gdy wynik to `approve with changes`, agent ma pokazać poprawiony
+plan/root cause i wrócić do usera po jawne zatwierdzenie implementacji.
+
+**Why:** Subagent review jest pogłębioną analizą, nie approvalem człowieka.
+Review może wnieść nowe ryzyko albo zmianę scope, więc automatyczne wejście w
+implementację po review omija checkpoint dokładnie wtedy, kiedy pojawiła się
+nowa informacja.
+
+**Boundary:** To jest osobny capture-only finding do kolejnego fixa. W obecnym
+cyklu Klastra B cofnięto manifest z `deliver` do `fix-scope-gate`; implementacja
+nie jest zatwierdzona, dopóki Alex nie zaakceptuje planu po review.
+
+### 2026-05-10 — Cluster B plan approved after subagent review
+
+**Decision:** Alex wybrał `[A] Subagent review` dla planu Klastra B. Review
+zwrócił `approve with changes`; plan doprecyzowano o
+`semantic_reclassification: accepted` przed deliver oraz konkretny recovery
+message dla `active_session_id` mismatch. Manifest cyklu przeszedł na
+`phase: deliver`.
+
+**Why:** Patch zmienia testy i hooki, więc istniejący risky-path guard wymaga
+jawnej semantycznej akceptacji scope. Lease lock ma pozostać prosty, ale musi
+mieć czytelną ścieżkę wyjścia: wróć do oryginalnej sesji, poproś usera o
+handoff/parking albo utwórz osobny intake.
+
+**Boundary:** Implementacja jest teraz autoryzowana wyłącznie w zatwierdzonym
+scope manifestu.
+
+### 2026-05-10 — Cluster B fix plan ready
+
+**Decision:** Po akceptacji root cause zapisano plan dla
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/` i ustawiono
+manifest na `phase: fix-scope-gate`, `status: in-progress`.
+
+**Why:** Plan dzieli patch na trzy warstwy: generated/shared guidance dla
+agenta, prosty hook/runtime enforcement tam gdzie to realne, oraz harness/testy.
+Zachowuje Lightweight/Surgical bez automatycznego `.sage` logowania i ogranicza
+lease lock do prostego `active_session_id` claim bez TTL/heartbeat.
+
+**Boundary:** Implementacja nie została rozpoczęta. Następny legalny krok to
+approval planu albo jego rewizja.
+
+### 2026-05-10 — Cluster B subagent root cause review accepted with changes
+
+**Decision:** Subagent review dla
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/` zwrócił
+`approve with changes`. Doprecyzowano top-level root cause: kontrakt
+`state transition before continuation` dotyczy Standard+/Moderate+ workflow,
+aktywnych cykli, recovery i trwałych decyzji, a nie każdej drobnej
+Lightweight/Surgical zmiany. Zmiękczono też wording `[F]`, żeby nie sugerował
+ciężkiego systemu grantów.
+
+**Why:** Review potwierdził kierunek diagnozy, ale wskazał ryzyko nadmiernej
+biurokracji oraz mieszania hook message contract z agent retry behavior.
+Te rozróżnienia muszą wejść do planu, żeby patch nie zbudował drugiego workflow
+state machine obok istniejącego Sage.
+
+**Boundary:** Implementacja nadal nie została rozpoczęta. Następny legalny krok
+to akceptacja poprawionej diagnozy i przejście do plan/scope gate.
+
+### 2026-05-10 — Cluster B lightweight logging and simple lease rule clarified
+
+**Decision:** Poniżej Standard+ agent nie zapisuje automatycznie każdej drobnej
+zmiany w `.sage`; zapis jest potrzebny tylko przy trwałej decyzji, follow-upie,
+learningu, incydencie/recovery albo aktywnym cyklu. Dla Fix 6 akceptowany
+prosty model to: cykl `status: in-progress` może edytować tylko sesja, która
+aktywowała ten status; `plan-gate`, `deliver` i podobne są podfazami tego
+samego claimu.
+
+**Why:** Lightweight/Surgical ma pozostać lekkie. Jednocześnie aktywny cykl
+powinien mieć prostą ochronę przed równoległą edycją przez innego agenta, bez
+budowania ciężkiego systemu locków.
+
+**Boundary:** To nadal kalibracja planu, nie implementacja. Plan ma sprawdzić,
+czy prosty `session_id`-based claim da się wdrożyć bez TTL/heartbeat/stale-lock
+mechaniki; jeśli nie, lease lock wypada z Klastra B.
+
+### 2026-05-10 — Cluster B root cause calibrated by Alex
+
+**Decision:** Doprecyzowano scope Klastra B przed planowaniem:
+`Standard+` ma oznaczać realny próg procesu, nie każdą drobną zmianę; hook block
+ma zawsze prowadzić do recovery path; agent ma komunikować każdą zmianę
+statusu; lease lock wdrażamy tylko jeśli jest bardzo prosty; `[F]` opisujemy
+jako zgodę na wykonanie zatwierdzonego planu bez checkpointów, z powrotem do
+usera dopiero przy kluczowych zmianach założeń.
+
+**Why:** Alex chce zachować rygor Sage bez robienia z systemu ciężkiej biurokracji
+dla prostych zmian. Klaster B ma naprawiać realne rozjazdy stanu, a nie
+powodować, że agent nie może wykonać oczywistej Lightweight/Surgical zmiany.
+
+**Boundary:** To jest rewizja diagnozy/scope, nie approval implementacji.
+Następny krok to zatwierdzenie root cause albo dalsza rewizja, a potem
+plan/scope gate.
+
+### 2026-05-09 — Workflow entry/resume/recovery/autonomy root cause ready
+
+**Decision:** Otworzono formalny fix cycle
+`.sage/work/20260509-workflow-entry-resume-recovery-autonomy-fix/` dla Klastra B
+i zapisano diagnozę root cause na `root-cause-gate`.
+
+**Why:** Wątki B mają wspólny problem: brak jednego kontraktu
+`state transition before continuation`. Deklaracja workflow, resume parked
+cycle, recoverable hook block i `[F] Full autonomous implementation` muszą być
+powiązane z obserwowalnym stanem na dysku albo explicit approval snapshot,
+inaczej rozmowa, manifest i runtime widzą trzy różne prawdy.
+
+**Boundary:** Implementacja nie została rozpoczęta. Następny legalny krok to
+approval albo rewizja root cause, potem plan/scope gate. Istniejący Klaster A
+`20260509-mutation-enforcement-target-safety-fix` pozostaje osobnym aktywnym
+cyklem na swoim gate.
+
+### 2026-05-09 — Mutation enforcement target safety root cause ready
+
+**Decision:** Otworzono formalny fix cycle
+`.sage/work/20260509-mutation-enforcement-target-safety-fix/` i zapisano
+diagnozę root cause dla klastra mutation enforcement + target safety.
+
+**Why:** Klaster nie jest pojedynczym bugiem `AGENTS.md`, tylko wspólnym
+problemem klasyfikacji i egzekwowania realnych mutacji repo: `apply_patch`,
+`file_change`, shell/binary asset paths, source-vs-docs boundary, target repo
+ownership oraz harness transcript assertions. Najważniejsze evidence pochodzi z
+Project Dummy QA scenariuszy 03, 04 i 11.
+
+**Boundary:** Implementacja nie została rozpoczęta. Następny legalny krok to
+approval albo rewizja root cause, potem plan/scope gate dla systemic fix.
+
+### 2026-05-09 — Open work is grouped into four execution clusters
+
+**Decision:** Pozostałe otwarte intake/follow-upy z 2026-05-09 zostały
+zmapowane do czterech klastrów wykonawczych w
+`.sage/work/20260509-open-work-cluster-map/cluster-map.md`.
+
+**Why:** Alex nie chce, żeby pojedyncze wątki takie jak active-cycle lease,
+task-plan visibility albo autonomous approval boundary zostały samotnymi
+ogonkami. Kolejne sesje mają widzieć większe patch themes: mutation
+enforcement, workflow entry/recovery/autonomy, Codex surface/config oraz
+Alex-native communication/visibility.
+
+**Boundary:** To jest decyzja porządkowa i handoffowa. Nie zamyka źródłowych
+intake manifestów ani nie autoryzuje implementacji; każdy klaster nadal wymaga
+formalnego `/sage:fix` z diagnozą, scope i planem.
+
+### 2026-05-09 — Workflow declaration must open a real cycle
+
+**Decision:** Dodano intake
+`.sage/work/20260509-cycle-workflow-entry-enforcement-fix/` dla wymagania, ze
+agent, ktory pewnie deklaruje dopasowanie zadania do workflow, np. build, musi
+realnie wejsc w ten workflow i otworzyc albo wznowic cykl.
+
+**Why:** Sama deklaracja w tekscie nie tworzy stanu Sage. Bez `manifest.md` i
+formalnego statusu runtime, hooki, checkpointy, resume oraz kolejne sesje nie
+maja czego egzekwowac, mimo ze agent konwersacyjnie "wybral workflow".
+
+**Boundary:** Capture-only. Ten intake nie implementuje jeszcze zmian w
+routerze, workflow docs ani harnessie; nastepny legalny krok to formalny
+`/sage:fix` i sprawdzenie overlapu z
+`20260509-agent-resume-intake-cycle-fix`.
+
+### 2026-05-09 — Open manifest metadata cleanup after second-pass review
+
+**Decision:** Po drugim pass review oznaczono jednoznacznie pokryte intake jako
+zamknięte albo folded: `cross-cycle-scope-workaround-fix`,
+`decisions-capture-without-active-plan-fix`, `multi-active-cycle-model-fix`,
+`hook-routing-command-audit` oraz `open-initiatives-consolidation`.
+
+**Why:** Evidence z `20260509-runtime-workflow-enforcement-hardening` i
+`20260509-runtime-workflow-enforcement-qa` pokrywa path-intent Cycle Resolver,
+cross-cycle capture z `.sage/decisions.md`, `sage:continue` recovery wording,
+ambiguous multi-cycle block i new intake bootstrap. Analysis cycle został
+superseded, bo rekomendowany umbrella fix został już zamknięty.
+
+**Boundary:** Nie zamknięto wątków wymagających świeżej weryfikacji:
+`file-change-enforcement-fix`, `binary-asset-mutation-contract-fix` i
+`hook-block-recovery-behavior-fix`. Ich read-only verification wykonuje
+subagent.
+
+### 2026-05-09 — Hook block recovery behavior captured
+
+**Decision:** Dodano intake
+`.sage/work/20260509-hook-block-recovery-behavior-fix/` dla reguły, że agent po
+recoverable hook block ma skorygować działanie i ponowić je legalną ścieżką,
+zamiast zatrzymać pracę.
+
+**Why:** W tej rozmowie hook poprawnie zablokował zbyt szeroki patch capture,
+ale agent potraktował blokadę jako koniec pracy. Poprawne zachowanie to
+odczytać komunikat hooka jako instrukcję recovery, dopasować patch do legalnego
+kształtu i spróbować ponownie, chyba że blokada wymaga decyzji użytkownika.
+
+**Boundary:** Capture-only. Intake powinien zostać skonsolidowany z istniejącymi
+follow-upami `agent-resume-intake-cycle-fix` i `blocking-hook-guidance-review`,
+jeśli formalny `/fix` potwierdzi overlap.
+
+### 2026-05-09 — Self-host Codex loader path bug captured
+
+**Decision:** Dodano intake
+`.sage/work/20260509-selfhost-codex-loader-path-fix/` dla nowego wariantu
+problemu ze ścieżkami loaderów Codexa.
+
+**Why:** Fix F1-7 poprawił wygenerowane target repo, gdzie workflowe są pod
+`sage/core/workflows/...`. W samym repo frameworka `sage-selfhost` realna
+ścieżka to `core/workflows/...`, ale `.agents/skills/sage:*` wskazują dziś na
+wariant targetowy. Dlatego świeży thread w self-host może nadal dostać
+`No such file or directory`, mimo że generator jest poprawny dla targetów.
+
+**Boundary:** Capture-only. Nie wdrożono jeszcze poprawki generatora ani
+regeneracji `.agents/skills`; następny legalny krok to formalny `/fix` dla
+tego intake.
+
+### 2026-05-09 — Autonomous approval boundary fix parked as handoff
+
+**Decision:** Alex wybrał `[N] New session` dla cyklu
+`.sage/work/20260509-autonomous-approval-boundary-fix/`.
+
+**Why:** Plan ma zostać zachowany jako zaparkowany handoff, a nie traktowany
+jako approval do wdrożenia.
+
+**Boundary:** Następna sesja musi ponownie pokazać plan i uzyskać explicit
+approval przed zmianami w workflow/runtime.
+
+### 2026-05-09 — Plan for autonomous approval boundary fix captured
+
+**Decision:** Utworzono plan
+`.sage/work/20260509-autonomous-approval-boundary-fix/plan.md`, który ma
+naprawić zbyt szeroką interpretację `[F] Full autonomous implementation`.
+
+**Why:** `[F]` miało pozwalać wykonać zatwierdzony plan bez checkpointów
+pośrednich, ale agent potraktował późniejsze scope expansion jako część tej
+autonomii. Root cause: autonomia nie była twardo związana z konkretnym
+snapshotem `plan.md` i `manifest.scope`.
+
+**Boundary:** To jest plan-gate. Nie wdrożono jeszcze zmian w workflow/runtime.
+Następny krok to approval albo rewizja planu.
+
+### 2026-05-09 — QA workflow Polish report contract captured
+
+**Decision:** Dodano intake
+`.sage/work/20260509-qa-workflow-polish-report-contract/` dla poprawki
+`qa.workflow.md`, żeby workflow jasno wymuszał polską prozę raportów QA w
+projektach Alex-native.
+
+**Why:** Alex zapytał, dlaczego QA report wygenerował się po angielsku.
+Przyczyną było zbyt literalne użycie angielskiego template'u. Najwęższy
+systemowy fix to dopisać regułę językową bezpośrednio do QA workflow.
+
+**Boundary:** Intake obejmuje tylko punkt 1: workflow wording. Polski template
+i test regresyjny zostają potencjalnymi osobnymi krokami.
+
+### 2026-05-09 — Runtime workflow enforcement QA passed
+
+**Decision:** Wykonano `/sage:qa` dla zamkniętego fixa
+`20260509-runtime-workflow-enforcement-hardening`. Raport zapisano w
+`.sage/work/20260509-runtime-workflow-enforcement-qa/qa-report.md`.
+
+**Why:** Alex poprosił o testy fixa po commicie/pushu. Ponieważ patch dotyczy
+CLI, hooków, generated instructions i harness rubrics, QA użyło code-only
+fallback oraz funkcjonalnych smoke testów na tymczasowym wygenerowanym
+projekcie.
+
+**Result:** `PASS WITH WARNINGS`: 13 pass, 0 fail, 1 warning. Ostrzeżenie:
+browser testing nie miało zastosowania dla tego patcha.
+
 ### 2026-05-09 — Runtime workflow enforcement fix approved and closed
 
 **Decision:** Alex zaakceptował verified fix dla runtime workflow enforcement.

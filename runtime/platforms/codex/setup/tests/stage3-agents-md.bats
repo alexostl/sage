@@ -226,6 +226,20 @@ EOF
     grep -q 'Writing plan.md or manifest.md after code does not cure the violation' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md defines state transition boundary without overlogging lightweight work" {
+    PRESET=base run_stage3
+    grep -q 'Lightweight/Surgical work may finish with code plus conversation summary' "$TARGET/AGENTS.md"
+    grep -q 'Standard+/Moderate+ entry or resume must create/update the manifest' "$TARGET/AGENTS.md"
+    grep -q 'After changing `status` or `phase`, say what changed' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md treats hook blocks as recovery guidance" {
+    PRESET=base run_stage3
+    grep -q 'recoverable hook block is correction guidance' "$TARGET/AGENTS.md"
+    grep -q 'retry via the named legal' "$TARGET/AGENTS.md"
+    grep -q 'named user decision' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md says active work does not force read-only implementation" {
     PRESET=base run_stage3
     grep -q 'When active work exists' "$TARGET/AGENTS.md"
@@ -254,8 +268,9 @@ EOF
     PRESET=base run_stage3
     grep -q '\[C\] Checkpointed implementation' "$TARGET/AGENTS.md"
     grep -q '\[F\] Full autonomous implementation' "$TARGET/AGENTS.md"
-    grep -q 'no intermediate checkpoints until' "$TARGET/AGENTS.md"
-    grep -q 'partial-guardrail risk' "$TARGET/AGENTS.md"
+    grep -q 'approved plan without intermediate' "$TARGET/AGENTS.md"
+    grep -q 'key assumption' "$TARGET/AGENTS.md"
+    grep -q 'material risk changes the plan' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md covers subagent scope inheritance" {
@@ -278,6 +293,8 @@ EOF
     PRESET=base run_stage3
     grep -q 'status: in-progress' "$TARGET/AGENTS.md"
     grep -q 'implementation-active' "$TARGET/AGENTS.md"
+    grep -q 'active_session_id' "$TARGET/AGENTS.md"
+    grep -q 'handoff/parking' "$TARGET/AGENTS.md"
     grep -q 'status: paused' "$TARGET/AGENTS.md"
     grep -q 'status: intake' "$TARGET/AGENTS.md"
     grep -q 'parked,' "$TARGET/AGENTS.md"
