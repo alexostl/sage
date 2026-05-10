@@ -58,7 +58,7 @@ read_json_or_key_value_log() {
         return
     fi
 
-    awk -F'|' '
+    awk -F'|' -v source_file="$file" '
         function emit_entry() {
             if (kind != "") {
                 print kind "\t" severity
@@ -67,17 +67,17 @@ read_json_or_key_value_log() {
             severity = ""
         }
         {
-            if ($0 ~ /^### /) {
+            if ($0 ~ /^#{2,3} /) {
                 emit_entry()
                 heading = tolower($0)
-                if (heading ~ /safe/ || heading ~ /auto-fix/ || heading ~ /scope repair/) {
+                if (source_file ~ /\.auto-fixes\.log$/ || heading ~ /safe/ || heading ~ /auto-fix/ || heading ~ /scope repair/ || heading ~ /scope update/) {
                     kind = "safe_auto_fix"
                 }
                 next
             }
-            if (kind != "" && $0 ~ /^Severity:/) {
+            if (kind != "" && $0 ~ /^-?[[:space:]]*Severity:/) {
                 severity = $0
-                sub(/^Severity:[[:space:]]*/, "", severity)
+                sub(/^-?[[:space:]]*Severity:[[:space:]]*/, "", severity)
                 next
             }
             pipe_kind = ""
@@ -106,6 +106,11 @@ read_json_or_key_value_log() {
     '
     rm -f "$tmp"
 }
+
+if [ "${HARNESS_TEST_READ_LOG:-}" = "1" ]; then
+    read_json_or_key_value_log "${1:?log file required}" "${2:-1}"
+    exit 0
+fi
 
 OUT_DIR="${HARNESS_OUT:-$(mktemp -d -t codex-harness.XXXXXX)}"
 TARGET="$OUT_DIR/target"
@@ -215,12 +220,17 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
     before_manifests_json="$(cd "$TARGET" && find .sage/work -mindepth 2 -maxdepth 2 -name manifest.md -type f 2>/dev/null | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
 
     # codex exec --json: non-interactive JSON-line transcript.
+    # CLI 0.126 still needs the legacy feature gate for project-local hooks,
+    # while generated Desktop config uses [features].hooks. Keep this
+    # compatibility shim in the harness so release evidence exercises hooks.
     # --skip-git-repo-check + --ephemeral + --dangerously-bypass-... per
     # ADR-9 / cycle test setup; -C runs in target dir.
     # < /dev/null closes stdin (codex hangs on shell-special chars).
-    if codex exec --json --ignore-user-config --skip-git-repo-check --ephemeral \
+    if codex exec --json --enable codex_hooks --skip-git-repo-check --ephemeral \
         --dangerously-bypass-approvals-and-sandbox \
         -m "$HARNESS_MODEL" -c "model_reasoning_effort=\"$HARNESS_REASONING\"" \
+        -c 'service_tier="fast"' \
+        -c "projects.\"$TARGET\".trust_level=\"trusted\"" \
         -C "$TARGET" "$prompt_text" > "$out" 2> "$out.stderr" < /dev/null; then
         rc=0
         printf '0\n' > "$out.exit"

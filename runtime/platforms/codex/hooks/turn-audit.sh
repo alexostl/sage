@@ -95,14 +95,24 @@ contains() {
     return 1
 }
 
+mutation_severity() {
+    local path="$1"
+    case "$path" in
+        AGENTS.md|sage/AGENTS.md|.codex/*|bin/*|runtime/*|src/*|tests/*|*.bats|*/tests/*)
+            printf 'critical' ;;
+        *)
+            printf 'warn' ;;
+    esac
+}
+
 # Step 3 — bypass_mutation: in git-diff but not in session-mutations log.
 for p in ${actual_paths[@]+"${actual_paths[@]}"}; do
     if [ "${#claimed_paths[@]}" -gt 0 ]; then
         if ! contains "$p" "${claimed_paths[@]}"; then
-            emit_incident "bypass_mutation" "$p" "warn"
+            emit_incident "bypass_mutation" "$p" "$(mutation_severity "$p")"
         fi
     else
-        emit_incident "bypass_mutation" "$p" "warn"
+        emit_incident "bypass_mutation" "$p" "$(mutation_severity "$p")"
     fi
 done
 

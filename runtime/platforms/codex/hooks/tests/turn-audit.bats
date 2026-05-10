@@ -190,6 +190,7 @@ EOF
     [ -f "$log" ]
     grep -q "bypass_mutation" "$log"
     grep -q "src/sneaky.txt" "$log"
+    tail -n1 "$log" | jq -e '.severity == "critical"' >/dev/null
 }
 
 @test "turn-audit.sh: absolute path in session-mutations.log matches relative porcelain → no false bypass" {

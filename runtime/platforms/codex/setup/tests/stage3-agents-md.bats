@@ -320,6 +320,9 @@ EOF
     grep -q 'state, memory, scope, gates, and recovery' "$TARGET/AGENTS.md"
     grep -q 'framework repository must not impersonate' "$TARGET/AGENTS.md"
     grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
+    grep -q 'Do not write `.sage/\*\*` outside the target repo' "$TARGET/AGENTS.md"
+    grep -q 'Source/runtime/test/config/' "$TARGET/AGENTS.md"
+    grep -q 'same-turn self-created artifacts are not approval' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md preserves explicit subagent review and skip-review checkpoint paths" {

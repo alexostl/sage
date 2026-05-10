@@ -34,6 +34,17 @@ if [ -n "$first_state" ] && [ -f "$first_state" ]; then
     report_target_mode="$(jq -r '.target_mode // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
 fi
 
+regex_escape() {
+    sed 's/[][(){}.^$*+?|\\]/\\&/g'
+}
+
+expand_rubric_pattern() {
+    local pattern="$1"
+    local escaped_framework
+    escaped_framework="$(printf '%s' "$FRAMEWORK_ROOT" | regex_escape)"
+    printf '%s' "${pattern//__FRAMEWORK_ROOT__/$escaped_framework}"
+}
+
 # --- Signal 1: workflow-entry rate ----------------------------------
 # Count `/sage:` (or `/sage`) invocations in agent transcripts. Each
 # transcript is a JSON-lines stream from `codex exec --json`; the agent's
@@ -203,7 +214,7 @@ if [ -f "$scenario_manifest" ]; then
         rubric_failures='[]'
         rubric_pass=true
         rubric="$(printf '%s' "$row" | jq -c '.state_rubric // {}')"
-        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
+        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .forbidden_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
         claim="$(printf '%s' "$row" | jq -r '.claim // ""')"
         if [ "$rubric_required_count" -eq 0 ] && printf '%s' "$claim" | grep -Eiq 'blocked mutation|blocked|recovery'; then
             rubric_pass=false
@@ -263,6 +274,14 @@ if [ -f "$scenario_manifest" ]; then
                     rubric_failures="$(jq -c --arg msg "missing transcript pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
                 fi
             done < <(jq -r '.required_transcript_patterns[]? // empty' <<< "$rubric")
+            while IFS= read -r pattern; do
+                [ -n "$pattern" ] || continue
+                expanded_pattern="$(expand_rubric_pattern "$pattern")"
+                if [ -s "$transcript" ] && grep -E -q "$expanded_pattern" "$transcript" 2>/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "forbidden transcript pattern present: $pattern" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.forbidden_transcript_patterns[]? // empty' <<< "$rubric")
         fi
         if [ -s "$transcript" ] && [ "$exit_code" = "0" ] && [ "$rubric_pass" = "true" ]; then
             v11_present_release_blockers=$((v11_present_release_blockers + 1))

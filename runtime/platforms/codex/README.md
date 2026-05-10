@@ -25,8 +25,8 @@ runtime/platforms/codex/
 ├── hooks/                      — bash-native v1 hook implementations
 │   ├── lib/                    — sourced helpers (json_log, active_init,
 │   │                              path_normalize)
-│   ├── pre-tool-validate.sh    — PreToolUse(apply_patch) gate
-│   ├── post-tool-check.sh      — PostToolUse(apply_patch) audit
+│   ├── pre-tool-validate.sh    — PreToolUse(apply_patch/Edit/Write) gate
+│   ├── post-tool-check.sh      — PostToolUse(apply_patch/Edit/Write) audit
 │   ├── session-init.sh         — SessionStart banner + cycle summary
 │   ├── turn-audit.sh           — Stop event Sage-audit (partial ADR-7)
 │   └── tests/                  — bats suite (223 tests)
@@ -49,6 +49,19 @@ Bats sweep:
 ```bash
 bats runtime/platforms/codex/setup/tests/ runtime/platforms/codex/hooks/tests/
 ```
+
+## Hook activation and coverage
+
+Generated Codex config enables the current Desktop hook flag with
+`[features].hooks = true` and deploys `.codex/hooks.json`. The registry
+matches `apply_patch|Edit|Write` for file-edit hooks plus `Stop` for turn-end
+audit. The real-agent harness also passes `--enable codex_hooks` because CLI
+0.126 still requires the legacy feature gate to load project-local hooks;
+Desktop config should stay on `[features].hooks = true`.
+
+PreToolUse enforces both patch-style edits and `file_change` payloads when the
+runtime surfaces them. Stop/audit remains the fallback evidence layer for any
+mutation path that a runtime does not expose before write-time.
 
 ## Why `bash + jq + yq`, not MCP?
 

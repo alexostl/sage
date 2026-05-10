@@ -4,7 +4,7 @@
 # Responsibilities:
 #   1. Build the Sage managed block (paired markers START/END).
 #   2. Inside the block: top-level developer_instructions, [features]
-#      codex_hooks=true, and [history] persistence.
+#      hooks=true, and [history] persistence.
 #   3. v1: NO [[mcp_servers]] block (§8 deferred entirely).
 #   4. Apply block-managed write strategy:
 #      - Marker pair found  → replace content between markers.
@@ -36,6 +36,7 @@ Sage hard kernel:
 - Memory first: discover Sage Memory through the available Codex tool-discovery/MCP surface, then .sage-memory fallback when tools are unavailable.
 - Bug reports/findings without an explicit fix mandate require capture/diagnosis first; do not edit code until the user asks for a fix or a workflow gate approves implementation.
 - Artifacts before code: Standard+ work needs approved spec/plan and manifest scope before edits.
+- Mutation boundary: source/runtime/test/config/instruction behavior changes require proper Sage workflow + approved scope; same-turn self-created artifacts are not approval.
 - Polish prose: keep Sage artifact structure/canonical terms in English, but write new .sage prose in Polish, including append-only sections in older English files.
 - Checkpoints: preserve [A] Review and [S] Skip review; after approved plan preserve [C] Checkpointed implementation and [F] Full autonomous implementation.
 - Subagents/reviewers inherit the same Sage scope, project instructions, MCP/tool expectations, and verification gates.
@@ -46,7 +47,7 @@ AGENTS.md contains the compact project router; .agents/skills and core/workflows
 """
 
 [features]
-codex_hooks = true            # required for L1 — confirms hooks loaded
+hooks = true                  # required for L1 — confirms hooks loaded
 
 # Optional review / model tuning (commented out by default; user-owned)
 # review_model = "..."
@@ -251,7 +252,7 @@ compose_config_toml() {
     cat <<EOF
 [stage 4] composed .codex/config.toml
   path=$target/.codex/config.toml
-  managed_block=present (developer_instructions top-level, codex_hooks=true, [history].persistence)
+  managed_block=present (developer_instructions top-level, hooks=true, [history].persistence)
   mcp_servers=absent (v1 §8 deferred)
 EOF
 }

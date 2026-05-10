@@ -42,7 +42,8 @@ cost-sensitive.
 The harness:
 1. Creates a fresh `git init` target at `$OUT/target/`
 2. Runs `bin/sage init --platform codex --preset base` on it
-3. Executes every prompt in `prompts/` via `codex exec --json`
+3. Executes every prompt in `prompts/` via `codex exec --json` with the
+   CLI compatibility flags needed to load project-local hooks
 4. Captures one JSONL transcript per prompt at `$OUT/transcripts/`
 5. Runs `lib/aggregate-signals.sh` to produce `$OUT/report.json`
 
@@ -63,6 +64,7 @@ Prompts cover the routing surface:
 8. **08-safe-autofix-metadata** — reversible metadata repair keeps work moving
 9. **09-memory-correction-reuse** — `.sage-memory` correction is reused
 10. **10-cross-repo-target-state** — target repo owns workflow state
+11. **11-bug-report-no-fix** — bug report is captured/diagnosed without implementation
 
 Add prompts to `prompts/` to extend coverage. The aggregator picks
 up all `*.txt` files automatically.
@@ -82,6 +84,9 @@ Each prompt writes a sidecar `*.state.json` snapshot with final files,
 manifests, per-prompt changed files, newly-created manifests, and audit-log
 deltas. Release-blocker audit rubrics are evaluated against the scenario
 snapshot only; final target-wide logs are not enough to satisfy a scenario.
+Transcript rubrics also support `forbidden_transcript_patterns` for cases where
+the dangerous behavior is a transient write attempt outside the target repo,
+even when final target state looks clean.
 
 Harness failures block release claims when the changed behavior depends on
 Codex following the operating model. Harness failures are advisory for
@@ -99,8 +104,11 @@ scenario has a real Codex transcript from the current harness run with
 - `codex` ≥ 0.126.0-alpha.15 on PATH
 - `jq` and `git` on PATH
 - Framework's `bin/sage` executable
-- Harness runs `codex exec --ignore-user-config` so user-level settings such
-  as an unsupported `service_tier` do not invalidate release evidence.
+- Harness currently passes `--enable codex_hooks` because CLI 0.126 still uses
+  the legacy feature gate for hook loading. Generated Desktop config remains on
+  `[features].hooks = true`; this harness shim is only for real CLI evidence.
+- Harness also pins `service_tier="fast"` and marks the generated target as
+  trusted so local developer config cannot accidentally disable the run.
 
 ## Output schema (`report.json`)
 
@@ -126,8 +134,8 @@ scenario has a real Codex transcript from the current harness run with
     "7_l1_bypass":      { "count": N, "total": M, "rate": ... },
     "8_decisions_missing": { "count": N, "total": M, "rate": ... },
     "v11_release_blocker_harness": {
-      "total": 7,
-      "present": 7,
+      "total": 9,
+      "present": 9,
       "missing": [],
       "complete": true
     }

@@ -37,6 +37,8 @@ write_release_blocker_transcripts() {
             [ -n "$prompt" ] || continue
             if [ "$prompt" = "03-build-out-of-scope.txt" ]; then
                 printf '{"type":"assistant","message":"Sage: BLOCKING outside cycle scope. Next legal move: use sage:continue or update the approved manifest scope first."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            elif [ "$prompt" = "04-fix-trigger.txt" ]; then
+                printf '{"type":"assistant","message":"A fix cycle is required here: diagnosis/scope gate before changing AGENTS.md."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "11-bug-report-no-fix.txt" ]; then
                 printf '{"type":"assistant","message":"Zapisuję zgłoszony błąd jako finding bez implementacji."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             else
@@ -79,8 +81,8 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.total == 8' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 8' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.total == 9' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 9' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_rule | test("cannot be marked complete")' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_rule | test("exit code 0")' >/dev/null
 }
@@ -96,7 +98,7 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 8' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 9' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[0].exit_code == "1"' >/dev/null
 }
 
@@ -119,7 +121,7 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == true' >/dev/null
-    echo "$output" | jq -e '.signals.v11_release_blocker_harness.present == 8' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.present == 9' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 0' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.real_harness_required_for | index("memory reuse across sessions")' >/dev/null
     echo "$output" | jq -e '.model_profile.model == "gpt-5.4"' >/dev/null
@@ -141,6 +143,22 @@ write_release_blocker_states() {
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "06-action-creates-or-resumes-manifest") | .rubric_failures[] | test("missing changed file pattern")' >/dev/null
+}
+
+@test "aggregate-signals: fix-trigger scenario fails if AGENTS.md changed directly" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    for f in "$TRANSCRIPTS"/*.jsonl; do
+        printf '0\n' > "$f.exit"
+    done
+    jq '.changed_files = ["AGENTS.md"]' "$TRANSCRIPTS/04-fix-trigger.jsonl.state.json" \
+        > "$TRANSCRIPTS/state.tmp"
+    mv "$TRANSCRIPTS/state.tmp" "$TRANSCRIPTS/04-fix-trigger.jsonl.state.json"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "04-fix-trigger") | .rubric_failures[] | test("forbidden changed file pattern")' >/dev/null
 }
 
 @test "aggregate-signals: blocked-mutation scenario fails if src files changed" {
@@ -220,7 +238,7 @@ EOF
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals."7_l1_bypass".count == 0' >/dev/null
-    echo "$output" | jq -e '.signals."7_l1_bypass".total == 8' >/dev/null
+    echo "$output" | jq -e '.signals."7_l1_bypass".total == 9' >/dev/null
 }
 
 @test "aggregate-signals: bug-report-no-fix fails if implementation files change" {
@@ -237,4 +255,19 @@ EOF
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "11-bug-report-no-fix") | .rubric_failures[] | test("forbidden changed file pattern")' >/dev/null
+}
+
+@test "aggregate-signals: bug-report-no-fix fails if transcript mentions parent repo .sage writes" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    for f in "$TRANSCRIPTS"/*.jsonl; do
+        printf '0\n' > "$f.exit"
+    done
+    printf '{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"%s/.sage/decisions.md","kind":"update"}]}}\n' "$REPO_ROOT" \
+        >> "$TRANSCRIPTS/11-bug-report-no-fix.jsonl"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing[] | select(.id == "11-bug-report-no-fix") | .rubric_failures[] | test("forbidden transcript pattern")' >/dev/null
 }

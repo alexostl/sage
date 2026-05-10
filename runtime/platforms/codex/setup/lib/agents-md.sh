@@ -327,6 +327,10 @@ target. Do not auto-fix across repository boundaries. Absolute paths outside
 the target repo are out of scope unless they are explicitly listed in the
 active manifest scope.
 
+Do not write \`.sage/**\` outside the target repo. Source/runtime/test/config/
+instruction behavior changes require the proper Sage workflow and approved
+manifest scope; same-turn self-created artifacts are not approval.
+
 ### Checkpoints And Done
 
 Never skip human approval on briefs, specs, plans, or final

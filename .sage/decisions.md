@@ -5,6 +5,365 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-10 — Mutation enforcement cycle closed
+
+**Decision:** Zamknieto cykl `20260509-mutation-enforcement-target-safety-fix` po implementacji QA follow-upu, deterministic verification, generated smoke oraz targeted real probes 03/04.
+
+**Why:** Source i instruction mutation safety zostaly potwierdzone punktowo: `src/notes/random.md` nie powstal w probe 03, a `AGENTS.md` nie zostal zmieniony w probe 04. Pozostaly pelny 11-prompt harness jest opcjonalnym follow-upem, nie blockerem zamkniecia tego cyklu.
+
+**Boundary:** Nie wlaczono unrelated `.sage/work/20260509-open-initiatives-consolidation/manifest.md` do closeout ani commit scope.
+
+### 2026-05-10 — QA follow-up implemented: same-turn self-created cycles block source/instructions
+
+**Decision:** Zaimplementowano QA follow-up dla
+`20260509-mutation-enforcement-target-safety-fix`: RealHarness dostaje CLI
+compatibility flags, parser audit logow rozpoznaje markdown `##`, a
+`pre-tool-validate` blokuje source/runtime/test/config/instruction mutacje,
+gdy manifest lub plan zostaly utworzone w tym samym turnie.
+
+**Why:** Pierwszy real probe pokazal, ze samo wymaganie `plan.md` jest za
+slabe: agent moze sam stworzyc manifest+plan i natychmiast zapisac `src/**`.
+`turn_id` daje prostsza, bezpieczniejsza granice: plan moze byc zatwierdzony w
+kolejnej turze, ale nie moze byc self-approval w tym samym autonomicznym runie.
+
+**Evidence:** Deterministic Bats pass dla pre-tool, stage3/stage4 i harness
+tests. Targeted real probe 03 nie utworzyl `src/notes/random.md`; targeted
+real probe 04 nie zmienil `AGENTS.md` i zatrzymal sie na checkpointcie.
+
+### 2026-05-10 — QA fix root cause: CLI harness compatibility plus bootstrap gate
+
+**Decision:** Po QA FAIL doprecyzowano root cause i plan naprawy w
+`20260509-mutation-enforcement-target-safety-fix`. Nie cofamy generated Desktop
+config do `codex_hooks`; zamiast tego harness dostanie CLI compatibility path,
+a hook dostanie bramke blokujaca implementacje source/instruction behavior po
+samym manifest bootstrapie.
+
+**Why:** Probe pokazal, ze `codex exec --ignore-user-config` nie laduje
+skutecznie project-local hookow w CLI 0.126. Po zdjeciu tej flagi oraz dodaniu
+trust override i `--enable codex_hooks` hooki zaczynaja dzialac. Drugi probe
+pokazal jednak, ze agent moze zalozyc manifest i potem wykonac `src/**` przez
+native `file_change`, bo obecny hook traktuje manifest+scope jako wystarczajace
+nawet bez plan gate.
+
+**Boundary:** To nadal jest plan/scope gate po QA. Kod runtime nie zostal
+zmieniony w tym kroku; nastepny legalny krok to approval planu albo rewizja.
+
+### 2026-05-10 — Mutation enforcement QA failed real-agent release blockers
+
+**Decision:** W ramach aktywnego cyklu uruchomiono pelny real Codex harness
+`runtime/platforms/codex/harness/run-harness.sh`. QA zapisano w
+`.sage/work/20260509-mutation-enforcement-target-safety-fix/qa-report.md` i
+oznaczono cykl jako `qa-complete`, ale nie jako gotowy do closeout.
+
+**Why:** Deterministic tests byly zielone, ale real-agent harness jest
+wymagany dla claimow o agent/runtime behavior. Aggregate pokazal
+`v11_release_blocker_harness: total=9, present=5, complete=false`.
+
+**Boundary:** To jest raport QA, nie fix. Bugi z QA wymagaja osobnej decyzji o
+powrocie do `/sage:fix` albo zaparkowania jako follow-up.
+
+### 2026-05-10 — Mutation enforcement implementation verified
+
+**Decision:** Zakończono implementację aktywnego fixa
+`20260509-mutation-enforcement-target-safety-fix` i oznaczono go jako
+`verification-complete` po deterministic test pass.
+
+**Why:** Patch realizuje approved scope: feature flag migration do `hooks`,
+szerszy hook registry, defensywny parser mutacji, krytyczny audit bypassów,
+minimalne generated guidance oraz harness release blockers dla `04` i
+transcript-level target ownership.
+
+**Boundary:** Real Codex harness rerun pozostaje rekomendowanym follow-upem;
+lokalny `.codex/config.toml` workspace nie był ręcznie edytowany, bo fix
+dotyczy generatora i tracked runtime.
+
+### 2026-05-10 — Config activation scope includes generator summary
+
+**Decision:** Rozszerzono scope aktywnego fixa o
+`runtime/platforms/codex/setup/generate-codex.sh`, wyłącznie dla aktualizacji
+summary z `codex_hooks=true` na `hooks=true`.
+
+**Why:** Implementacja migracji feature flag zostawiłaby inaczej sprzeczny
+komunikat w generatorze. To jest ten sam config activation surface, a nie
+nowa funkcjonalność.
+
+**Boundary:** Zmiana w `generate-codex.sh` ogranicza się do tekstu raportowania
+stage output; logika stage pozostaje w `lib/config-toml.sh`.
+
+### 2026-05-10 — Mutation enforcement semantic reclassification accepted
+
+**Decision:** Po approval implementacji oznaczono aktywny fix
+`20260509-mutation-enforcement-target-safety-fix` jako
+`semantic_reclassification: accepted`, bo patch celowo dotyka testów, README,
+hooków i generated config.
+
+**Why:** PreToolUse poprawnie zablokował pierwszą próbę edycji testów jako
+ryzykowną mutację bez explicit semantic reclassification. To nie jest scope
+expansion: te pliki są już wymienione w zatwierdzonym planie i manifeście, ale
+runtime wymaga jawnego checkpointu dla testów/public docs/repo-control paths.
+
+**Boundary:** Reclassification dotyczy tylko plików w `manifest.scope`; nowe
+runtime/API powierzchnie nadal wymagają rewizji planu.
+
+### 2026-05-10 — Codex Desktop GUI confirms hooks feature rename
+
+**Decision:** Po sprawdzeniu GUI Codex Desktop dla workspace `sage-selfhost`
+wracamy do migracji generated config z `[features].codex_hooks = true` na
+`[features].hooks = true`.
+
+**Why:** GUI pokazuje runtime warning: `[features].codex_hooks is deprecated.
+Use [features].hooks instead.` Publiczny docs/cache i lokalny CLI 0.126 nadal
+pokazują `codex_hooks`, ale to jest platform drift. Generated project config ma
+być zgodny z aktualnym Desktop validator, bo to on pokazuje użytkownikowi błąd
+i prawdopodobnie reprezentuje nowszą powierzchnię workspace.
+
+**Boundary:** Implementacja ma usunąć aktywne `codex_hooks = true` z generated
+config i testów, ale nie ma dodawać rozbudowanej teorii do generated
+`AGENTS.md`.
+
+### 2026-05-10 — Codex hooks feature flag correction (superseded)
+
+**Decision:** Przed implementacją skorygowano Task 1: Sage nie będzie migrować
+`[features].codex_hooks = true` na `[features].hooks = true`. Oficjalny Codex
+config reference wskazuje `features.codex_hooks` jako canonical boolean dla
+lifecycle hooks, a `hooks` jako tabelę inline hooków.
+
+**Why:** Plan opierał się na wcześniejszym podejrzeniu, że `codex_hooks` jest
+deprecated. Sprawdzenie aktualnej dokumentacji OpenAI pokazało, że taka
+migracja prawdopodobnie osłabiłaby aktywację hooków. Poprawny fix ma utrzymać
+`codex_hooks = true`, nie emitować fałszywego `hooks = true`, i wzmocnić
+harness/audit bez udawania nieistniejącej flagi.
+
+**Boundary:** Superseded przez nowszą decyzję powyżej po sprawdzeniu realnego
+Codex Desktop GUI. Nie wdrażać tego wariantu.
+
+### 2026-05-10 — Mutation enforcement plan review revisions applied
+
+**Decision:** Po read-only review plan został skorygowany przed implementacją:
+dodano `runtime/platforms/codex/hooks/turn-audit.sh` do scope, nazwano
+`forbidden_transcript_patterns` jako negatywne pole harnessu i doprecyzowano
+płaską, testowalną rubrykę scenariusza `04-fix-trigger`.
+
+**Why:** Review potwierdziło minimalistyczne podejście do generated
+`AGENTS.md`, ale wskazało, że Stop/turn audit był opisany w planie bez pliku w
+scope, a harness task 4 wymagał dokładniejszej semantyki pass/fail przed
+approval.
+
+**Boundary:** To nadal jest plan/scope gate. Nie rozpoczęto implementacji
+runtime; następny legalny krok to akceptacja zrewidowanego planu albo kolejna
+rewizja.
+
+### 2026-05-10 — Mutation enforcement generated guidance stays minimal
+
+**Decision:** Przed review planu zawężono task `Guidance` tak, żeby generated
+`AGENTS.md` dostało tylko minimalistyczny kontrakt: state należy do target
+repo, nie pisać do `.sage/**` poza target repo, a source/runtime/test/config/
+instruction behavior wymaga właściwego Sage workflow i approved scope.
+
+**Why:** Alex nie chce dodawać dużo kontekstu do `AGENTS.md`. Ten plik jest
+hot-path instrukcją dla agenta, więc pełniejsza taksonomia mutation model,
+binary asset contract i uzasadnienia mają mieszkać w konstytucji, README albo
+harness docs/testach, nie w generated AGENTS.
+
+**Boundary:** Review ma sprawdzić także, czy implementacja nie rozszerzy
+generated `AGENTS.md` ponad ten krótki kontrakt.
+
+### 2026-05-10 — Mutation enforcement systemic fix plan prepared
+
+**Decision:** Alex wybrał `[3] Proceed as /sage:fix anyway` dla Systemic scope.
+Zapisano plan i rozszerzono `manifest.scope` dla
+`20260509-mutation-enforcement-target-safety-fix` przed implementacją.
+
+**Why:** Root cause jest konkretny mimo szerokiej powierzchni: Codex hook
+activation/config, real mutation paths, source-vs-docs taxonomy, binary asset
+contract, harness scenario 04 i transcript-level target ownership assertions.
+Pełny `/architect` byłby cięższy niż potrzebny, a bez planu/scope patch byłby
+metodologicznie nielegalny.
+
+**Boundary:** Implementacja nadal czeka na fix scope approval. Plan obejmuje
+tylko wymienione pliki; wszelkie dodatkowe runtime/API zmiany wymagają rewizji
+planu.
+
+### 2026-05-10 — Mutation enforcement root cause approved
+
+**Decision:** Alex zatwierdził zrewidowaną diagnozę root cause dla
+`20260509-mutation-enforcement-target-safety-fix` przez `[S] Skip review` po
+read-only subagent review.
+
+**Why:** Diagnoza rozdziela teraz trzy warstwy: `file_change` poza matcherem
+`apply_patch`, historyczny brak hook traces przez `codex_hooks -> hooks`, oraz
+braki harnessu w scenariuszach 04/11 i transcript-level assertions.
+
+**Boundary:** Fix pozostaje Systemic. Przed planem implementacji wymagany jest
+systemic escalation checkpoint: `/build`, `/architect` albo świadome
+kontynuowanie jako duży `/fix`.
+
+### 2026-05-10 — Mutation enforcement root cause reviewed
+
+**Decision:** Read-only subagent review potwierdził diagnozę klastra
+`20260509-mutation-enforcement-target-safety-fix` z dwiema korektami: rubryka
+03 musi być opisana jako historical QA-run evidence, a scenariusz 04 wymaga
+osobnego ujęcia jako brakujący release-blocker/assertion.
+
+**Why:** Current source ma już część coverage dla scenariusza 03 i check na
+puste rubryki blocked/recovery, więc plan nie powinien zakładać, że source jest
+nadal w stanie z archived `report.json`. Jednocześnie `04-fix-trigger` nadal
+nie ma stabilnego miejsca w `v11-scenarios.json`, mimo że QA wskazało go jako
+realny failure.
+
+**Boundary:** Nadal bez implementacji. Root cause pozostaje Systemic; następny
+legalny krok to approval tej zrewidowanej diagnozy albo dalsza rewizja.
+
+### 2026-05-09 — Mutation enforcement target safety root cause ready
+
+**Decision:** Otworzono formalny fix cycle
+`.sage/work/20260509-mutation-enforcement-target-safety-fix/` i zapisano
+diagnozę root cause dla klastra mutation enforcement + target safety.
+
+**Why:** Klaster nie jest pojedynczym bugiem `AGENTS.md`, tylko wspólnym
+problemem klasyfikacji i egzekwowania realnych mutacji repo: `apply_patch`,
+`file_change`, shell/binary asset paths, source-vs-docs boundary, target repo
+ownership oraz harness transcript assertions. Najważniejsze evidence pochodzi z
+Project Dummy QA scenariuszy 03, 04 i 11.
+
+**Boundary:** Implementacja nie została rozpoczęta. Następny legalny krok to
+approval albo rewizja root cause, potem plan/scope gate dla systemic fix.
+
+### 2026-05-09 — Open work is grouped into four execution clusters
+
+**Decision:** Pozostałe otwarte intake/follow-upy z 2026-05-09 zostały
+zmapowane do czterech klastrów wykonawczych w
+`.sage/work/20260509-open-work-cluster-map/cluster-map.md`.
+
+**Why:** Alex nie chce, żeby pojedyncze wątki takie jak active-cycle lease,
+task-plan visibility albo autonomous approval boundary zostały samotnymi
+ogonkami. Kolejne sesje mają widzieć większe patch themes: mutation
+enforcement, workflow entry/recovery/autonomy, Codex surface/config oraz
+Alex-native communication/visibility.
+
+**Boundary:** To jest decyzja porządkowa i handoffowa. Nie zamyka źródłowych
+intake manifestów ani nie autoryzuje implementacji; każdy klaster nadal wymaga
+formalnego `/sage:fix` z diagnozą, scope i planem.
+
+### 2026-05-09 — Workflow declaration must open a real cycle
+
+**Decision:** Dodano intake
+`.sage/work/20260509-cycle-workflow-entry-enforcement-fix/` dla wymagania, ze
+agent, ktory pewnie deklaruje dopasowanie zadania do workflow, np. build, musi
+realnie wejsc w ten workflow i otworzyc albo wznowic cykl.
+
+**Why:** Sama deklaracja w tekscie nie tworzy stanu Sage. Bez `manifest.md` i
+formalnego statusu runtime, hooki, checkpointy, resume oraz kolejne sesje nie
+maja czego egzekwowac, mimo ze agent konwersacyjnie "wybral workflow".
+
+**Boundary:** Capture-only. Ten intake nie implementuje jeszcze zmian w
+routerze, workflow docs ani harnessie; nastepny legalny krok to formalny
+`/sage:fix` i sprawdzenie overlapu z
+`20260509-agent-resume-intake-cycle-fix`.
+
+### 2026-05-09 — Open manifest metadata cleanup after second-pass review
+
+**Decision:** Po drugim pass review oznaczono jednoznacznie pokryte intake jako
+zamknięte albo folded: `cross-cycle-scope-workaround-fix`,
+`decisions-capture-without-active-plan-fix`, `multi-active-cycle-model-fix`,
+`hook-routing-command-audit` oraz `open-initiatives-consolidation`.
+
+**Why:** Evidence z `20260509-runtime-workflow-enforcement-hardening` i
+`20260509-runtime-workflow-enforcement-qa` pokrywa path-intent Cycle Resolver,
+cross-cycle capture z `.sage/decisions.md`, `sage:continue` recovery wording,
+ambiguous multi-cycle block i new intake bootstrap. Analysis cycle został
+superseded, bo rekomendowany umbrella fix został już zamknięty.
+
+**Boundary:** Nie zamknięto wątków wymagających świeżej weryfikacji:
+`file-change-enforcement-fix`, `binary-asset-mutation-contract-fix` i
+`hook-block-recovery-behavior-fix`. Ich read-only verification wykonuje
+subagent.
+
+### 2026-05-09 — Hook block recovery behavior captured
+
+**Decision:** Dodano intake
+`.sage/work/20260509-hook-block-recovery-behavior-fix/` dla reguły, że agent po
+recoverable hook block ma skorygować działanie i ponowić je legalną ścieżką,
+zamiast zatrzymać pracę.
+
+**Why:** W tej rozmowie hook poprawnie zablokował zbyt szeroki patch capture,
+ale agent potraktował blokadę jako koniec pracy. Poprawne zachowanie to
+odczytać komunikat hooka jako instrukcję recovery, dopasować patch do legalnego
+kształtu i spróbować ponownie, chyba że blokada wymaga decyzji użytkownika.
+
+**Boundary:** Capture-only. Intake powinien zostać skonsolidowany z istniejącymi
+follow-upami `agent-resume-intake-cycle-fix` i `blocking-hook-guidance-review`,
+jeśli formalny `/fix` potwierdzi overlap.
+
+### 2026-05-09 — Self-host Codex loader path bug captured
+
+**Decision:** Dodano intake
+`.sage/work/20260509-selfhost-codex-loader-path-fix/` dla nowego wariantu
+problemu ze ścieżkami loaderów Codexa.
+
+**Why:** Fix F1-7 poprawił wygenerowane target repo, gdzie workflowe są pod
+`sage/core/workflows/...`. W samym repo frameworka `sage-selfhost` realna
+ścieżka to `core/workflows/...`, ale `.agents/skills/sage:*` wskazują dziś na
+wariant targetowy. Dlatego świeży thread w self-host może nadal dostać
+`No such file or directory`, mimo że generator jest poprawny dla targetów.
+
+**Boundary:** Capture-only. Nie wdrożono jeszcze poprawki generatora ani
+regeneracji `.agents/skills`; następny legalny krok to formalny `/fix` dla
+tego intake.
+
+### 2026-05-09 — Autonomous approval boundary fix parked as handoff
+
+**Decision:** Alex wybrał `[N] New session` dla cyklu
+`.sage/work/20260509-autonomous-approval-boundary-fix/`.
+
+**Why:** Plan ma zostać zachowany jako zaparkowany handoff, a nie traktowany
+jako approval do wdrożenia.
+
+**Boundary:** Następna sesja musi ponownie pokazać plan i uzyskać explicit
+approval przed zmianami w workflow/runtime.
+
+### 2026-05-09 — Plan for autonomous approval boundary fix captured
+
+**Decision:** Utworzono plan
+`.sage/work/20260509-autonomous-approval-boundary-fix/plan.md`, który ma
+naprawić zbyt szeroką interpretację `[F] Full autonomous implementation`.
+
+**Why:** `[F]` miało pozwalać wykonać zatwierdzony plan bez checkpointów
+pośrednich, ale agent potraktował późniejsze scope expansion jako część tej
+autonomii. Root cause: autonomia nie była twardo związana z konkretnym
+snapshotem `plan.md` i `manifest.scope`.
+
+**Boundary:** To jest plan-gate. Nie wdrożono jeszcze zmian w workflow/runtime.
+Następny krok to approval albo rewizja planu.
+
+### 2026-05-09 — QA workflow Polish report contract captured
+
+**Decision:** Dodano intake
+`.sage/work/20260509-qa-workflow-polish-report-contract/` dla poprawki
+`qa.workflow.md`, żeby workflow jasno wymuszał polską prozę raportów QA w
+projektach Alex-native.
+
+**Why:** Alex zapytał, dlaczego QA report wygenerował się po angielsku.
+Przyczyną było zbyt literalne użycie angielskiego template'u. Najwęższy
+systemowy fix to dopisać regułę językową bezpośrednio do QA workflow.
+
+**Boundary:** Intake obejmuje tylko punkt 1: workflow wording. Polski template
+i test regresyjny zostają potencjalnymi osobnymi krokami.
+
+### 2026-05-09 — Runtime workflow enforcement QA passed
+
+**Decision:** Wykonano `/sage:qa` dla zamkniętego fixa
+`20260509-runtime-workflow-enforcement-hardening`. Raport zapisano w
+`.sage/work/20260509-runtime-workflow-enforcement-qa/qa-report.md`.
+
+**Why:** Alex poprosił o testy fixa po commicie/pushu. Ponieważ patch dotyczy
+CLI, hooków, generated instructions i harness rubrics, QA użyło code-only
+fallback oraz funkcjonalnych smoke testów na tymczasowym wygenerowanym
+projekcie.
+
+**Result:** `PASS WITH WARNINGS`: 13 pass, 0 fail, 1 warning. Ostrzeżenie:
+browser testing nie miało zastosowania dla tego patcha.
+
 ### 2026-05-09 — Runtime workflow enforcement fix approved and closed
 
 **Decision:** Alex zaakceptował verified fix dla runtime workflow enforcement.
