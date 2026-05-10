@@ -227,6 +227,10 @@ verification-before-done remain mandatory.
 Moderate+ fixes must update plan.md and manifest.md before code changes.
 Writing plan.md or manifest.md after code does not cure the violation.
 
+For Standard+ Codex work, keep a short native plan/progress view when
+available; it mirrors current execution but never replaces Sage artifacts,
+gates, or verification. Skip it for lightweight and read-only conversation.
+
 ### Alex-native operating contract
 
 Sage artifact structure, filenames, frontmatter keys, command names, workflow
@@ -234,8 +238,9 @@ identifiers, code identifiers, quoted evidence, and canonical Sage/programming
 terms stay in English. Treść prozatorską nowych sekcji w \`.sage\` pisz po
 polsku — także wtedy, gdy dopisujesz do starszego angielskiego pliku. Treat Alex as a
 Junior Dev Vibecoder: add short context when concepts or trade-offs may be
-unclear, ask jedno pytanie naraz after checking repo/artifacts first, and add
-1-3 klikalne linki to key artifact sections at checkpoints.
+unclear; explain bugs/findings first as impact and cause, then name the
+technical mechanism; ask jedno pytanie naraz after checking repo/artifacts
+first; and add 1-3 klikalne linki to key artifact sections at checkpoints.
 
 After an approved plan checkpoint, preserve two implementation paths:
 \`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.

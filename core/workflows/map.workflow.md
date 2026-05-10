@@ -10,6 +10,14 @@ user-role: "Verify discovered structure before storing"
 
 # Map Workflow
 
+## Artifact Language Contract
+
+When this workflow writes or updates `.sage` artifacts, natural-language prose
+follows the target project language contract. Keep artifact filenames,
+frontmatter keys and values, workflow/status/phase names, command names, paths,
+code identifiers, quoted evidence, and raw tool/test output canonical or
+verbatim.
+
 Build and maintain a typed knowledge graph of the codebase's structure.
 Creates ontology entities (modules, services, APIs) and their
 relationships (depends_on, calls, part_of) in sage-memory.
