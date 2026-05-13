@@ -46,6 +46,10 @@ dist/
 .sage/.doctor-cursor
 .sage/**/.DS_Store
 
+# Sage harness local runtime artifacts. When a cycle requires harness
+# evidence, add the selected report/transcripts explicitly with `git add -f`.
+.sage/work/**/harness-run-*/
+
 # Python
 __pycache__/
 *.pyc
