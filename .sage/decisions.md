@@ -5,6 +5,258 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-13 — Config threshold cycle completed
+
+**Decision:** Zamknieto cykl
+`20260511-surgical-config-workflow-threshold-fix` jako completed po domknieciu
+minor QA warning w tym samym cyklu.
+
+**Why:** Same-turn guard wording zostal skalibrowany do nowego kontraktu,
+regresja testowa potwierdza brak starej frazy w komunikacie, a swieza
+weryfikacja przeszla: `pre-tool-validate.bats` 67/67, `turn-audit.bats` 16/16,
+`stage3-agents-md.bats` 47/47, `stage4-config-toml.bats` 17/17, `bash -n` i
+`git diff --check`.
+
+**Boundary:** Nie wykonano stage/commit. Working tree nadal zawiera tez
+niezwiazane wczesniejsze zmiany poza tym cyklem.
+
+### 2026-05-13 — Config threshold QA warning will be fixed in-cycle
+
+**Decision:** Alex zdecydowal, ze minor wording warning z QA zostanie
+naprawiony w ramach tego samego wiekszego cyklu
+`20260511-surgical-config-workflow-threshold-fix`, a cykl zostanie zamkniety
+dopiero po tej korekcie.
+
+**Why:** Finding dotyczy tego samego pliku runtime i tej samej kalibracji
+config boundary; jest w approved manifest scope i nie rozszerza zachowania
+poza planowany kontrakt.
+
+**Boundary:** To jest Surgical wording cleanup komunikatu same-turn guard plus
+regresja testowa. Nie zmienia runtime allowlistu ani zasad dla aktywnych cykli.
+
+### 2026-05-13 — Config threshold QA report approved
+
+**Decision:** Alex zatwierdzil raport QA dla cyklu
+`20260511-surgical-config-workflow-threshold-fix`.
+
+**Why:** QA zakonczyl sie wynikiem PASS WITH WARNINGS: functional code paths
+przeszly, a jedyny znaleziony problem to minor/Surgical wording cleanup w
+komunikacie same-turn guard.
+
+**Boundary:** Approval dotyczy raportu QA, nie automatycznej naprawy warninga.
+Nastepny krok to decyzja Alexa: `/fix` dla wording cleanup albo finalny
+closeout mimo warninga.
+
+### 2026-05-13 — Config threshold QA completed
+
+**Decision:** Wykonano `sage:qa` dla cyklu
+`20260511-surgical-config-workflow-threshold-fix` w trybie code-only, bo
+Lightpanda/browser MCP nie jest dostepny w tej sesji.
+
+**Why:** Zmiana dotyczy hookow i generatorow, wiec QA skupilo sie na
+functional code path: PreToolUse allowlist, Stop/turn-audit kompatybilnosc,
+generated guidance i swieze testy Bats/syntax checks. Dodatkowy scenariusz w
+tymczasowym git repo potwierdzil, ze single-file config update zapisuje
+`cycle_id:""` i nie generuje falszywego incydentu w `turn-audit`.
+
+**Finding:** PASS WITH WARNINGS. Jedyny warning: w komunikacie same-turn guard
+w `pre-tool-validate.sh` nadal wystepuje stara fraza
+`source/runtime/test/config/instruction files`; to jest minor/Surgical wording
+cleanup, nie blokada funkcjonalna.
+
+### 2026-05-13 — Config threshold implementation verified
+
+**Decision:** Zaimplementowano i zweryfikowano narrow allowlist dla
+single-file top-level config Add/Update bez aktywnego cyklu.
+
+**Why:** Regresje odtwarzaja pierwotny przypadek z zaparkowanymi cyklami oraz
+payload `file_change`; negatywy nadal blokuja multi-file config, `.codex/**`,
+delete, nested config i basenames wysokiego ryzyka. Generated guidance nie
+mowi juz bezwarunkowo, ze kazda zmiana config wymaga workflow.
+
+**Verification:** Przeszly `pre-tool-validate.bats` (67/67),
+`active_init.bats` (15/15), `stage3-agents-md.bats` (47/47),
+`stage4-config-toml.bats` (17/17), oba `bash -n`, `git diff --check` oraz
+search starej frazy `source/runtime/test/config/instruction` zwrocil brak
+wynikow.
+
+**Boundary:** Cykl jest w `completion-gate`, nie zamkniety. Finalna akceptacja
+Alexa nadal jest wymagana przed oznaczeniem jako completed.
+
+### 2026-05-13 — Config threshold implementation approved by Alex
+
+**Decision:** Alex wybral `[F] Full autonomous implementation` dla cyklu
+`20260511-surgical-config-workflow-threshold-fix`; plan zostaje zatwierdzony i
+cykl przechodzi z `fix-scope-gate` do implementacji.
+
+**Why:** Root cause byl zatwierdzony, plan przeszedl read-only review, a
+wybrany tryb pozwala autonomicznie wykonac test-first implementacje w
+zatwierdzonym zakresie bez kolejnych mikrocheckpointow.
+
+**Boundary:** Zakres pozostaje waski: runtime predicate dla single-file
+top-level `config/*.{toml,json,yaml,yml}` allowlist, regresje hooka oraz
+doprecyzowanie generated guidance. Nie obejmuje zmian w innych repozytoriach
+ani szerokiego przepuszczania generated/config mutations.
+
+**Scope checkpoint:** Poniewaz zatwierdzony plan jawnie obejmuje testy Bats,
+manifest oznacza `semantic_reclassification: accepted`, zeby runtime guardrail
+legalnie przepuscil zmiany w plikach testowych w zatwierdzonym zakresie.
+
+### 2026-05-13 — Config threshold plan approved by review
+
+**Decision:** Drugi read-only subagent review zatwierdzil plan cyklu
+`20260511-surgical-config-workflow-threshold-fix` jako gotowy do implementacji.
+
+**Why:** Review potwierdzil, ze trzy poprzednie blockery sa rozwiazane:
+manifest scope zgadza sie z planem, allow-rule jest zwezony do structural
+single-file config allowlist, a plan obejmuje payloady `file_change`.
+
+**Boundary:** To jest approval przez review, nie rozpoczecie implementacji.
+Kod pozostaje nietkniety do finalnej zgody Alexa na przejscie do implementacji.
+Residual risk z review: testy payload-level `file_change` sprawdza parser
+hooka, ale nie dowodza same w sobie, ze realny Codex runtime zawsze odpala hook
+dla natywnego `file_change`.
+
+### 2026-05-13 — Config threshold plan review revisions applied
+
+**Decision:** Po subagent review poprawiono plan i manifest cyklu
+`20260511-surgical-config-workflow-threshold-fix`.
+
+**Why:** Review znalazl trzy blockery: manifest scope nie zgadzal sie z planem,
+runtime allow-rule byl szerszy niz guidance, a plan nie pokrywal payloadow
+`file_change`. Manifest obejmuje teraz `config-toml.sh`,
+`stage4-config-toml.bats` i `active_init.bats`, a usuwa nieuzywany plik Claude.
+Plan definiuje structural allowlist dla single-file `config/*.{toml,json,yaml,yml}`
+oraz denylist nazw wysokiego ryzyka i wymaga regresji dla `file_change`.
+
+**Boundary:** Implementacja nadal nie ruszyla. Nastepny legalny krok to
+ponowna akceptacja albo rewizja planu.
+
+### 2026-05-13 — Config threshold fix plan drafted
+
+**Decision:** Root cause dla
+`20260511-surgical-config-workflow-threshold-fix` zostal zatwierdzony przez
+Alexa i zapisano `plan.md` w fazie `fix-scope-gate`.
+
+**Why:** Fix jest Moderate: wymaga test-first regresji dla `PreToolUse`,
+zmiany predicate dla single-file `config/**` patch bez aktywnego cyklu oraz
+doprecyzowania generated guidance/testow, z zachowaniem blokad dla source,
+runtime, tests, instruction files, `.codex/**`, `.sage/**`, wielu plikow i
+delete.
+
+**Boundary:** Implementacja jeszcze nie ruszyla. Nastepny legalny krok to
+akceptacja albo rewizja planu.
+
+### 2026-05-12 — Captured hook recovery scope amputation fix
+
+**Decision:** Utworzono intake fix
+`20260512-hook-recovery-scope-amputation-fix` dla przypadku, w ktorym agent
+interpretuje blokade `PreToolUse` jako powod do obciecia zakresu zamiast jako
+instrukcje przejscia na legalny Moderate+ workflow.
+
+**Why:** Watek `codex://threads/019e1ba5-292a-7483-8572-d7f63b9372db` pokazal,
+ze przy fixie `pdf-toolkit` agent zrezygnowal z bumpa `plugin.json` po blokadzie
+trzeciego pliku. Hook wskazywal recovery path, ale agent potraktowal go jak
+zakaz dotykania tego pliku, co moglo zostawic operacyjnie niepelny fix.
+
+**Boundary:** To jest capture/TODO, nie implementacja. Przyszly fix ma najpierw
+sprawdzic overlap z `hook-block-recovery-behavior-fix`,
+`blocking-hook-guidance-review` i innymi hook guidance follow-upami.
+
+### 2026-05-12 — Config threshold root-cause review revisions applied
+
+**Decision:** Po review poprawiono artefakt
+`20260511-surgical-config-workflow-threshold-fix`.
+
+**Why:** Review wskazal dwa problemy: scope nie obejmowal faktycznego hooka
+`PreToolUse`, a opis logow nadal za mocno eksponowal temat `alex-os:sync`.
+Manifest dodaje teraz `runtime/platforms/codex/hooks/pre-tool-validate.sh`,
+`runtime/platforms/codex/hooks/lib/active_init.sh` oraz testy hooka do
+mozliwego zakresu planu. Watek sync/generated-file incidents zostal ograniczony
+do explicit non-goal.
+
+**Boundary:** Root cause pozostaje w fazie approval: pojedyncza zmiana config
+zostala zablokowana przez `PreToolUse` sciezka `no active implementation
+cycle`. Broad generated mutations po syncu sa poza zakresem.
+
+### 2026-05-11 — Config threshold fix scope narrowed to first report
+
+**Decision:** Zakres cyklu
+`20260511-surgical-config-workflow-threshold-fix` zostal jawnie zwezony do
+pierwotnego zgloszenia.
+
+**Why:** Alex potwierdzil, ze drugi sygnal z logow hookow, czyli szerokie
+`unclaimed_change`/`bypass_mutation` po `alex-os:sync`, pomijamy. Interesuje nas
+tylko fakt, ze pojedyncza zmiana w pliku konfiguracyjnym zostala zablokowana
+przez `PreToolUse` z powodu braku aktywnego cyklu.
+
+**Boundary:** Przyszly plan ma nie rozszerzac zakresu na sync/generated files.
+Ma naprawic albo doprecyzowac zachowanie dla single-file config patch bez
+automatycznego wymuszania pelnej metodologii Sage.
+
+### 2026-05-11 — Hook logs confirm config threshold block path
+
+**Decision:** Doprecyzowano diagnoze cyklu
+`20260511-surgical-config-workflow-threshold-fix` po sprawdzeniu logow hookow w
+`alex-os-dev`.
+
+**Why:** `.session-mutations.log` nie zawiera pierwszego patcha, bo zostal
+zatrzymany przed zapisem przez `PreToolUse`. Po minimalnym manifeście log
+pokazuje dopiero manifest -> `config/codex-config.toml` -> decyzje -> closeout.
+`.mcp-incidents.log` pokazuje tez szeroki efekt uboczny `alex-os:sync`: setki
+`unclaimed_change`/`bypass_mutation`, w tym krytyczne wpisy dla `.codex/*` i
+`AGENTS.md`.
+
+**Boundary:** Na decyzje Alexa drugi temat pomijamy. Zakres tego fixa obejmuje
+wylacznie zbyt twarda sciezke `no active implementation cycle` dla single-file
+config patch. Broad generated mutations po `alex-os:sync` nie sa acceptance
+criteria ani planowanym zakresem.
+
+### 2026-05-11 — Corrected config threshold root cause from transcript
+
+**Decision:** Skorygowano root cause cyklu
+`20260511-surgical-config-workflow-threshold-fix` po odczycie wskazanego
+transcriptu `codex://threads/019e185a-b3d2-7c21-a1e8-14a3cd345d24`.
+
+**Why:** Watek pokazuje, ze pierwsza proba zmiany jednego klucza w
+`config/codex-config.toml` zostala zablokowana przez `PreToolUse` komunikatem
+`Sage: no active implementation cycle`. To znaczy, ze problem jest przede
+wszystkim w runtime hook policy dla pojedynczych config edits bez aktywnego
+cyklu, a nie tylko w ogolnym guidance/routingu.
+
+**Boundary:** Poprawka nadal nie zostala zaimplementowana. Nastepny krok to
+zatwierdzenie skorygowanej diagnozy i dopiero potem plan zmian w hookach,
+guidance i testach.
+
+### 2026-05-11 — Opened config threshold fix root-cause gate
+
+**Decision:** Otworzono cykl
+`20260511-surgical-config-workflow-threshold-fix` w fazie `root-cause-gate`.
+
+**Why:** Alex wskazal, ze pojedyncza zmiana w pliku konfiguracyjnym nie powinna
+automatycznie wymuszac pelnej metodologii Sage. Diagnoza wskazuje na zbyt
+szeroka linie guidance: `config/instruction behavior changes require the
+proper Sage workflow`, ktora konkuruje z ustalonym progiem Surgical 1-2 pliki /
+Moderate+ od 3 plikow.
+
+**Boundary:** Implementacja jeszcze nie ruszyla. Nastepny legalny krok to
+akceptacja albo korekta root cause, potem plan dla zmiany kontraktu i testow.
+
+### 2026-05-10 — Integration review metadata cleanup completed
+
+**Decision:** Po integration review skorygowano stale `status: in-progress`
+oraz jeden stale `status: pending-approval` w pobocznych artefaktach
+zamknietych cykli B/C/runtime hardening oraz usunieto lokalne `.DS_Store`
+residue.
+
+**Why:** Manifesty tych cykli byly juz zamkniete, ale pojedyncze pliki
+root-cause/verification/QA/plan mialy historyczne frontmatter `in-progress` lub
+`pending-approval`. To moglo mylic State First i future hygiene scans mimo ze
+nie oznaczalo aktywnej implementacji.
+
+**Boundary:** To byla korekta metadanych i lokalnej hygiene po review. Nie
+zmieniono runtime, hookow, harnessu, MCP ani decyzji merytorycznych.
+
 ### 2026-05-10 — Captured post-closeout handoff documentation mutation fix
 
 **Decision:** Utworzono intake fix
