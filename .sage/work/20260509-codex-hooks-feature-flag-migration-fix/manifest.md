@@ -2,13 +2,14 @@
 cycle_id: "20260509-codex-hooks-feature-flag-migration-fix"
 title: "Fix: migracja flagi Codex hooks z codex_hooks na hooks"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 priority: P1
 needs-triage: true
+folded_into: "20260509-selfhost-codex-loader-path-fix"
 source: "conversation"
 suggested_workflow: fix
 related:
@@ -24,11 +25,11 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - folded into Batch 4 anchor
+`20260509-selfhost-codex-loader-path-fix`.
 
-**Next step:** Wejść w osobny `/sage:fix`, potwierdzić aktualny kontrakt
-lokalnej wersji Codex, a następnie zmigrować generatory i testy tak, żeby Sage
-nie emitował przestarzałej flagi `[features].codex_hooks`.
+**Next step:** Brak osobnej implementacji. Batch 4 anchor synchronizuje aktywny
+selfhost `.codex/config.toml` do `[features].hooks = true`.
 
 ## Finding
 

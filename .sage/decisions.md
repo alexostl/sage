@@ -5,6 +5,72 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-13 — Batch 4 closeout approved
+
+**Decision:** Alex zaakceptowal completion checkpoint Batcha 4 i poprosil o
+zamkniecie cyklu oraz git handoff: stage, commit i push.
+
+**Evidence accepted:** `stage7-skills.bats` 12/12,
+`stage4-config-toml.bats` 17/17, `stage10-tighten.bats` 14/14,
+`runtime/mcp/tests/run-regression.sh`, targeted selfhost checks dla braku
+`sage:sage`, selfhost loader paths, zgodnego `sage-navigator`, `hooks = true`
+oraz `git diff --check`.
+
+**Boundary:** `manifest.status: completed` ma byc ostatnia mutacja `.sage` w
+tym closeoucie. Po tym kroku wykonujemy tylko git stage/commit/push.
+
+### 2026-05-13 — Batch 4 implementation reached completion checkpoint
+
+**Decision:** Batch 4 zostal zaimplementowany i doprowadzony do completion
+checkpoint. Trzy sibling intake cycles oznaczono jako `status: completed` i
+`folded_into: 20260509-selfhost-codex-loader-path-fix`, bo zostaly skonsumowane
+przez anchor cycle bez osobnej ukrytej implementacji.
+
+**Evidence:** Zielone: `stage7-skills.bats` 12/12,
+`stage4-config-toml.bats` 17/17, `stage10-tighten.bats` 14/14,
+`runtime/mcp/tests/run-regression.sh`, targeted selfhost checks dla braku
+`sage:sage`, selfhost loader paths, zgodnego `sage-navigator`, `hooks = true`
+oraz `git diff --check`.
+
+**Boundary:** Anchor cycle zostaje `status: in-progress` i
+`phase: completion-checkpoint` do finalnej akceptacji Alexa.
+
+### 2026-05-13 — Batch 4 root cause approved and scope planned
+
+**Decision:** Alex wybral `[A] Approve root cause` po read-only review
+diagnozy Batcha 4. Przygotowano `plan.md` i rozszerzono manifest scope przed
+jakakolwiek implementacja.
+
+**Plan shape:** Batch 4 jest Moderate fixem: generator/test contract jest juz
+w wiekszosci na miejscu, ale aktywna selfhost surface musi zostac
+zsynchronizowana. Scope obejmuje Stage 7/Stage 4/MCP verification, `.agents`
+skill surface, `.codex/config.toml` oraz trzy sibling intake manifests do
+zamkniecia po verified implementation.
+
+**Review:** Read-only subagent review planu zwrocil `Approve with notes`.
+Przed implementacja poprawiono wording `tracked` -> aktywne/wystawione selfhost
+outputy i dopisano jawny scope entry dla `.agents/skills/sage:sage/`.
+
+**Boundary:** Nie mutowac `alex-os-dev`. Nie przepisywac historycznych docs.
+Implementacja moze isc w zatwierdzonym scope.
+
+### 2026-05-13 — Batch 4 root cause checkpoint
+
+**Decision needed:** Rozpoczeto chronologiczny Batch 4 na anchor cycle
+`20260509-selfhost-codex-loader-path-fix` i doprowadzono diagnoze do
+`root-cause-gate`. Read-only subagent review zwrocil `Approve with notes`;
+uwage o nieprecyzyjnym slowie "tracked" poprawiono w root cause.
+
+**Root cause:** Generator Stage 7/Stage 4 ma juz czesc docelowej logiki, ale
+aktywna/wystawiona powierzchnia selfhost nadal jest stara: `sage:sage` istnieje,
+workflow loadery wskazuja na `sage/core/workflows/**`, `sage-navigator`
+dryfuje od core source, a selfhost `.codex/config.toml` nadal ma
+`codex_hooks = true`.
+
+**Boundary:** Stary zamkniety `20260510-codex-surface-reachability-cluster-fix`
+jest tylko evidence/context. Nie zamyka obecnego chronologicznego Batcha 4.
+Implementacja nadal jest zablokowana do decyzji Alexa na root cause gate.
+
 ### 2026-05-13 — Batch 3 closeout approved
 
 **Decision:** Alex zatwierdził completion checkpoint Batcha 3 i poprosił o

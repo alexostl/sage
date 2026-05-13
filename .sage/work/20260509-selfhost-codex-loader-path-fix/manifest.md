@@ -1,14 +1,34 @@
 ---
 title: "Fix: self-host Codex loader stubs use target-only workflow paths"
-status: intake
-phase: intake
+workflow: fix
+status: completed
+phase: completed
 priority: high
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
+batch: "Batch 4 - Codex surface, loader i instruction reachability"
+related:
+  - "20260509-duplicate-sage-entrypoint-fix"
+  - "20260509-sage-navigator-skill-drift-fix"
+  - "20260509-codex-hooks-feature-flag-migration-fix"
 scope:
+  - ".sage/work/20260509-selfhost-codex-loader-path-fix/*"
+  - ".sage/work/20260509-duplicate-sage-entrypoint-fix/manifest.md"
+  - ".sage/work/20260509-sage-navigator-skill-drift-fix/manifest.md"
+  - ".sage/work/20260509-codex-hooks-feature-flag-migration-fix/manifest.md"
   - "runtime/platforms/codex/setup/lib/skills-deploy.sh"
   - "runtime/platforms/codex/setup/tests/stage7-skills.bats"
+  - "runtime/platforms/codex/setup/lib/config-toml.sh"
+  - "runtime/platforms/codex/setup/tests/stage4-config-toml.bats"
+  - "runtime/platforms/codex/setup/generate-codex.sh"
+  - "runtime/platforms/codex/setup/tests/stage10-tighten.bats"
+  - "runtime/mcp/json_to_toml.py"
+  - "runtime/mcp/tests/run-regression.sh"
+  - ".agents/skills/sage/SKILL.md"
+  - ".agents/skills/sage-navigator/SKILL.md"
   - ".agents/skills/sage:*/SKILL.md"
+  - ".agents/skills/sage:sage/"
+  - ".codex/config.toml"
   - ".sage/decisions.md"
 ---
 

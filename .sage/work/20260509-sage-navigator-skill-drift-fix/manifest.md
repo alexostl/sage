@@ -2,13 +2,14 @@
 cycle_id: "20260509-sage-navigator-skill-drift-fix"
 title: "Fix: drift wystawionego sage-navigator skilla"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 needs-triage: true
 priority: P2
+folded_into: "20260509-selfhost-codex-loader-path-fix"
 source: "conversation"
 suggested_workflow: fix
 related:
@@ -22,11 +23,11 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - folded into Batch 4 anchor
+`20260509-selfhost-codex-loader-path-fix`.
 
-**Next step:** Wejść w osobny `/sage:fix`, ustalić source-of-truth dla
-`sage-navigator` na powierzchni Codex i dodać regresję, żeby wystawiony skill
-nie zostawał starszą kopią.
+**Next step:** Brak osobnej implementacji. Batch 4 anchor synchronizuje
+`.agents/skills/sage-navigator/SKILL.md` z core source-of-truth.
 
 ## Finding
 

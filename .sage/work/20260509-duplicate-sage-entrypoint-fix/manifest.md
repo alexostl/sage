@@ -2,13 +2,14 @@
 cycle_id: "20260509-duplicate-sage-entrypoint-fix"
 title: "Fix: podwójny ogólny Sage entrypoint"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 needs-triage: true
 priority: P2
+folded_into: "20260509-selfhost-codex-loader-path-fix"
 source: "conversation"
 suggested_workflow: fix
 related:
@@ -24,11 +25,11 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - folded into Batch 4 anchor
+`20260509-selfhost-codex-loader-path-fix`.
 
-**Next step:** Wejść w osobny `/sage:fix`, zdiagnozować publiczną powierzchnię
-Codex skillów dla ogólnego Sage entrypointu i usunąć redundantny `sage:sage`
-stub, jeśli diagnoza potwierdzi hipotezę.
+**Next step:** Brak osobnej implementacji. Batch 4 anchor usuwa redundantny
+`sage:sage` z aktywnej selfhost powierzchni i Stage 7 nie odtwarza go ponownie.
 
 ## Finding
 
