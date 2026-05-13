@@ -231,6 +231,17 @@ EOF
     grep -q 'Lightweight/Surgical work may finish with code plus conversation summary' "$TARGET/AGENTS.md"
     grep -q 'Standard+/Moderate+ entry or resume must create/update the manifest' "$TARGET/AGENTS.md"
     grep -q 'After changing `status` or `phase`, say what changed' "$TARGET/AGENTS.md"
+    grep -q 'identify workflow/cycle' "$TARGET/AGENTS.md"
+    grep -q 'update `manifest.md` first' "$TARGET/AGENTS.md"
+    grep -q 'announce the completed state change' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md preserves fix-trigger guardrail for instruction files" {
+    PRESET=base run_stage3
+    grep -q 'Fix-trigger prompts in instruction' "$TARGET/AGENTS.md"
+    grep -q 'require `/fix` diagnosis and scope' "$TARGET/AGENTS.md"
+    grep -q 'before mutation, even for typos' "$TARGET/AGENTS.md"
+    grep -q 'outside instruction/process surfaces' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md treats hook blocks as recovery guidance" {
@@ -270,6 +281,7 @@ EOF
     PRESET=base run_stage3
     grep -q 'For Standard+ Codex work' "$TARGET/AGENTS.md"
     grep -q 'native plan/progress view' "$TARGET/AGENTS.md"
+    grep -q 'visibility layer' "$TARGET/AGENTS.md"
     grep -q 'never replaces Sage artifacts' "$TARGET/AGENTS.md"
     grep -q 'lightweight and read-only conversation' "$TARGET/AGENTS.md"
 }
@@ -279,6 +291,9 @@ EOF
     grep -q '\[C\] Checkpointed implementation' "$TARGET/AGENTS.md"
     grep -q '\[F\] Full autonomous implementation' "$TARGET/AGENTS.md"
     grep -q 'approved plan without intermediate' "$TARGET/AGENTS.md"
+    grep -q 'scoped autonomy, not general autonomy' "$TARGET/AGENTS.md"
+    grep -q 'approved plan and manifest scope' "$TARGET/AGENTS.md"
+    grep -q 'scope expansion cancels the grant' "$TARGET/AGENTS.md"
     grep -q 'key assumption' "$TARGET/AGENTS.md"
     grep -q 'material risk changes the plan' "$TARGET/AGENTS.md"
 }

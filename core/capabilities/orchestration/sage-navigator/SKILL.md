@@ -204,6 +204,23 @@ For Standard+/Moderate+ work, workflow entry or resume is a real state
 transition: create/update the manifest before writing artifacts or code, then
 say which `status`/`phase` changed.
 
+Use this sequence for Standard+/Moderate+ entry or resume:
+
+1. Identify the workflow and target cycle, or create a new cycle.
+2. Update `manifest.md` first (`status`, `phase`, and `active_session_id` when
+   the platform exposes one).
+3. After the write succeeds, tell the user exactly which `status`/`phase`
+   changed.
+4. In Codex, keep the native task-plan/progress UI aligned with the Sage phase
+   as a visibility layer; it never replaces artifacts, gates, or verification.
+5. Only then write workflow artifacts or implementation files.
+
+Fix-trigger prompts in instruction, workflow, hook, generated, or process files
+are action mandates, not ordinary typo cleanup. Route them through `/fix`
+diagnosis and scope before editing, even when the requested change looks like a
+typo. Obvious non-canonical typos may remain Lightweight/Surgical only outside
+instruction/process surfaces.
+
 If a hook blocks with a next legal move, treat it as recovery guidance. Retry
 through the legal path, or stop for the user decision named by the hook.
 

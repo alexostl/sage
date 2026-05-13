@@ -2,15 +2,16 @@
 cycle_id: "20260509-agent-resume-intake-cycle-fix"
 title: "Fix: agent nie wykonuje formalnego resume intake cycle"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
-needs-triage: true
+needs-triage: false
 priority: P1
 source: "conversation"
 suggested_workflow: fix
+folded_into: "20260509-cycle-workflow-entry-enforcement-fix"
 related:
   - ".sage/work/20260509-sage-methodology-activation-review/manifest.md"
   - ".sage/work/20260509-sage-methodology-activation-review/review-report.md"
@@ -26,11 +27,18 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - skonsumowane przez Batch 1 anchor cycle
+`20260509-cycle-workflow-entry-enforcement-fix`.
 
-**Next step:** Wejść w `/sage:fix`, zdiagnozować gdzie instrukcje agenta
-powinny wymuszać formalny resume intake/paused cycle, i dodać regresję dla
-scenariusza "użytkownik mówi kontynuujmy ten konkretny cykl".
+**Next step:** Brak osobnej implementacji w tym cyklu. Dalsze zmiany wymagają
+nowego intake albo osobnej decyzji o scope.
+
+## Batch 1 Resolution
+
+Ten intake został domknięty bookkeeping-only po zweryfikowanej implementacji
+Batcha 1. Wymóg formalnego resume `intake`/`paused` cycle został zaadresowany w
+anchor cycle przez zmiany w `continue.workflow.md`, `sage-navigator`,
+generated `AGENTS.md` oraz real-agent harness evidence dla scenariusza `06`.
 
 ## Finding
 

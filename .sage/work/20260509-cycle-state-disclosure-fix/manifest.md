@@ -2,15 +2,16 @@
 cycle_id: "20260509-cycle-state-disclosure-fix"
 title: "Fix: jawne komunikowanie wejścia i wyjścia z cyklu Sage"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
-needs-triage: true
+needs-triage: false
 priority: P2
 source: "conversation"
 suggested_workflow: fix
+folded_into: "20260509-cycle-workflow-entry-enforcement-fix"
 related:
   - ".sage/work/20260509-agent-resume-intake-cycle-fix/manifest.md"
   - ".sage/work/20260509-blocking-hook-guidance-review/manifest.md"
@@ -24,11 +25,18 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - skonsumowane przez Batch 1 anchor cycle
+`20260509-cycle-workflow-entry-enforcement-fix`.
 
-**Next step:** Wejść w `/sage:fix` i doprecyzować, gdzie w instrukcjach
-agenta/workflow powinien istnieć invariant komunikacyjny: po realnym wejściu w
-cykl agent mówi, że wszedł w cykl; po realnym wyjściu mówi, że wyszedł z cyklu.
+**Next step:** Brak osobnej implementacji w tym cyklu. Dalsze zmiany wymagają
+nowego intake albo osobnej decyzji o scope.
+
+## Batch 1 Resolution
+
+Ten intake został domknięty bookkeeping-only po zweryfikowanej implementacji
+Batcha 1. Wymóg jawnego komunikowania state transition po zmianie
+`status`/`phase` został zaadresowany w anchor cycle przez kontrakt
+manifest-first entry/resume oraz generated Codex operating contract.
 
 ## Finding
 

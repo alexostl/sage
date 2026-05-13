@@ -233,12 +233,17 @@ State transitions are part of the contract:
   learning, incident/recovery, or active-cycle mutation.
 - Standard+/Moderate+ entry or resume must create/update the manifest before
   artifacts or code. After changing \`status\` or \`phase\`, say what changed.
+- Use this order: identify workflow/cycle, update \`manifest.md\` first,
+  announce the completed state change, then write artifacts/code.
+- Fix-trigger prompts in instruction/process files require \`/fix\` diagnosis and scope
+  before mutation, even for typos; obvious non-canonical typos stay Tier 1 only
+  outside instruction/process surfaces.
 - A recoverable hook block is correction guidance: retry via the named legal
   path, or stop for the named user decision.
 
 For Standard+ Codex work, keep a short native plan/progress view when
-available; it mirrors current execution but never replaces Sage artifacts,
-gates, or verification. Skip it for lightweight and read-only conversation.
+available. It is a visibility layer; it never replaces Sage artifacts, gates,
+or verification. Skip it for lightweight and read-only conversation.
 
 ### Alex-native operating contract
 
@@ -253,21 +258,19 @@ first; and add 1-3 klikalne linki to key artifact sections at checkpoints.
 
 After an approved plan checkpoint, preserve two implementation paths:
 \`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.
-The full autonomous path means executing the approved plan without intermediate
-checkpoints until verification/close. Stop only when a key assumption,
-product/architecture decision, conflict, or material risk changes the plan.
+The full autonomous path is scoped autonomy, not general autonomy: execute the
+approved plan without intermediate checkpoints until verification/close, bound
+to the approved plan and manifest scope. Any scope expansion cancels the grant;
+so does a new workflow/follow-up, product/architecture decision, key assumption,
+conflict, or material risk changes the plan.
 
-When using subagents/reviewer agents, verify they inherit or are explicitly
-given the active project instructions, Sage scope, and MCP/tool expectations.
-Subagent edits are not exempt from manifest scope, plan approval, or
-verification gates.
+When using subagents/reviewer agents, give them active project instructions,
+Sage scope, and MCP/tool expectations. Subagent edits are not exempt from
+manifest scope, plan approval, or verification gates.
 
 Codex subagent authorization must be literal. Only call spawn_agent after the
-user explicitly asks for subagents, delegation, or parallel agent work. Sage
-may obtain that authorization through checkpoint wording such as [A] Subagent
-review — explicitly authorize Codex to spawn a read-only subagent for this
-review. A generic request like "review this" or "review please" does not
-authorize spawning a subagent; ask for subagent review vs self-review instead.
+user asks for subagents/delegation/parallel work, or selects [A] Subagent
+review for a read-only subagent. "review please" is not enough; ask for subagent review vs self-review.
 
 ### State First
 

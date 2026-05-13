@@ -5,6 +5,339 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-13 — Batch 1 implementation reached completion checkpoint
+
+**Decision:** Implementacja Batcha 1 została wykonana i doprowadzona do
+completion checkpoint. Pięć sibling intake cycles oznaczono jako
+`status: completed` i `folded_into:
+20260509-cycle-workflow-entry-enforcement-fix`, bo zostały skonsumowane przez
+anchor cycle bez osobnej ukrytej implementacji.
+
+**Evidence:** Deterministic verification przeszło: `stage3-agents-md.bats`
+48/48, `aggregate-signals.bats` 14/14, `active_init.bats` 15/15,
+`pre-tool-validate.bats` 67/67, shell syntax checks, `jq` oraz
+`git diff --check`. Full real-agent harness na `gpt-5.4 / reasoning=medium`
+przeszedł w
+`.sage/work/20260509-cycle-workflow-entry-enforcement-fix/harness-run-20260513200647/`
+z `v11_release_blocker_harness.complete=true`, `present=10`, `missing=[]`.
+
+**Boundary:** Anchor cycle zostaje `status: in-progress` i
+`phase: completion-checkpoint` do finalnej akceptacji Alexa. Nie ma completion
+claimu przed zatwierdzeniem finalnego deliverable.
+
+### 2026-05-13 — Batch 1 implementation approved
+
+**Decision:** Alex wybrał `[S] Skip review` po poprawkach planu, więc plan
+Batcha 1 został zatwierdzony bez kolejnego subagent review. Manifest
+`20260509-cycle-workflow-entry-enforcement-fix` przeszedł do `phase: deliver`.
+
+**Why:** Drugie review planu miało jeden blocker dotyczący real-agent harness
+policy; blocker został poprawiony. Kolejne review nie było potrzebne przed
+implementacją.
+
+**Boundary:** Implementacja musi pozostać w zatwierdzonym `manifest.scope`.
+Cycle nie może przejść do `completed` bez aktualnego real-agent evidence dla
+scenariuszy `04` i `06` albo pełnego harness runu.
+
+### 2026-05-13 — Batch 1 real-agent harness policy made blocking
+
+**Decision:** Po drugim read-only review planu usunięto możliwość domknięcia
+systemic fixa Batcha 1 bez aktualnego real-agent harness evidence. Jeśli nie ma
+targeted runnera dla `04` i `06`, trzeba uruchomić pełny
+`runtime/platforms/codex/harness/run-harness.sh`; jeśli harness nie może
+zostać uruchomiony, cykl nie może przejść do `completed`.
+
+**Why:** Review wskazało, że poprzednia wersja nadal pozwalała zastąpić
+completion evidence opisanym gapem. To byłoby słabsze niż istniejący kontrakt
+release-blocker harness.
+
+**Boundary:** To nadal korekta planu, bez implementacji. Pozostałe dwa punkty
+review (`active_init.bats` i sibling intake bookkeeping) są już uznane za
+zaadresowane.
+
+### 2026-05-13 — Batch 1 plan revised after scope review
+
+**Decision:** Po read-only review planu Batcha 1 zrewidowano `plan.md` i
+`manifest.md`: dodano `active_init.bats` do minimal verification, zaostrzono
+politykę real-agent harness oraz włączono sibling intake manifests do scope jako
+bookkeeping-only closeout po zweryfikowanej implementacji.
+
+**Why:** Subagent wskazał, że systemic fix nie może traktować real-agent harness
+jako opcjonalnego, skoro root cause obejmuje zachowanie realnego agenta. Wskazał
+też lukę testową dla `active_init.sh` i ryzyko, że Batch 1 zostanie wdrożony,
+ale stare intake'y dalej będą wisiały jako otwarte.
+
+**Boundary:** Zmiana nadal jest plan/scope-only. Sibling manifests mają być
+dotykane wyłącznie po implementacji jako oznaczenie, że zostały skonsumowane
+przez anchor cycle, bez ukrytej implementacji w tych cyklach.
+
+### 2026-05-13 — Batch 1 scope plan ready after subagent review
+
+**Decision:** Po read-only subagent review root cause Batcha 1 został
+zaakceptowany do planowania. Doprecyzowano w diagnozie evidence dla lease-locka
+oraz opis Codex task-plan jako warstwy obserwowalności, a następnie zapisano
+`plan.md` i przesunięto manifest do `phase: fix-scope-gate`.
+
+**Why:** Subagent rekomendował `Approve`, wskazując tylko dwa P3
+doprecyzowania. Plan klasyfikuje Batch 1 jako systemic fix, bo dotyka
+workflowów, generated Codex contract, testów i potencjalnie hook/harness
+guardrails.
+
+**Boundary:** Implementacja nadal nie została rozpoczęta. Następny legalny
+krok to akceptacja, rewizja albo eskalacja planu scope.
+
+### 2026-05-13 — Batch 1 root cause ready for approval
+
+**Decision:** Przygotowano root cause dla całego Batcha 1 w
+`20260509-cycle-workflow-entry-enforcement-fix/root-cause.md` i przesunięto
+manifest cyklu do `phase: root-cause-gate`.
+
+**Why:** Batch 1 wymaga wspólnego kontraktu `state transition before work`,
+który spina routing, resume, disclosure, Codex task-plan visibility,
+fix-trigger gate oraz lease ownership.
+
+**Boundary:** Nadal nie rozpoczęto implementacji ani planowania zmian w kodzie.
+Następny legalny krok to akceptacja, rewizja albo dalsza diagnoza root cause.
+
+### 2026-05-13 — Batch 1 scope confirmed as whole batch
+
+**Decision:** Alex potwierdził, że obecny `/sage:fix` pracuje nad całym
+Batchem 1, nie tylko nad intake
+`20260509-cycle-workflow-entry-enforcement-fix`.
+
+**Scope:** Batch obejmuje:
+`20260509-cycle-workflow-entry-enforcement-fix`,
+`20260509-agent-resume-intake-cycle-fix`,
+`20260509-cycle-state-disclosure-fix`,
+`20260509-codex-task-plan-visibility-fix`,
+`20260509-fix-trigger-gate-fix` i
+`20260509-active-cycle-lease-lock`.
+
+**Boundary:** `20260509-cycle-workflow-entry-enforcement-fix` zostaje
+cyklem-kotwicą i miejscem planu/root cause dla batcha. Wątki Batcha 2, w tym
+`20260510-mutation-intent-preflight-gap`, pozostają poza scope bez osobnej
+decyzji o rozszerzeniu.
+
+### 2026-05-13 — Batch 1 workflow entry/resume fix cycle started
+
+**Decision:** Wznowiono
+`20260509-cycle-workflow-entry-enforcement-fix` jako formalny `/sage:fix` dla
+Batch 1: Formalne wejście i wznowienie workflow.
+
+**Why:** Alex poprosił o rozpoczęcie pierwszego cyklu fixów, a aktualna mapa
+otwartych prac wskazuje Batch 1 jako pierwszy obowiązujący krok. Ten cykl jest
+kotwicą dla problemu, że deklaracja workflow musi mieć odpowiadający jej stan
+na dysku.
+
+**Boundary:** Start dotyczy fazy `understand`. Nie rozpoczęto implementacji,
+nie zatwierdzono jeszcze root cause ani scope fixa.
+
+### 2026-05-13 — Post-closeout git next-step attachment completed
+
+**Decision:** Domknięto cykl
+`20260513-attach-post-closeout-git-next-step` po dopięciu
+`20260513-post-closeout-git-next-step-build` do Batch 3 w `cluster-map.md` i w
+samym manifeście intake.
+
+**Why:** Ten temat jest częścią closeout/handoff: po zamknięciu cyklu agent ma
+jasno raportować status stage/commit/push i zapytać o git handoff dla zmian
+bieżącego cyklu.
+
+**Boundary:** Nie wykonano implementacji. To wyłącznie aktualizacja mapy
+przyszłych prac.
+
+### 2026-05-13 — Post-closeout git next-step attached to Batch 3
+
+**Decision:** `20260513-post-closeout-git-next-step-build` został dopięty do
+Batch 3: `Closeout, handoff i dokumentacja po końcu cyklu`.
+
+**Why:** Ten intake dotyczy tego, co agent powinien zrobić i powiedzieć po
+formalnym closeoucie: czy stage/commit/push zostały wykonane oraz czy ma
+przejść do git handoffu zmian bieżącego cyklu. To jest część closeout/handoff,
+nie osobny standalone build.
+
+**Boundary:** Nadal jest to intake. Nie wdrożono jeszcze workflow guidance ani
+runtime behavior dla automatycznego pytania o stage/commit/push.
+
+### 2026-05-13 — Post-closeout git next-step attachment cycle opened
+
+**Decision:** Otworzono wąski cykl
+`20260513-attach-post-closeout-git-next-step`, żeby podpiąć
+`20260513-post-closeout-git-next-step-build` do właściwego batcha w mapie
+otwartych prac.
+
+**Why:** Intake o pytaniu po closeoucie o stage/commit/push dotyczy tej samej
+granicy co closeout/handoff, więc powinien być widoczny w Batch 3 zamiast
+wisieć osobno.
+
+**Boundary:** Documentation-only. Nie implementuje jeszcze zachowania git
+handoff.
+
+### 2026-05-13 — Conceptual `.sage` work allowed alongside active lease
+
+**Decision:** Batch 1 ma objąć wyjątek dla równoległej pracy koncepcyjnej w
+`.sage/**`: aktywny lease innego cyklu powinien blokować implementation paths
+oraz artefakty aktywnego `in-progress` cyklu innej sesji, ale nie powinien
+zamrażać całego backlogu. Drugi agent w tym samym worktree może otworzyć nowy
+cykl, doprecyzować intake albo przygotować plan/spec dla `intake`/`paused`
+cycle, jeśli patch dotyka tylko koncepcyjnych artefaktów `.sage/**`.
+
+**Why:** Celem lease locka jest uniknięcie kolizji w kodzie i aktywnych
+artefaktach tej samej pracy, nie blokowanie planowania niezależnych cykli.
+
+**Boundary:** Wyjątek nie obejmuje kodu, runtime, testów, configu ani mieszania
+capture-only `.sage/**` z implementation paths w jednym patchu.
+`.sage/decisions.md` pozostaje shared artifact: dopuszczalny dla decyzji i
+capture/planning-only pracy, ale nie jako furtka do ukrytej implementacji.
+
+### 2026-05-13 — Intake batch map updated
+
+**Decision:** Zaktualizowano
+`.sage/work/20260509-open-work-cluster-map/cluster-map.md` do aktualnej
+kolejności batchy 1-8 oraz dopisano lease-lock wyjątek do
+`.sage/work/20260509-active-cycle-lease-lock/manifest.md`.
+
+**Why:** Poprzednia mapa miała starszą kolejność klastrów i nie zawierała
+worktree lifecycle batch ani reguły, że praca koncepcyjna w osobnych
+`intake`/`paused` cyklach może dziać się równolegle.
+
+**Boundary:** To była dokumentacyjna aktualizacja stanu pracy. Nie zmieniono
+runtime hooków ani behavior predicate; implementacja wyjątku należy do Batch 1.
+
+### 2026-05-13 — Post-closeout git next-step captured as intake
+
+**Decision:** Dodano intake
+`.sage/work/20260513-post-closeout-git-next-step-build/` dla zachowania, w
+którym agent po closeout cyklu pyta, czy wykonać stage, commit i push.
+
+**Why:** Alex wyjaśnił, że nie chodziło o dopisanie reguły do pamięci, tylko o
+kolejną inicjatywę do wykonania.
+
+**Boundary:** Błędnie dodany learning w `sage-wiki` został usunięty z tabeli
+`learnings` (`learn-13b402f61eb595bf`). Nowy manifest jest capture-only; nie
+zmienia runtime ani workflow guidance.
+
+### 2026-05-13 — Intake batch map update cycle opened
+
+**Decision:** Otworzono wąski cykl
+`20260513-update-intake-batch-map`, żeby legalnie zaktualizować completed
+`cluster-map.md` oraz intake `20260509-active-cycle-lease-lock` po decyzjach
+Alexa o kolejności batchy i wyjątku dla pracy koncepcyjnej `.sage/**`.
+
+**Why:** Obecny hook nadal blokuje edycję completed artefaktu bez aktywnego
+cyklu. To zachowanie samo jest częścią przyszłego Batch 1, ale aktualizacja mapy
+potrzebuje legalnego scope już teraz.
+
+**Boundary:** Cykl jest documentation/conceptual-only. Nie obejmuje runtime,
+hooków, testów ani implementacji predicate.
+
+### 2026-05-13 — Autonomous approval boundary cycle completed
+
+**Decision:** Zamknięto cykl
+`20260509-autonomous-approval-boundary-fix` jako completed po finalnym approvalu
+Alexa (`a`).
+
+**Why:** Implementacja doprecyzowała `[F] Full autonomous implementation` jako
+scoped autonomy bound to approved plan snapshot and `manifest.scope`, a testy i
+gates potwierdziły kontrakt.
+
+**Verification:** `stage3-agents-md.bats` 47/47,
+`aggregate-signals.bats` 14/14, `bash -n`, `git diff --check`, Gate 4
+hallucination check PASS. `sage-verify.sh` wyszedł 0, ale bez wykrytego
+globalnego runnera.
+
+**Boundary:** Nie wykonano stage ani commit. Working tree nadal zawiera także
+niezwiązane wcześniejsze zmiany poza tym cyklem.
+
+### 2026-05-13 — Intake batches execution order set
+
+**Decision:** Alex zdecydował, że kolejne nowe cykle startowane z otwartych
+intake'ów mają iść batchami w tej kolejności:
+
+1. `Batch 1 - Formalne wejście i wznowienie workflow`:
+   `20260509-cycle-workflow-entry-enforcement-fix`,
+   `20260509-agent-resume-intake-cycle-fix`,
+   `20260509-cycle-state-disclosure-fix`,
+   `20260509-codex-task-plan-visibility-fix`,
+   `20260509-fix-trigger-gate-fix`.
+2. `Batch 2 - Hook recovery i mutation preflight`:
+   `20260510-mutation-intent-preflight-gap`,
+   `20260509-file-change-enforcement-fix`,
+   `20260509-binary-asset-mutation-contract-fix`,
+   `20260512-hook-recovery-scope-amputation-fix`,
+   `20260509-hook-block-recovery-behavior-fix`,
+   `20260509-blocking-hook-guidance-review`.
+3. `Batch 3 - Closeout, handoff i dokumentacja po końcu cyklu`:
+   `20260509-closeout-documentation-mutation-model`,
+   `20260510-closeout-ordering-workflow-hook-fix`,
+   `20260510-post-closeout-handoff-doc-mutation-fix`.
+4. `Batch 4 - Codex surface, loader i instruction reachability`:
+   `20260509-duplicate-sage-entrypoint-fix`,
+   `20260509-sage-navigator-skill-drift-fix`,
+   `20260509-selfhost-codex-loader-path-fix`,
+   `20260509-codex-hooks-feature-flag-migration-fix`.
+5. `Batch 5 - Harness, incidents i language-invariant matching`:
+   `20260509-mcp-incident-followup-fixes`,
+   `20260510-language-invariant-workflow-matching-fix`,
+   `20260509-target-repo-ownership-harness-fix`.
+6. `Batch 6 - Subagenci, approval boundary i self-learning recall`:
+   `20260510-subagent-review-approval-boundary-fix`,
+   `20260510-subagent-self-learning-recall-fix`.
+7. `Batch 7 - Alex-native komunikacja i polska proza`:
+   `20260509-alex-readable-change-explanations-fix`,
+   `20260509-qa-workflow-polish-report-contract`.
+8. `Batch 8 - Worktree lifecycle i SageMemory`:
+   `20260510-codex-worktree-support-build`,
+   `20260510-manual-sagememory-worktree-repair`.
+
+**Why:** Intaki są tożsame tematycznie i powinny być podejmowane jako większe
+batche, nie jako pojedyncze fixy. Build worktree został jawnie podpięty pod
+ostatni batch razem z manualną naprawą SageMemory, bo chodzi o jeden lifecycle:
+tworzenie, praca, closeout, integracja, sprzątanie/likwidacja i pamięć
+projektowa w worktree.
+
+**Boundary:** Ta decyzja superseduje starszą rekomendowaną kolejność z
+`.sage/work/20260509-open-work-cluster-map/cluster-map.md`, jeśli tamta mapa
+nie została jeszcze zaktualizowana. Kolejność dotyczy nowych cykli z intake;
+nie zmienia statusu cykli już `in-progress` albo w `completion-gate`, w tym
+`20260509-autonomous-approval-boundary-fix`.
+
+### 2026-05-13 — Autonomous approval boundary implementation verified
+
+**Decision:** Zaimplementowano fix cyklu
+`20260509-autonomous-approval-boundary-fix` i przesunięto go do
+`completion-gate`.
+
+**Why:** Workflowe i generated Codex guidance opisują teraz `[F]` jako
+scoped autonomy, not general autonomy. `[F]` jest związane z approved plan
+snapshot i `manifest.scope`; scope expansion, nowy plik poza scope albo nowa
+decyzja product/architecture anulują grant i wymagają checkpointu.
+
+**Verification:** Przeszły `stage3-agents-md.bats` 47/47,
+`aggregate-signals.bats` 14/14, `bash -n`, `git diff --check` oraz Gate 4
+hallucination check. Gate 5 `sage-verify.sh` zakończył się exit 0, ale nie
+wykrył globalnego runnera i wymaga manualnej weryfikacji, którą pokrywają
+powyższe testy Bats.
+
+**Boundary:** Cykl nie jest jeszcze zamknięty. Następny krok to finalny
+checkpoint Alexa: approve closeout albo request revisions.
+
+### 2026-05-13 — Autonomous approval boundary plan approved
+
+**Decision:** Alex zatwierdził plan cyklu
+`20260509-autonomous-approval-boundary-fix` odpowiedzią `a`, interpretowaną
+jako `[A] Approve plan`.
+
+**Why:** Plan był wcześniej zaparkowany jako handoff po wyborze `[N] New
+session`; zgodnie z manifestem następny legalny krok to ponownie pokazać plan i
+uzyskać explicit approval przed zmianami w workflow/runtime.
+
+**Boundary:** Approval obejmuje tylko snapshot
+`.sage/work/20260509-autonomous-approval-boundary-fix/plan.md` oraz
+`manifest.scope` po aktualizacji z 2026-05-13. Scope expansion, nowe pliki poza
+scope albo semantyczna zmiana planu anulują grant i wymagają nowego
+checkpointu.
+
 ### 2026-05-13 — Config threshold cycle completed
 
 **Decision:** Zamknieto cykl

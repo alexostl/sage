@@ -46,8 +46,16 @@ without announcing or starting a workflow.
 - If active work exists, acknowledge it when relevant, but do not resume
   implementation or force methodology for unrelated read-only questions
 - After workflow entry, follow that workflow's gates exactly
+- Standard+/Moderate+ entry or resume is a manifest state transition, not a
+  conversational claim: update `manifest.md` first, then say which
+  `status`/`phase` changed, then write artifacts or code
+- In Codex, keep the native task-plan/progress UI aligned with Standard+ work
+  as a visibility layer; it never replaces Sage artifacts or gates
 - Source/runtime/test/instruction behavior changes require the proper Sage
   workflow and approved manifest scope, regardless of mutation tool
+- "Find and fix" prompts in instruction/process files require `/fix`
+  diagnosis/scope before mutation, even for typos; only obvious
+  non-canonical typos outside instruction/process surfaces stay Tier 1
 - Config changes are calibrated: single-file config-only Add/Update may be
   Lightweight/Surgical when it matches the structural allowlist; multi-file,
   security, hook, instruction, generated, or uncertain config changes require

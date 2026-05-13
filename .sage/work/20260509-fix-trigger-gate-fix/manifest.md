@@ -2,14 +2,15 @@
 cycle_id: "20260509-fix-trigger-gate-fix"
 title: "Fix: fix-trigger gate for AGENTS.md typos"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 source_cycle: "20260509-runtime-process-dummy-qa"
-needs-triage: true
+needs-triage: false
 priority: P1
+folded_into: "20260509-cycle-workflow-entry-enforcement-fix"
 scope:
   - ".sage/work/20260509-fix-trigger-gate-fix/*"
   - ".sage/decisions.md"
@@ -24,11 +25,19 @@ scope:
 
 ## State
 
-**Current phase:** intake — finding zapisany po Project Dummy QA. Implementacja
-nie została rozpoczęta.
+**Current phase:** completed - skonsumowane przez Batch 1 anchor cycle
+`20260509-cycle-workflow-entry-enforcement-fix`.
 
-**Next step:** Uruchomić `/sage:fix` i ustalić granicę między Tier 1 direct edit
-a pełnym fix workflow dla promptów typu `find and fix`.
+**Next step:** Brak osobnej implementacji w tym cyklu. Dalsze zmiany wymagają
+nowego intake albo osobnej decyzji o scope.
+
+## Batch 1 Resolution
+
+Ten intake został domknięty bookkeeping-only po zweryfikowanej implementacji
+Batcha 1. Fix-trigger guardrail dla `AGENTS.md` i instruction/process files
+został zaostrzony: takie prompty wymagają `/fix` diagnosis/scope przed mutacją,
+nawet gdy wyglądają jak literówka. Real-agent harness `04-fix-trigger`
+potwierdził brak bezpośredniej zmiany `AGENTS.md`.
 
 ## Finding
 

@@ -134,6 +134,13 @@ reproduce, no specific behavior described), ask for specifics before
 investigating. Don't guess — misdiagnosis from vague reports wastes
 more time than one clarifying question.
 
+**Fix-trigger guardrail for process/instruction files:** prompts like "find and
+fix a typo" are still `/fix` action mandates when the target is an instruction,
+workflow, hook, generated `AGENTS.md`, or other process file. Do a short
+diagnosis before editing and stop at the scope gate before any mutation, even
+when the change looks like a typo. Obvious non-canonical spelling/punctuation
+fixes may remain Tier 1 direct edits only outside instruction/process surfaces.
+
 Sage: Here's what I understand:
 - [Problem summary]
 - [Expected vs actual behavior]
@@ -314,9 +321,20 @@ Sage: The fix is expanding beyond the plan.
 Originally: [N files, M changes]
 Now: [N+X files, M+Y changes]
 
-[1] Update the plan and continue
+[1] Stop for scope expansion approval
 [2] Escalate to /build
 [3] Revert to original plan and accept limitations
+
+For Moderate/Systemic fixes, `[F] Full autonomous implementation` does not
+override this stop. Plan approval and scope approval apply only to the
+currently approved `plan.md` and `manifest.scope`. New files, tests, workflow
+targets, or semantic plan changes require a scope expansion checkpoint before
+implementation continues:
+
+`[A] Approve scope expansion`, `[R] Revise`, `[S] Split into intake`.
+
+Do not "fix the plan on the way" and implement the expanded scope in the same
+autonomy grant.
 
 ## Step 5: Verify and Quality Gates
 

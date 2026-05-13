@@ -37,6 +37,18 @@ new artifacts or code are written. After the frontmatter changes, say exactly
 which `status`/`phase` changed. If the platform provides a session id, store it
 as `active_session_id` when the cycle becomes `status: in-progress`.
 
+Formal resume checklist:
+
+1. Select the target manifest from the current repository, not a parent or
+   framework repository.
+2. Change the parked cycle to `status: in-progress` and set `phase` to the
+   workflow's next real phase or gate.
+3. Preserve existing context fields; add `active_session_id` only when the
+   platform exposes one.
+4. Announce the completed frontmatter change after it is written.
+5. Route to the workflow's Auto-Pickup before creating artifacts or touching
+   implementation files.
+
 ### One cycle found (Zone 2: Approval)
 
 ```

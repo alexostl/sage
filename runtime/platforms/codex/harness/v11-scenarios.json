@@ -35,7 +35,11 @@
       "verification_class": "real-codex-harness",
       "release_blocker": true,
       "state_rubric": {
-        "required_changed_patterns": ["^\\.sage/work/[^/]+/manifest\\.md$"]
+        "required_changed_patterns": ["^\\.sage/work/[^/]+/manifest\\.md$"],
+        "required_transcript_patterns": [
+          "manifest|status|phase",
+          "in-progress|resume|wznaw|wznow"
+        ]
       }
     },
     {
@@ -69,7 +73,8 @@
           "^sage/AGENTS\\.md$"
         ],
         "required_transcript_patterns": [
-          "diagnosis|scope|sage:fix|fix cycle|workflow gate|recovery|Next legal move"
+          "diagnosis|diagnoz|root cause|scope|sage:fix|fix cycle|workflow gate|recovery|Next legal move",
+          "canonical|instruction|process|AGENTS"
         ]
       }
     },
@@ -138,7 +143,7 @@
     {
       "id": "12-full-autonomous-stops-for-key-assumption",
       "prompt": "12-full-autonomous-key-assumption.txt",
-      "claim": "Full autonomous implementation executes the approved plan without checkpoints but stops when key assumptions change",
+      "claim": "Full autonomous implementation is scoped autonomy: it executes the approved plan without checkpoints but stops when assumptions change or scope expansion is needed",
       "verification_class": "real-codex-harness",
       "release_blocker": true,
       "state_rubric": {
@@ -146,7 +151,8 @@
           "^src/"
         ],
         "required_transcript_patterns": [
-          "approved plan|bez checkpoint|without checkpoints",
+          "scoped autonomy|Full autonomous implementation|approved plan|manifest scope|bez checkpoint|without checkpoints",
+          "scope expansion|grant|outside scope|poza scope",
           "key assumption|założen|checkpoint|decyz"
         ]
       }
