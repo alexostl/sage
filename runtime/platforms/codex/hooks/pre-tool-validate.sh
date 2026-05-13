@@ -98,6 +98,41 @@ is_implementation_boundary_path() {
     esac
 }
 
+is_lightweight_config_only_patch() {
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+
+    local path="${claimed_paths[0]}"
+    local op="${claimed_ops[0]}"
+    local base lower
+
+    case "$op" in
+        Add|Update) ;;
+        *) return 1 ;;
+    esac
+
+    case "$path" in
+        config/*) ;;
+        *) return 1 ;;
+    esac
+    case "$path" in
+        config/*/*) return 1 ;;
+    esac
+    case "$path" in
+        *.toml|*.json|*.yaml|*.yml) ;;
+        *) return 1 ;;
+    esac
+
+    base="${path##*/}"
+    lower="$(printf '%s' "$base" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+        *hook*|*agent*|*instruction*|*policy*|*permission*|*secret*|*credential*|*token*|*key*|*auth*|*mcp*|*plugin*|*skill*)
+            return 1 ;;
+    esac
+
+    return 0
+}
+
 same_turn_bootstrapped_cycle() {
     local cwd="$1"
     local session_id="$2"
@@ -126,6 +161,9 @@ fi
 if [ "$resolution_kind" = "bootstrap" ]; then
     cycle_id="$resolution_value"
 elif [ "$resolution_kind" = "none" ]; then
+    if is_lightweight_config_only_patch; then
+        cycle_id=""
+    else
         resumable="$(resumable_cycles_summary "$cwd" || true)"
         if [ -n "$resumable" ]; then
             printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly use `sage:continue` or natural-language resume for the right cycle, or start a new workflow.\n' "$resumable" >&2
@@ -134,6 +172,7 @@ elif [ "$resolution_kind" = "none" ]; then
         # shellcheck disable=SC2016
         printf 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.\n' >&2
         exit 2
+    fi
 else
     cycle_dir="$resolution_value"
     cycle_id="$(basename "$cycle_dir")"
@@ -206,7 +245,7 @@ else
         fi
     done
     if [ "${#boundary_paths[@]}" -gt 0 ] && same_turn_bootstrapped_cycle "$cwd" "$session_id" "$cycle_id" "$turn_id"; then
-        printf 'Sage: BLOCKING implementation/instruction mutation from a self-created cycle in the same turn: %s. Active cycle: %s. A manifest/plan created by this same turn is capture/planning state, not approval to edit source/runtime/test/config/instruction files. Next legal move: present the plan and wait for user approval, then continue in a later turn.\n' \
+        printf 'Sage: BLOCKING implementation/instruction mutation from a self-created cycle in the same turn: %s. Active cycle: %s. A manifest/plan created by this same turn is capture/planning state, not approval to edit source/runtime/test/instruction files. Config changes are calibrated separately by the lightweight structural allowlist. Next legal move: present the plan and wait for user approval, then continue in a later turn.\n' \
             "${boundary_paths[*]}" "$cycle_id" >&2
         exit 2
     fi

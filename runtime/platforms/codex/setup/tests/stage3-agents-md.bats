@@ -348,8 +348,11 @@ EOF
     grep -q 'framework repository must not impersonate' "$TARGET/AGENTS.md"
     grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
     grep -q 'Do not write `.sage/\*\*` outside the target repo' "$TARGET/AGENTS.md"
-    grep -q 'Source/runtime/test/config/' "$TARGET/AGENTS.md"
-    grep -q 'same-turn self-created artifacts are not approval' "$TARGET/AGENTS.md"
+    grep -q 'Source/runtime/test/' "$TARGET/AGENTS.md"
+    grep -q 'instruction behavior changes require the proper Sage workflow' "$TARGET/AGENTS.md"
+    grep -q 'single-file config-only' "$TARGET/AGENTS.md"
+    grep -q 'multi-file/security/hooks/instruction/generated' "$TARGET/AGENTS.md"
+    grep -qi 'same-turn self-created artifacts are not approval' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md preserves explicit subagent review and skip-review checkpoint paths" {

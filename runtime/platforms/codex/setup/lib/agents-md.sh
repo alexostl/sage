@@ -341,9 +341,13 @@ target. Do not auto-fix across repository boundaries. Absolute paths outside
 the target repo are out of scope unless they are explicitly listed in the
 active manifest scope.
 
-Do not write \`.sage/**\` outside the target repo. Source/runtime/test/config/
+Do not write \`.sage/**\` outside the target repo. Source/runtime/test/
 instruction behavior changes require the proper Sage workflow and approved
-manifest scope; same-turn self-created artifacts are not approval.
+manifest scope. Config changes are calibrated: single-file config-only
+Add/Update may be Lightweight/Surgical only when it matches the structural
+allowlist; multi-file/security/hooks/instruction/generated or uncertain config
+changes require workflow scope.
+Same-turn self-created artifacts are not approval.
 
 ### Checkpoints And Done
 

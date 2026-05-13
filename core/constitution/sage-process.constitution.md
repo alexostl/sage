@@ -46,8 +46,12 @@ without announcing or starting a workflow.
 - If active work exists, acknowledge it when relevant, but do not resume
   implementation or force methodology for unrelated read-only questions
 - After workflow entry, follow that workflow's gates exactly
-- Source/runtime/test/config/instruction behavior changes require the proper
-  Sage workflow and approved manifest scope, regardless of mutation tool
+- Source/runtime/test/instruction behavior changes require the proper Sage
+  workflow and approved manifest scope, regardless of mutation tool
+- Config changes are calibrated: single-file config-only Add/Update may be
+  Lightweight/Surgical when it matches the structural allowlist; multi-file,
+  security, hook, instruction, generated, or uncertain config changes require
+  workflow and approved manifest scope
 
 **Scope calibration:** When in doubt, bias toward Standard. A brief note
 takes 2 minutes. Rework from undocumented decisions takes hours.

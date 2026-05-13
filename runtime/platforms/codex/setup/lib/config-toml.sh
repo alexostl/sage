@@ -36,7 +36,7 @@ Sage hard kernel:
 - Memory first: discover Sage Memory through the available Codex tool-discovery/MCP surface, then .sage-memory fallback when tools are unavailable.
 - Bug reports/findings without an explicit fix mandate require capture/diagnosis first; do not edit code until the user asks for a fix or a workflow gate approves implementation.
 - Artifacts before code: Standard+ work needs approved spec/plan and manifest scope before edits.
-- Mutation boundary: source/runtime/test/config/instruction behavior changes require proper Sage workflow + approved scope; same-turn self-created artifacts are not approval.
+- Mutation boundary: source/runtime/test/instruction changes require proper Sage workflow + approved scope; config is calibrated: single-file config-only Add/Update may be Lightweight/Surgical by structural allowlist, but multi-file/security/hooks/instruction/generated config still needs workflow; same-turn self-created artifacts are not approval.
 - Polish prose: keep Sage artifact structure/canonical terms in English, but write new .sage prose in Polish, including append-only sections in older English files.
 - Checkpoints: preserve [A] Review and [S] Skip review; after approved plan preserve [C] Checkpointed implementation and [F] Full autonomous implementation.
 - Subagents/reviewers inherit the same Sage scope, project instructions, MCP/tool expectations, and verification gates.

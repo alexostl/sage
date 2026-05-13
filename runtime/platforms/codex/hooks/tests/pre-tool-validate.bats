@@ -92,6 +92,29 @@ make_file_change_payload() {
     }'
 }
 
+make_file_change_multi_payload() {
+    local kind1="$1"
+    local path1="$2"
+    local kind2="$3"
+    local path2="$4"
+    local cwd="${5:-$PROJECT_ROOT}"
+    jq -nc --arg cwd "$cwd" --arg kind1 "$kind1" --arg path1 "$path1" --arg kind2 "$kind2" --arg path2 "$path2" '{
+        session_id: "test-uuid",
+        turn_id: "turn-1",
+        transcript_path: "/tmp/transcript",
+        cwd: $cwd,
+        hook_event_name: "PreToolUse",
+        model: "test-model",
+        permission_mode: "default",
+        tool_name: "file_change",
+        tool_input: { changes: [
+            {kind: $kind1, path: $path1},
+            {kind: $kind2, path: $path2}
+        ] },
+        tool_use_id: "tool-1"
+    }'
+}
+
 # Helper: write a manifest with frontmatter + scope array.
 make_cycle_with_scope() {
     local cycle="$1"
@@ -265,6 +288,8 @@ EOF
     echo "$output" | grep -q "same turn"
     echo "$output" | grep -q "user approval"
     echo "$output" | grep -q "src/from-self-created-manifest.txt"
+    echo "$output" | grep -q "source/runtime/test/instruction"
+    ! echo "$output" | grep -q "source/runtime/test/config/instruction"
 }
 
 @test "pre-tool-validate.sh: same-turn plan still cannot authorize source file_change" {
@@ -345,6 +370,85 @@ semantic_reclassification: accepted
     echo "$output" | grep -qi "parked"
     echo "$output" | grep -qi "manifest-only"
     echo "$output" | grep -qi "sage:continue"
+}
+
+@test "pre-tool-validate.sh: lightweight single top-level config update allowed with parked cycles" {
+    make_cycle_with_scope "20260101-paused" "paused" "src/**"
+    make_cycle_with_scope "20260102-intake" "intake" "src/**"
+    cmd="$(make_patch_cmd Update config/codex-config.toml)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"config/codex-config.toml"' "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == ""' >/dev/null
+}
+
+@test "pre-tool-validate.sh: lightweight config allowance rejects two config files without active cycle" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: config/a.toml\n@@\n+x\n*** Update File: config/b.toml\n@@\n+y\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: lightweight config allowance rejects .codex/config.toml" {
+    cmd="$(make_patch_cmd Update .codex/config.toml)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: lightweight config allowance rejects delete" {
+    cmd="$(make_patch_cmd Delete config/codex-config.toml)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: lightweight config allowance rejects high-risk config basenames" {
+    for path in config/hooks.toml config/secrets.json; do
+        cmd="$(make_patch_cmd Update "$path")"
+        payload="$(make_payload "$cmd")"
+        run bash -c "echo '$payload' | '$HOOK' 2>&1"
+        [ "$status" -eq 2 ]
+        echo "$output" | grep -qi "no active"
+    done
+}
+
+@test "pre-tool-validate.sh: lightweight config allowance rejects nested config path" {
+    cmd="$(make_patch_cmd Update config/nested/app.toml)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: lightweight single config file_change update allowed without active cycle" {
+    payload="$(make_file_change_payload update "$PROJECT_ROOT/config/codex-config.toml")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"config/codex-config.toml"' "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == ""' >/dev/null
+}
+
+@test "pre-tool-validate.sh: lightweight config file_change rejects multi-file config change" {
+    payload="$(make_file_change_multi_payload update "$PROJECT_ROOT/config/a.toml" update "$PROJECT_ROOT/config/b.toml")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: lightweight config file_change rejects high-risk basename" {
+    payload="$(make_file_change_payload update "$PROJECT_ROOT/config/policy.yaml")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
 }
 
 @test "pre-tool-validate.sh: active gated checkpoint allows same-cycle artifact update" {
