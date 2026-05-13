@@ -5,6 +5,162 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-13 — Batch 2 closeout approved
+
+**Decision:** Alex zapytał, czy Batch 2 można zamknąć z czystym sumieniem.
+Po świeżym deterministic verification uznano, że tak: pełny real harness nie
+jest potrzebny przed commitem, bo ostatnia ekspansja była punktowa, a ścieżka
+`scope.writable` + `active_session_id: current` ma osobny seeded real-agent
+test.
+
+**Evidence:** `pre-tool-validate.bats` 73/73, `stage3-agents-md.bats` 49/49,
+`aggregate-signals.bats` 16/16, `jq`, `bash -n` i `git diff --check`
+przeszły.
+
+**Next:** Commit/push zmian i przejście do Batcha 3.
+
+### 2026-05-13 — Batch 2 implementation reached completion checkpoint
+
+**Decision:** Batch 2 został zaimplementowany i doprowadzony do completion
+checkpoint. Pięć sibling intake cycles oznaczono jako
+`status: completed` i `folded_into: 20260510-mutation-intent-preflight-gap`, bo
+zostały skonsumowane przez anchor cycle bez osobnej ukrytej implementacji.
+
+**Evidence:** Deterministic baseline przeszedł przed scope expansion:
+`pre-tool-validate.bats` 72/72, `stage3-agents-md.bats` 49/49,
+`aggregate-signals.bats` 16/16, JSON/shell syntax checks i `git diff --check`.
+Real harness wykonał wszystkie 14 scenariuszy raz; po zawężeniu rubryk
+re-agregacja na realnych transcriptach zwróciła
+`v11_release_blocker_harness.complete=true`, `present=12`, `missing=[]`.
+Po zatwierdzonej ekspansji scope Alex poprosił o punktowe testy zamiast pełnego
+harnessa: `active_session_id` 4/4, `inline scope.writable` 1/1, `bash -n` i
+targeted `git diff --check` przeszły.
+
+**Boundary:** Anchor cycle zostaje `status: in-progress` i
+`phase: completion-checkpoint` do finalnej akceptacji Alexa.
+
+**Additional targeted harness:** Po pytaniu Alexa odpalono punktowy seeded
+real-agent run z aktywnym manifestem zawierającym `scope.writable` i
+`active_session_id: current`. `codex exec` zakończył się `exit 0`, stderr nie
+zawierał relewantnych blokad, a targetowy `AGENTS.md` został zmieniony.
+
+### 2026-05-13 — Batch 2 scope expansion approved, targeted verification only
+
+**Decision:** Alex zatwierdził scope expansion dla
+`runtime/platforms/codex/hooks/lib/active_init.sh`.
+
+**Verification boundary:** Po tej ekspansji nie uruchamiać ponownie pełnego
+real harnessa. Wystarczy punktowa weryfikacja ścieżek związanych z
+`active_session_id`/scope parserem oraz szybki syntax check.
+
+### 2026-05-13 — Batch 2 scope expansion checkpoint for session placeholder
+
+**Decision needed:** Real harness scenariusz 2 po naprawie `scope.writable`
+odsłonił kolejny blocker: manifest z `active_session_id: "current"` jest
+traktowany jak prawdziwy obcy lock i blokuje legalną poprawkę manifestu oraz
+edycję `AGENTS.md`.
+
+**Proposed expansion:** Dodać do scope
+`runtime/platforms/codex/hooks/lib/active_init.sh` i znormalizować placeholdery
+`current`/`unknown`/`TODO` jako brak locka. Prawdziwy mismatch typu
+`other-session` nadal ma blokować.
+
+**Boundary:** To jest scope expansion odkryty przez real harness, więc kod może
+ruszyć dopiero po akceptacji Alexa.
+
+### 2026-05-13 — Batch 2 implementation approved
+
+**Decision:** Alex wybrał `[S] Skip review / approve` po read-only review planu
+Batcha 2. Cykl `20260510-mutation-intent-preflight-gap` przeszedł do
+`phase: deliver`.
+
+**Boundary:** Implementacja ma pozostać w zatwierdzonym `manifest.scope`.
+Scenario 13 nie może być tylko sprawdzeniem słowa `preflight`, a binary mutation
+path ma pozostać ultra-wąski bez szerokiego parsera shell.
+
+### 2026-05-13 — Batch 2 plan reviewed with no blockers
+
+**Decision:** Read-only subagent review planu Batcha 2 zwrócił
+`Approve with notes`. Nie ma blockerów przed decyzją Alexa o implementacji.
+
+**Notes carried forward:** Scenario 13 nie może być tylko sprawdzeniem, że w
+transcripcie pada słowo `preflight`; bez scope expansion do parsera kolejności
+ma łączyć broad transcript patterns, state/audit assertions i real transcript
+review evidence. Binary mutation path ma pozostać ultra-wąski: allowlist
+prostych komend, bez szerokiego parsera shell.
+
+**Boundary:** Implementacja nadal czeka na wybór Alexa na fix scope gate.
+
+### 2026-05-13 — Batch 2 AGENTS guidance must stay laconic
+
+**Decision:** Alex doprecyzował, że zmiany w generowanym `AGENTS.md` dla Batcha
+2 mają być lakoniczne.
+
+**Why:** Mutation preflight ma być przypomnieniem kontraktu, nie dużym nowym
+blokiem instrukcji zwiększającym token load.
+
+**Boundary:** Dłuższe wyjaśnienia, jeśli będą potrzebne, powinny trafić do
+workflow/skilla/testów albo planu, nie do generowanego `AGENTS.md`.
+
+### 2026-05-13 — Batch 2 root cause approved and scope planned
+
+**Decision:** Alex wybrał `[S] Skip review / approve` po read-only review root
+cause Batcha 2. Diagnoza została zaakceptowana i przygotowano Systemic
+`plan.md` dla cyklu-kotwicy `20260510-mutation-intent-preflight-gap`.
+
+**Plan shape:** Fix ma objąć agent-facing mutation preflight, hook recovery
+guidance, wąską legalną ścieżkę binary asset mutation poza `apply_patch`,
+deterministic tests oraz dwa nowe real-harness release blockers dla preflight i
+scope-amputation recovery.
+
+**Boundary:** Implementacja nadal jest zablokowana do akceptacji fix scope
+gate. Jeśli plan ma dotknąć plików poza `manifest.scope`, wymaga osobnego
+scope expansion checkpoint.
+
+### 2026-05-13 — Lightweight repo hygiene routed to Batch 3
+
+**Decision:** Utworzono intake
+`20260513-lightweight-repo-hygiene-decisions-fix` i dopisano go do Batcha 3:
+Closeout, handoff i dokumentacja po końcu cyklu.
+
+**Why:** Temat dotyczy granicy po closeoucie: pojedyncza oczywista zmiana repo
+hygiene, np. `.gitignore`, powinna być poza zamkniętym cyklem i zwykle może
+być zapisana jako krótka decyzja w `.sage/decisions.md` bez manifestu. Nie jest
+to główny zakres Batcha 2, który dotyczy mutation preflight i recovery po
+hookach.
+
+**Boundary:** To jest capture/routing only. Nie zmieniono hooka ani zasad
+runtime; implementacja ma wrócić dopiero w Batchu 3.
+
+### 2026-05-13 — Batch 2 root cause reviewed with no blockers
+
+**Decision:** Read-only subagent review dla diagnozy Batcha 2 zwrócił
+`Approve with notes`. Nie znaleziono blockerów dla root cause gate.
+
+**Notes carried forward:** Doprecyzowano evidence dla Bash hook matcher i
+uzupełniono `related:` w manifestcie cyklu-kotwicy o sibling intake'y Batcha 2.
+
+**Boundary:** Nadal nie ma zgody na plan ani implementację. Następny legalny
+krok to decyzja Alexa na root cause gate: approve, revise albo park.
+
+### 2026-05-13 — Batch 2 started as mutation preflight fix
+
+**Decision:** Rozpoczęto kolejny batch fixów. Cykl
+`20260510-mutation-intent-preflight-gap` jest kotwicą Batcha 2 i przeszedł przez
+`status: in-progress`, `phase: understand` do bramki
+`phase: root-cause-gate`.
+
+**Scope intent:** Batch 2 obejmuje hook recovery i mutation preflight:
+`20260510-mutation-intent-preflight-gap`,
+`20260509-file-change-enforcement-fix`,
+`20260509-binary-asset-mutation-contract-fix`,
+`20260512-hook-recovery-scope-amputation-fix`,
+`20260509-hook-block-recovery-behavior-fix` oraz
+`20260509-blocking-hook-guidance-review`.
+
+**Boundary:** To jest diagnoza, bez implementacji. Następny legalny krok to
+akceptacja, read-only review albo rewizja root cause dla całego Batcha 2.
+
 ### 2026-05-13 — Batch 1 implementation reached completion checkpoint
 
 **Decision:** Implementacja Batcha 1 została wykonana i doprowadzona do

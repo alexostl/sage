@@ -2,13 +2,14 @@
 cycle_id: "20260509-blocking-hook-guidance-review"
 title: "Review: guidance jakości komunikatów blokujących hooków"
 workflow: review
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 needs-triage: true
 priority: P1
+folded_into: "20260510-mutation-intent-preflight-gap"
 source: "conversation"
 suggested_workflow: review
 related:
@@ -27,11 +28,11 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Review nie zostało jeszcze wykonane.
+**Current phase:** completed - finding skonsumowany przez anchor cycle
+`20260510-mutation-intent-preflight-gap`.
 
-**Next step:** Wejść w `/sage:review` i przejrzeć wszystkie hooki blokujące pod
-kątem tego, czy ich komunikaty prowadzą agenta na prawidłową, wykonalną ścieżkę
-recovery.
+**Next step:** Brak osobnej review implementacji w tym cyklu; patrz anchor
+cycle i jego `verification.md`.
 
 ## Finding
 

@@ -3,7 +3,7 @@ cycle_id: "20260509-workflow-entry-resume-recovery-autonomy-fix"
 title: "QA Report: workflow entry, resume, recovery i autonomia"
 workflow: qa
 phase: qa-report
-status: in-progress
+status: completed
 created: 2026-05-10
 updated: 2026-05-10
 ---

@@ -2,11 +2,12 @@
 title: "Plan: twarda granica autonomii po zatwierdzeniu planu"
 workflow: fix
 cycle_id: "20260509-autonomous-approval-boundary-fix"
-phase: handoff
-status: paused
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 classification: Moderate
+autonomy_grant: approved 2026-05-13 for this plan snapshot and manifest.scope
 ---
 
 # Plan: twarda granica autonomii po zatwierdzeniu planu
@@ -149,7 +150,17 @@ Zmiany będą tekstowe i testowe. Revert patcha przywraca poprzedni kontrakt
 
 ## Handoff Status
 
-Ten plan nie jest zatwierdzony do implementacji. Alex wybrał `[N] New session`,
-więc kolejna sesja ma potraktować go jako zaparkowany plan-gate: pokazać zakres,
-potwierdzić aktualność i dopiero potem czekać na `[A] Approve plan` albo
-`[R] Revise`.
+Ten fragment był prawdziwy 2026-05-09: Alex wybrał `[N] New session`, więc plan
+został zaparkowany jako handoff. Stan został superseded 2026-05-13, gdy Alex
+zatwierdził plan odpowiedzią `a`.
+
+## Approval Status
+
+Alex zatwierdził plan odpowiedzią `a` 2026-05-13. Approval dotyczy tylko tego
+snapshotu planu i `manifest.scope`; scope expansion, nowy plik poza scope albo
+zmiana semantyki planu anulują grant i wymagają nowego checkpointu.
+
+## Implementation Status
+
+Implemented and approved for closeout 2026-05-13. Verification evidence lives
+in `verification.md`.

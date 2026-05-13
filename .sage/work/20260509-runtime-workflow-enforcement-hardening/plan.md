@@ -3,7 +3,7 @@ title: "Plan: hardening modelu cyklu, scope, recovery i harness"
 workflow: fix
 cycle_id: "20260509-runtime-workflow-enforcement-hardening"
 phase: fix-scope-gate
-status: in-progress
+status: completed
 created: 2026-05-09
 updated: 2026-05-09
 classification: Systemic

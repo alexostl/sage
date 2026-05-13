@@ -247,8 +247,21 @@ EOF
 @test "stage3: generated AGENTS.md treats hook blocks as recovery guidance" {
     PRESET=base run_stage3
     grep -q 'recoverable hook block is correction guidance' "$TARGET/AGENTS.md"
-    grep -q 'retry via the named legal' "$TARGET/AGENTS.md"
-    grep -q 'named user decision' "$TARGET/AGENTS.md"
+    grep -q 'retry via legal path' "$TARGET/AGENTS.md"
+    grep -q 'user decision' "$TARGET/AGENTS.md"
+    grep -q 'scope amputation' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md contains laconic mutation preflight contract" {
+    PRESET=base run_stage3
+    grep -q 'Mutation preflight before write' "$TARGET/AGENTS.md"
+    grep -q 'active cycle/scope/count' "$TARGET/AGENTS.md"
+    grep -q 'threshold/closeout/' "$TARGET/AGENTS.md"
+    grep -q 'tool path' "$TARGET/AGENTS.md"
+    grep -q 'Text edits use `apply_patch`' "$TARGET/AGENTS.md"
+    grep -q 'binary assets need' "$TARGET/AGENTS.md"
+    grep -q 'explicit binary path' "$TARGET/AGENTS.md"
+    ! grep -q 'How mutation preflight works' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md says active work does not force read-only implementation" {
@@ -283,7 +296,8 @@ EOF
     grep -q 'native plan/progress view' "$TARGET/AGENTS.md"
     grep -q 'visibility layer' "$TARGET/AGENTS.md"
     grep -q 'never replaces Sage artifacts' "$TARGET/AGENTS.md"
-    grep -q 'lightweight and read-only conversation' "$TARGET/AGENTS.md"
+    grep -q 'lightweight' "$TARGET/AGENTS.md"
+    grep -q 'read-only conversation' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md preserves post-plan implementation mode choice" {

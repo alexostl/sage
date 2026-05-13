@@ -3,7 +3,7 @@ title: "Root cause: runtime workflow enforcement hardening"
 workflow: fix
 cycle_id: "20260509-runtime-workflow-enforcement-hardening"
 phase: root-cause-gate
-status: pending-approval
+status: completed
 created: 2026-05-09
 updated: 2026-05-09
 ---

@@ -137,6 +137,33 @@ make_cycle_with_scope() {
     } > "$cycle_dir/manifest.md"
 }
 
+make_cycle_with_writable_scope() {
+    local cycle="$1"
+    local status="$2"
+    shift 2
+    local cycle_dir="$PROJECT_ROOT/.sage/work/$cycle"
+    mkdir -p "$cycle_dir"
+    {
+        printf -- '---\n'
+        printf 'cycle_id: "%s"\n' "$cycle"
+        printf 'status: %s\n' "$status"
+        printf 'phase: implement\n'
+        printf 'scope:\n'
+        printf '  writable: ['
+        local first=1
+        local g
+        for g in "$@"; do
+            [ "$first" -eq 0 ] && printf ', '
+            printf '"%s"' "$g"
+            first=0
+        done
+        printf ']\n'
+        printf '  frozen: []\n'
+        printf -- '---\n'
+        printf '# %s\n' "$cycle"
+    } > "$cycle_dir/manifest.md"
+}
+
 @test "pre-tool-validate.sh: no active cycle → exit 2, stderr says no active cycle" {
     cmd="$(make_patch_cmd Add src/foo.txt)"
     payload="$(make_payload "$cmd")"
@@ -176,6 +203,15 @@ make_cycle_with_scope() {
     log="$PROJECT_ROOT/.sage/.session-mutations.log"
     [ -f "$log" ]
     grep -q "src/foo.txt" "$log"
+}
+
+@test "pre-tool-validate.sh: active cycle, inline scope.writable exact path → exit 0" {
+    make_cycle_with_writable_scope "20260101-alpha" "in-progress" "AGENTS.md" ".sage/work/20260101-alpha/**" ".sage/decisions.md"
+    cmd="$(make_patch_cmd Update AGENTS.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"AGENTS.md"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: active_session_id mismatch blocks with handoff recovery path" {
@@ -220,6 +256,25 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "pre-tool-validate.sh: placeholder active_session_id current does not lock cycle" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+active_session_id: current
+scope:
+  - "AGENTS.md"
+---
+EOF
+    cmd="$(make_patch_cmd Update AGENTS.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
 @test "pre-tool-validate.sh: blocks Moderate+ implementation before plan.md exists" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
     cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: src/c.sh\n+z\n*** End Patch\n')"
@@ -249,6 +304,48 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "Moderate+ fix"
+    echo "$output" | grep -qi "scope amputation"
+    echo "$output" | grep -qi "required"
+}
+
+@test "pre-tool-validate.sh: binary Bash mutation without explicit intent is blocked" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    payload="$(make_bash_payload "rm runtime/assets/old.png")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "binary asset"
+    echo "$output" | grep -q "SAGE_BINARY_MUTATION=1"
+}
+
+@test "pre-tool-validate.sh: explicit binary Bash mutation in scope is allowed and logged" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    mkdir -p "$PROJECT_ROOT/runtime/assets"
+    printf 'png' > "$PROJECT_ROOT/runtime/assets/old.png"
+    payload="$(make_bash_payload "SAGE_BINARY_MUTATION=1 rm runtime/assets/old.png")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '"runtime/assets/old.png"' "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == "20260101-alpha"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: explicit binary Bash mutation outside scope is blocked" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    payload="$(make_bash_payload "SAGE_BINARY_MUTATION=1 rm docs/old.png")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "docs/old.png"
+    echo "$output" | grep -q "outside cycle scope"
+}
+
+@test "pre-tool-validate.sh: explicit binary Bash mutation with compound shell is fail-closed" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    payload="$(make_bash_payload "SAGE_BINARY_MUTATION=1 rm runtime/assets/old.png && touch runtime/assets/new.png")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "binary asset"
+    echo "$output" | grep -qi "simple"
 }
 
 @test "pre-tool-validate.sh: path out of scope → exit 2, stderr lists out-of-scope paths" {

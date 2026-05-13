@@ -23,6 +23,16 @@ for tool in jq yq; do
     fi
 done
 
+manifest_scope_lines() {
+    local yaml
+    yaml="$(manifest_yaml "$1")" || return 0
+    if printf '%s\n' "$yaml" | yq eval -e '.scope | tag == "!!map"' - >/dev/null 2>&1; then
+        printf '%s\n' "$yaml" | yq eval -r '.scope.writable[]? // ""' - 2>/dev/null || true
+    else
+        printf '%s\n' "$yaml" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true
+    fi
+}
+
 payload="$(cat 2>/dev/null || true)"
 if ! printf '%s' "$payload" | jq -e . >/dev/null 2>&1; then
     printf 'Sage: pre-tool-validate received invalid JSON payload (fail-closed).\n' >&2
@@ -42,10 +52,66 @@ if [ "$tool_name" = "Bash" ]; then
     if [[ "$cmd" =~ (^|[[:space:];|&])(cat[[:space:]].*\>|tee([[:space:]]|$)|sed[[:space:]][^;\|\&]*-i|perl[[:space:]][^;\|\&]*-.*pi|touch|mkdir|rm|mv|cp|install)([[:space:]]|$) ]] || [[ "$cmd" =~ (^|[^\<])\>\>?([^\|]|$) ]]; then
         mutating=1
     fi
+    binary_like=0
+    if [[ "$cmd" =~ \.(png|jpg|jpeg|gif|webp|pdf|zip|gz|tar|ico|icns|woff|woff2|ttf|otf)([[:space:]]|$) ]]; then
+        binary_like=1
+    fi
     if [[ "$cmd" == *".sage/work/"* ]] || [[ "$cmd" == *".sage/decisions.md"* ]] || [[ "$cmd" == *".sage-memory/"* ]] || [[ "$cmd" == *"src/"* ]] || [[ "$cmd" == *"tests/"* ]] || [[ "$cmd" == *"runtime/"* ]] || [[ "$cmd" == *"core/"* ]] || [[ "$cmd" == *"bin/"* ]]; then
         targets_guarded=1
     fi
+    if [ "$mutating" -eq 1 ] && [[ "$cmd" == SAGE_BINARY_MUTATION=1* ]]; then
+        if [[ "$cmd" =~ [\;\|\&\<\>\*\?\[\]\{\}\`] ]] || [[ "$cmd" == *'$('* ]]; then
+            printf 'Sage: BLOCKING binary asset mutation with non-simple Bash syntax. Binary asset mutations must use a simple allowlisted command with exact paths only. Next legal move: use a generator/helper with approved scope, or split to a simple `SAGE_BINARY_MUTATION=1 rm <path>` command.\n' >&2
+            exit 2
+        fi
+        binary_path=""
+        if [[ "$cmd" =~ ^SAGE_BINARY_MUTATION=1[[:space:]]+rm[[:space:]]+([^[:space:]]+)$ ]]; then
+            binary_path="${BASH_REMATCH[1]}"
+        else
+            printf 'Sage: BLOCKING binary asset mutation with unsupported Bash shape. Allowed v1 shape is simple and exact, for example: `SAGE_BINARY_MUTATION=1 rm path/to/asset.png`.\n' >&2
+            exit 2
+        fi
+        claimed_path="$(normalize_path "$binary_path" "$cwd")"
+        resolution="$(resolve_cycle_for_patch "$cwd" "$claimed_path")"
+        resolution_kind="${resolution%%:*}"
+        resolution_value="${resolution#*:}"
+        if [ "$resolution_kind" != "active" ]; then
+            printf 'Sage: BLOCKING binary asset mutation without an active implementation cycle. File: %s. Next legal move: start/resume the workflow and approve manifest scope first.\n' "$claimed_path" >&2
+            exit 2
+        fi
+        cycle_dir="$resolution_value"
+        cycle_id="$(basename "$cycle_dir")"
+        manifest="$cycle_dir/manifest.md"
+        active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
+        if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
+            printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask for handoff/parking, or create a separate intake.\n' \
+                "$cycle_id" "$active_session_id" "$session_id" >&2
+            exit 2
+        fi
+        scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
+        while IFS= read -r line; do
+            [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
+        done < <(manifest_scope_lines "$manifest")
+        matched=0
+        for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
+            case "$claimed_path" in $glob) matched=1; break ;; esac
+        done
+        if [ "$matched" -ne 1 ]; then
+            printf 'Sage: BLOCKING binary asset mutation outside cycle scope: %s. Active cycle: %s. Next legal move: update the approved manifest scope/plan first.\n' "$claimed_path" "$cycle_id" >&2
+            exit 2
+        fi
+        ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        files_json="$(printf '%s\n' "$claimed_path" | jq -R . | jq -sc .)"
+        log_line="$(jq -nc --arg sid "$session_id" --arg turn "$turn_id" --arg ts "$ts" --arg cycle "$cycle_id" --argjson files "$files_json" \
+            '{session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files, mutation_kind:"binary_asset"}')"
+        json_log_append "$cwd/.sage/.session-mutations.log" "$log_line"
+        exit 0
+    fi
     if [ "$mutating" -eq 1 ] && [ "$targets_guarded" -eq 1 ]; then
+        if [ "$binary_like" -eq 1 ]; then
+            printf 'Sage: BLOCKING binary asset mutation without explicit binary intent. Binary assets cannot use apply_patch, but shell mutation still needs approved scope. Next legal move: use a simple `SAGE_BINARY_MUTATION=1 rm <path>` command after confirming the file is in manifest scope.\n' >&2
+            exit 2
+        fi
         printf 'Sage: BLOCKING mutating Bash command against managed/project paths. Bash cannot claim exact Sage scope before execution. Next legal move: use apply_patch so PreToolUse can validate exact paths, or update the approved manifest scope/plan first.\n' >&2
         exit 2
     fi
@@ -204,7 +270,7 @@ else
     fi
     while IFS= read -r line; do
         [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-    done < <(manifest_yaml "$manifest" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true)
+    done < <(manifest_scope_lines "$manifest")
     out_of_scope=()
     for path in "${claimed_paths[@]}"; do
         matched=0
@@ -218,7 +284,7 @@ else
             scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
             while IFS= read -r line; do
                 [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-            done < <(manifest_yaml "$manifest" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true)
+            done < <(manifest_scope_lines "$manifest")
             out_of_scope=()
             for path in "${claimed_paths[@]}"; do
                 matched=0
@@ -277,7 +343,7 @@ else
     fi
 
     if moderate_fix_artifacts_missing "$cycle_dir" "$manifest" "$cwd/.sage/.session-mutations.log" "$session_id" "$cycle_id" "${claimed_paths[@]}"; then
-        printf 'Sage: BLOCKING Moderate+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. Active cycle: %s.\n' "$cycle_id" >&2
+        printf 'Sage: BLOCKING Moderate+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. Do not use scope amputation: if the third file is required, escalate to the Moderate+ scope gate instead of dropping it. Active cycle: %s.\n' "$cycle_id" >&2
         exit 2
     fi
 fi

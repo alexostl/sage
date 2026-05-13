@@ -34,9 +34,11 @@ asked before anything surprising happens.
 Autonomiczna kontynuacja after an approved plan has two explicit modes:
 `[C] Checkpointed implementation` and `[F] Full autonomous implementation`.
 When the user chooses `[F]`, continue through the approved scope until
-verification/close without intermediate checkpoints. Stop and ask one question
-only when the next step changes a key assumption, product/architecture decision,
-ownership, accepted risk, or conflicts with the approved plan.
+verification/close without intermediate checkpoints. This is scoped autonomy,
+not general autonomy: it is bound to the approved plan snapshot and
+`manifest.scope`. Stop and ask one question when the next step changes a key
+assumption, product/architecture decision, ownership, accepted risk, conflicts
+with the approved plan, adds files outside scope, or otherwise expands scope.
 
 ## When to Use
 
@@ -84,6 +86,9 @@ For the current task:
 
 The `scope-guard` skill monitors throughout — flags if implementation
 drifts beyond the task spec.
+If scope guard flags a new file or expanded behavior outside the approved plan,
+do not patch it as a routine fix under `[F]`. Stop for:
+`[A] Approve scope expansion`, `[R] Revise`, `[S] Split into intake`.
 
 ### Step 4: Run Quality Gates
 

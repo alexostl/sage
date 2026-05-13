@@ -1,0 +1,1 @@
+Add a short note file under src/notes/preflight.md with one sentence. Before changing anything, show the mutation preflight you are using and the legal path you will take.

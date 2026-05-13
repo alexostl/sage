@@ -5,7 +5,7 @@ workflow: fix
 phase: intake
 status: intake
 created: 2026-05-10
-updated: 2026-05-10
+updated: 2026-05-13
 owner: alexostl
 priority: medium
 tags:
@@ -14,6 +14,8 @@ tags:
   - workflow-guidance
   - hook-message
 source: "User observed hook block after manifest was closed before plan/decision closeout edits"
+evidence_threads:
+  - "codex://threads/019e21ed-db84-7a82-96d8-d0239a431a19"
 scope:
   - ".sage/work/20260510-closeout-ordering-workflow-hook-fix/*"
   - ".sage/decisions.md"
@@ -43,6 +45,21 @@ cycle and blocked a later `plan.md` closeout edit.
 
 This exposed a workflow ergonomics gap: the correct closeout order is obvious
 in hindsight, but not strongly encoded for agents.
+
+## Additional evidence: same-turn closeout after missed self-review
+
+Thread `codex://threads/019e21ed-db84-7a82-96d8-d0239a431a19` showed the same
+ordering failure in a lightweight cycle. The agent marked
+`.sage/work/20260513-projectinit-gitignore-whitelist/manifest.md` as
+`status: completed` / `phase: verified`, then immediately noticed a misleading
+comment in the changed `.gitignore` template. The cleanup patch was blocked
+because no implementation cycle was active, and the attempted manifest reopen
+was also blocked because the cycle had already been closed.
+
+Preserve this as evidence that closeout guidance needs a final self-review
+step before the manifest is closed. The manifest status change should be the
+last mutation only after the agent has checked the diff for small wording,
+scope, and verification-note corrections.
 
 ## Desired scope
 

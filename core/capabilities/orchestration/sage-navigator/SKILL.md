@@ -222,7 +222,12 @@ typo. Obvious non-canonical typos may remain Lightweight/Surgical only outside
 instruction/process surfaces.
 
 If a hook blocks with a next legal move, treat it as recovery guidance. Retry
-through the legal path, or stop for the user decision named by the hook.
+through the legal path, or stop for the user decision named by the hook. Do not
+use scope amputation for a required file.
+
+Mutation preflight before write: check active cycle, scope, file count,
+threshold, closeout state, and tool path. Text edits use `apply_patch`; binary
+asset mutations need an explicit binary path inside approved scope.
 
 ### Confirmation (Zone 1)
 

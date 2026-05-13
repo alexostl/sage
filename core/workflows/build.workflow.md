@@ -37,9 +37,11 @@ review paths and add an explicit autonomous path when appropriate:
   appears; otherwise zatrzymaj sie przed implementation and ask.
 - po plan: always offer `[C] Checkpointed implementation` and `[F] Full
   autonomous implementation`. If the user selects `[F]`, execute the approved
-  plan end-to-end until verification/close without intermediate checkpoints.
-  Stop only when a key assumption, product/architecture decision, conflict, or
-  material risk changes the plan.
+  plan snapshot end-to-end until verification/close without intermediate
+  checkpoints. `[F]` is scoped autonomy, not general autonomy: it is bound to
+  the plan version, `manifest.scope`, known assumptions, and known stop
+  conditions visible at the checkpoint. Scope expansion cancels the grant and
+  requires a new user approval.
 
 ## Auto-Pickup
 
@@ -362,10 +364,14 @@ Pick A/S/C/F/R/N, or tell me what to change.
    Selecting [F] explicitly authorizes read-only subagent review and required
    subagent quality gates during this approved implementation run when the
    platform tool is available.
-2. Update `manifest.md` before implementation as above.
+2. Update `manifest.md` before implementation as above and record an
+   `autonomy_grant` note that names the approved plan snapshot and
+   `manifest.scope`.
 3. Execute Step 6 through Step 8 without intermediate checkpoints.
 4. Stop and ask one question if a key assumption, product/architecture
-   decision, accepted risk, ownership, or conflict changes the approved plan.
+   decision, accepted risk, ownership, conflict, new file outside scope, or
+   scope expansion changes the approved plan. Present:
+   `[A] Approve scope expansion`, `[R] Revise`, `[S] Split into intake`.
 
 ## Step 6: Implement
 
@@ -373,7 +379,8 @@ Execute the plan task by task using the build loop.
 
 Before the first implementation edit, run this preflight:
 - Re-read `manifest.md` and confirm `scope:` covers the next task's files.
-- If the next file is outside `manifest.scope`, update `manifest.md` first.
+- If the next file is outside `manifest.scope`, stop for a scope expansion
+  checkpoint. Do not update `manifest.md` and continue under the old grant.
 - Do not attempt the implementation patch and let PreToolUse reject it; the
   manifest scope is part of the approved plan handoff.
 

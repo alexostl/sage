@@ -3,7 +3,7 @@ cycle_id: "20260509-workflow-entry-resume-recovery-autonomy-fix"
 title: "Root cause: workflow entry, resume, recovery i autonomia"
 workflow: fix
 phase: root-cause-gate
-status: in-progress
+status: completed
 created: 2026-05-09
 updated: 2026-05-10
 ---

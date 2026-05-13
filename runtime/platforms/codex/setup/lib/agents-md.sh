@@ -238,12 +238,11 @@ State transitions are part of the contract:
 - Fix-trigger prompts in instruction/process files require \`/fix\` diagnosis and scope
   before mutation, even for typos; obvious non-canonical typos stay Tier 1 only
   outside instruction/process surfaces.
-- A recoverable hook block is correction guidance: retry via the named legal
-  path, or stop for the named user decision.
+- recoverable hook block is correction guidance: retry via legal path/stop for user decision; no scope amputation
+- Mutation preflight before write: active cycle/scope/count; threshold/closeout/tool path. Text edits use \`apply_patch\`; binary assets need explicit binary path.
 
-For Standard+ Codex work, keep a short native plan/progress view when
-available. It is a visibility layer; it never replaces Sage artifacts, gates,
-or verification. Skip it for lightweight and read-only conversation.
+For Standard+ Codex work, keep native plan/progress view as visibility layer;
+never replaces Sage artifacts. Skip for lightweight/read-only conversation.
 
 ### Alex-native operating contract
 

@@ -2,13 +2,14 @@
 cycle_id: "20260509-binary-asset-mutation-contract-fix"
 title: "Fix: kontrakt mutacji binarnych assetów poza apply_patch"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 needs-triage: true
 priority: P2
+folded_into: "20260510-mutation-intent-preflight-gap"
 source_thread: "codex://threads/019e0c28-b19f-74f0-85ac-be37e18e4437"
 related:
   - "20260509-file-change-enforcement-fix"
@@ -26,12 +27,11 @@ scope:
 
 ## State
 
-**Current phase:** intake — zadanie zapisane na prośbę Alexa. Implementacja nie
-została rozpoczęta.
+**Current phase:** completed — finding skonsumowany przez anchor cycle
+`20260510-mutation-intent-preflight-gap`.
 
-**Next step:** Uruchomić `/sage:fix` i zaprojektować mały, jawny kontrakt dla
-binarnych plików, których `apply_patch` nie potrafi odczytać ani zapisać jako
-UTF-8.
+**Next step:** Brak osobnej implementacji w tym cyklu; patrz anchor cycle i
+jego `verification.md`.
 
 ## Finding
 

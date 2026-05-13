@@ -2,7 +2,7 @@
 title: "Real-use findings: Alex-native operating model"
 workflow: architect
 phase: follow-up
-status: in-progress
+status: completed
 created: 2026-05-08
 updated: 2026-05-09
 cycle_id: "20260508-alex-native-operating-model"

@@ -56,6 +56,11 @@ without announcing or starting a workflow.
 - "Find and fix" prompts in instruction/process files require `/fix`
   diagnosis/scope before mutation, even for typos; only obvious
   non-canonical typos outside instruction/process surfaces stay Tier 1
+- Mutation preflight before write: check active cycle, scope, file count,
+  threshold, closeout state, and tool path. Text edits use `apply_patch`;
+  binary asset mutations need an explicit binary path inside approved scope
+- If a required file triggers a hook block, do not use scope amputation; escalate
+  to the named workflow/scope gate or ask the user
 - Config changes are calibrated: single-file config-only Add/Update may be
   Lightweight/Surgical when it matches the structural allowlist; multi-file,
   security, hook, instruction, generated, or uncertain config changes require

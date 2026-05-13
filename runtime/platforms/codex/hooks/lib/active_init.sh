@@ -126,8 +126,15 @@ cycle_active_session_id() {
     local project_root="$1"
     local cycle_id="$2"
     local manifest="$project_root/.sage/work/$cycle_id/manifest.md"
+    local active_session_id
     [ -f "$manifest" ] || return 1
-    manifest_yaml "$manifest" | yq eval -r '.active_session_id // ""' - 2>/dev/null
+    active_session_id="$(manifest_yaml "$manifest" | yq eval -r '.active_session_id // ""' - 2>/dev/null || true)"
+    case "$active_session_id" in
+        ""|unknown|current|CURRENT|TODO|todo|null)
+            return 0 ;;
+        *)
+            printf '%s\n' "$active_session_id" ;;
+    esac
 }
 
 resolve_cycle_for_patch() {

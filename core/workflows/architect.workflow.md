@@ -32,6 +32,9 @@ checkpoint.
 Autonomous continuation is allowed after a reviewed design or plan only when
 the next step is mechanical. If a meaningful architecture trade-off, scope
 change, or unanswered question appears, stop and discuss before implementation.
+Any autonomy is scoped to the approved milestone scope. It does not carry into
+the next milestone, a new ADR, a new design decision, or files outside the
+approved milestone manifest scope.
 
 ## Auto-Pickup
 
@@ -270,6 +273,9 @@ For each milestone:
 Do NOT batch-implement multiple milestones without checkpoints.
 Do NOT skip per-milestone verification because "I'll test everything
 at the end."
+Autonomy granted for one milestone does not approve the next milestone. If
+implementation reveals a new ADR/design decision or scope expansion, stop for
+the normal checkpoint before editing the expanded scope.
 
 Quality gates for each milestone include Gate 8 (Auto-QA) which runs
 automatically as part of the gate sequence when Task tool is available.

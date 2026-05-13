@@ -1,10 +1,11 @@
 ---
 title: "Fix: agent should recover after hook blocks instead of stopping"
-status: intake
-phase: intake
+status: completed
+phase: completed
 priority: high
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
+folded_into: "20260510-mutation-intent-preflight-gap"
 scope:
   - "AGENTS.md"
   - "runtime/platforms/codex/setup/lib/agents-md.sh"
@@ -16,6 +17,14 @@ scope:
 ---
 
 # Intake
+
+## State
+
+**Current phase:** completed — finding skonsumowany przez anchor cycle
+`20260510-mutation-intent-preflight-gap`.
+
+**Next step:** Brak osobnej implementacji w tym cyklu; patrz anchor cycle i
+jego `verification.md`.
 
 ## Problem
 

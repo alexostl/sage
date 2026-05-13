@@ -3,7 +3,7 @@ cycle_id: "20260510-codex-surface-reachability-cluster-fix"
 title: "Root cause: klaster powierzchni Codex i reachability skilli"
 workflow: fix
 phase: root-cause-gate
-status: in-progress
+status: completed
 created: 2026-05-10
 updated: 2026-05-10
 ---
