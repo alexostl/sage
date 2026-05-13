@@ -383,6 +383,13 @@ advisory but surfaced to the user.
 - [ ] Fix is contained to planned files (no scope creep)
 If ANY fails → go back. Do NOT present the checkpoint.
 
+**Closeout order:** Before marking the cycle completed, finish final self-review,
+decisions, verification notes, plan/manifest bookkeeping, and handoff context.
+Treat `manifest.status: completed` as the last Sage artifact mutation. After
+closeout, report stage/commit status and ask whether to perform local handoff
+for this cycle's changes; do not ask for `push` by default and do not add a
+post-closeout `.sage` epilogue.
+
 Sage: Fix verified.
 - Root cause: [what was wrong]
 - Scope: [Surgical/Moderate/Systemic]

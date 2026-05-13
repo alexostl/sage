@@ -2,13 +2,14 @@
 cycle_id: "20260510-post-closeout-handoff-doc-mutation-fix"
 title: "Fix: local handoff nie mutuje dokumentacji po zamknieciu cyklu"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-10
-updated: 2026-05-10
+updated: 2026-05-13
 owner: alexostl
 priority: high
 classification: Moderate
+folded_into: "20260509-closeout-documentation-mutation-model"
 source_thread: "codex://threads/019e10d0-a5a2-7a33-9c9d-5d7b1514b6f6"
 related:
   - "20260510-codex-worktree-support-build"
@@ -27,12 +28,11 @@ scope:
 
 ## State
 
-**Current phase:** intake - findingi zostaly zapisane jako TODO dla przyszlego
-focused fixa. Nie implementujemy jeszcze zmian runtime/workflow.
+**Current phase:** completed - folded into Batch 3 anchor
+`20260509-closeout-documentation-mutation-model`.
 
-**Next step:** Przy wejsciu w `/sage:fix` zdiagnozowac, gdzie najlepiej
-zakodowac regule: workflow closeout guidance, worktree handoff workflow,
-generated Codex instructions, hook recovery message albo ich kombinacja.
+**Next step:** No separate implementation. The Batch 3 anchor covers the
+post-closeout local handoff boundary.
 
 ## Problem
 

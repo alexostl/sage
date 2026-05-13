@@ -432,6 +432,13 @@ as part of the gate sequence when Task tool is available. See
 
 Review against spec. Check for missed edge cases.
 
+**Closeout order:** Before changing any artifact to `status: completed`, do a
+final self-review and finish required plan, decisions, verification, and handoff
+updates. Treat `manifest.status: completed` as the last Sage artifact mutation
+for the cycle. After closeout, report stage/commit status and ask whether to
+perform local handoff for this cycle's changes; do not ask for `push` by
+default and do not add a post-closeout `.sage` epilogue.
+
 **Anti-deferral guard:** Before presenting the completion checkpoint,
 verify ALL plan tasks are addressed. If any tasks remain incomplete,
 do NOT present "Build complete." Instead:

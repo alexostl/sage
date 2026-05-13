@@ -162,6 +162,9 @@ resolve_cycle_for_patch() {
             paused|intake)
                 printf 'parked-capture:%s\n' "$project_root/.sage/work/$cycle_id"
                 return 0 ;;
+            completed)
+                printf 'completed:%s\n' "$project_root/.sage/work/$cycle_id"
+                return 0 ;;
         esac
     fi
 

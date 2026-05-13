@@ -2,12 +2,13 @@
 cycle_id: "20260510-closeout-ordering-workflow-hook-fix"
 title: "Fix: closeout ordering guidance and hook recovery message"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-10
 updated: 2026-05-13
 owner: alexostl
 priority: medium
+folded_into: "20260509-closeout-documentation-mutation-model"
 tags:
   - needs-triage
   - closeout
@@ -30,11 +31,11 @@ scope:
 
 ## State
 
-**Current phase:** intake - captured as a future `/sage:fix` initiative.
+**Current phase:** completed - folded into Batch 3 anchor
+`20260509-closeout-documentation-mutation-model`.
 
-**Next step:** Before implementing, re-check current workflow and hook source.
-This may already be partially or fully addressed by another closeout or hook
-hardening fix by the time this cycle starts.
+**Next step:** No separate implementation. The Batch 3 anchor covers closeout
+ordering guidance and hook recovery wording.
 
 ## Problem
 

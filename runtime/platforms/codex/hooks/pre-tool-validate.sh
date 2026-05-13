@@ -199,6 +199,32 @@ is_lightweight_config_only_patch() {
     return 0
 }
 
+is_decisions_only_repo_hygiene_patch() {
+    [ "${#claimed_paths[@]}" -eq 2 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 2 ] || return 1
+
+    local has_repo_hygiene=0 has_decision=0 i path op
+    for i in "${!claimed_paths[@]}"; do
+        path="${claimed_paths[$i]}"
+        op="${claimed_ops[$i]}"
+        case "$op" in Add|Update) ;; *) return 1 ;; esac
+        case "$path" in
+            .gitignore) has_repo_hygiene=1 ;;
+            .sage/decisions.md) has_decision=1 ;;
+            *) return 1 ;;
+        esac
+    done
+
+    [ "$has_repo_hygiene" -eq 1 ] && [ "$has_decision" -eq 1 ]
+}
+
+is_standalone_repo_hygiene_patch() {
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    case "${claimed_ops[0]}" in Add|Update) ;; *) return 1 ;; esac
+    [ "${claimed_paths[0]}" = ".gitignore" ]
+}
+
 same_turn_bootstrapped_cycle() {
     local cwd="$1"
     local session_id="$2"
@@ -218,6 +244,7 @@ same_turn_bootstrapped_cycle() {
 resolution="$(resolve_cycle_for_patch "$cwd" "${claimed_paths[@]}")"
 resolution_kind="${resolution%%:*}"
 resolution_value="${resolution#*:}"
+mutation_kind=""
 
 if [ "$resolution_kind" = "ambiguous" ]; then
     printf 'Sage: BLOCKING ambiguous cycle selection for patch paths. Matching cycles: %s. Next legal move: explicitly select/resume one cycle or split the patch.\n' "$resolution_value" >&2
@@ -226,8 +253,18 @@ fi
 
 if [ "$resolution_kind" = "bootstrap" ]; then
     cycle_id="$resolution_value"
+elif [ "$resolution_kind" = "completed" ]; then
+    cycle_id="$(basename "$resolution_value")"
+    printf 'Sage: BLOCKING completed cycle mutation. Cycle: %s. This cycle may have been closed before closeout artifacts were finished. Next legal move: ask the user for an explicit reopen/scope decision, or continue stage/commit handoff without mutating closed .sage artifacts. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
+    exit 2
 elif [ "$resolution_kind" = "none" ]; then
-    if is_lightweight_config_only_patch; then
+    if is_decisions_only_repo_hygiene_patch; then
+        cycle_id=""
+        mutation_kind="decisions_only_repo_hygiene"
+    elif is_standalone_repo_hygiene_patch; then
+        printf 'Sage: BLOCKING standalone repo hygiene mutation. Decisions-only repo hygiene requires the single repo-hygiene file plus .sage/decisions.md in the same patch. Next legal move: add a concise .sage/decisions.md entry or start a workflow if this is not obvious low-risk hygiene.\n' >&2
+        exit 2
+    elif is_lightweight_config_only_patch; then
         cycle_id=""
     else
         resumable="$(resumable_cycles_summary "$cwd" || true)"
@@ -350,8 +387,8 @@ fi
 
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 files_json="$(printf '%s\n' "${claimed_paths[@]}" | jq -R . | jq -sc .)"
-log_line="$(jq -nc --arg sid "$session_id" --arg turn "$turn_id" --arg ts "$ts" --arg cycle "$cycle_id" --argjson files "$files_json" \
-    '{session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files}')"
+log_line="$(jq -nc --arg sid "$session_id" --arg turn "$turn_id" --arg ts "$ts" --arg cycle "$cycle_id" --arg mutation_kind "$mutation_kind" --argjson files "$files_json" \
+    '{session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files} + (if $mutation_kind == "" then {} else {mutation_kind:$mutation_kind} end)')"
 json_log_append "$cwd/.sage/.session-mutations.log" "$log_line"
 
 exit 0

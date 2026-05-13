@@ -457,6 +457,28 @@ semantic_reclassification: accepted
     [ "$status" -eq 2 ]
 }
 
+@test "pre-tool-validate.sh: completed cycle artifact mutation gives closeout recovery guidance" {
+    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
+    cmd="$(make_patch_cmd Update .sage/work/20260101-done/manifest.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed before closeout artifacts"
+    echo "$output" | grep -qi "handoff"
+}
+
+@test "pre-tool-validate.sh: completed cycle artifact path beats unrelated active cycle" {
+    make_cycle_with_scope "20260101-active" "in-progress" "src/**"
+    make_cycle_with_scope "20260102-done" "completed" ".sage/work/20260102-done/*"
+    cmd="$(make_patch_cmd Update .sage/work/20260102-done/manifest.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "completed cycle"
+    ! echo "$output" | grep -q "outside cycle scope"
+}
+
 @test "pre-tool-validate.sh: paused/intake cycles are parked, not silently activated" {
     make_cycle_with_scope "20260101-paused" "paused" "src/**"
     make_cycle_with_scope "20260102-intake" "intake" "src/**"
@@ -532,6 +554,35 @@ semantic_reclassification: accepted
     [ -f "$log" ]
     grep -q '"config/codex-config.toml"' "$log"
     tail -n1 "$log" | jq -e '.cycle_id == ""' >/dev/null
+}
+
+@test "pre-tool-validate.sh: decisions-only repo hygiene allows .gitignore plus decisions" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+harness-run-*\n*** Update File: .sage/decisions.md\n@@\n+repo hygiene decision\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '".gitignore"' "$log"
+    grep -q '".sage/decisions.md"' "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "decisions_only_repo_hygiene"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: standalone .gitignore repo hygiene gets decisions-only guidance" {
+    cmd="$(make_patch_cmd Update .gitignore)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "decisions-only repo hygiene"
+    echo "$output" | grep -q ".sage/decisions.md"
+}
+
+@test "pre-tool-validate.sh: decisions-only repo hygiene rejects mixed runtime path" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+harness-run-*\n*** Update File: .sage/decisions.md\n@@\n+repo hygiene decision\n*** Update File: runtime/platforms/codex/hooks/pre-tool-validate.sh\n@@\n+bad\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
 }
 
 @test "pre-tool-validate.sh: lightweight config file_change rejects multi-file config change" {

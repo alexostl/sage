@@ -2,12 +2,13 @@
 cycle_id: "20260513-lightweight-repo-hygiene-decisions-fix"
 title: "Fix: lightweight repo hygiene should use decisions without manifest"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-13
 updated: 2026-05-13
 owner: alexostl
 priority: P2
+folded_into: "20260509-closeout-documentation-mutation-model"
 tags:
   - repo-hygiene
   - closeout
@@ -25,11 +26,11 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - folded into Batch 3 anchor
+`20260509-closeout-documentation-mutation-model`.
 
-**Next step:** W ramach Batcha 3 doprecyzować kontrakt: kiedy pojedyncza
-oczywista zmiana repo hygiene, np. `.gitignore`, może zostać zapisana jako
-krótki wpis w `.sage/decisions.md` bez tworzenia manifestu.
+**Next step:** No separate implementation. The Batch 3 anchor covers the narrow
+decisions-only repo hygiene path.
 
 ## Finding
 

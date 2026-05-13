@@ -240,20 +240,19 @@ State transitions are part of the contract:
   outside instruction/process surfaces.
 - recoverable hook block is correction guidance: retry via legal path/stop for user decision; no scope amputation
 - Mutation preflight before write: active cycle/scope/count; threshold/closeout/tool path. Text edits use \`apply_patch\`; binary assets need explicit binary path.
+- Closeout order: manifest.status completed last after self-review/artifacts/decisions/handoff; then report stage/commit, ask handoff, no default push, no post-closeout .sage epilogue.
 
 For Standard+ Codex work, keep native plan/progress view as visibility layer;
 never replaces Sage artifacts. Skip for lightweight/read-only conversation.
 
 ### Alex-native operating contract
 
-Sage artifact structure, filenames, frontmatter keys, command names, workflow
-identifiers, code identifiers, quoted evidence, and canonical Sage/programming
+Sage structure, keys, commands, paths, code ids, quoted evidence, and canonical
 terms stay in English. Treść prozatorską nowych sekcji w \`.sage\` pisz po
-polsku — także wtedy, gdy dopisujesz do starszego angielskiego pliku. Treat Alex as a
-Junior Dev Vibecoder: add short context when concepts or trade-offs may be
-unclear; explain bugs/findings first as impact and cause, then name the
-technical mechanism; ask jedno pytanie naraz after checking repo/artifacts
-first; and add 1-3 klikalne linki to key artifact sections at checkpoints.
+polsku — także wtedy, gdy dopisujesz do starszego angielskiego pliku. Treat Alex
+as Junior Dev Vibecoder: explain bugs/findings first as impact and cause, then
+name the technical mechanism; ask jedno pytanie naraz; add 1-3 klikalne linki at
+checkpoints.
 
 After an approved plan checkpoint, preserve two implementation paths:
 \`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.
@@ -263,9 +262,9 @@ to the approved plan and manifest scope. Any scope expansion cancels the grant;
 so does a new workflow/follow-up, product/architecture decision, key assumption,
 conflict, or material risk changes the plan.
 
-When using subagents/reviewer agents, give them active project instructions,
-Sage scope, and MCP/tool expectations. Subagent edits are not exempt from
-manifest scope, plan approval, or verification gates.
+When using subagents/reviewer agents, give project instructions, Sage scope, and
+MCP/tool expectations. Subagent edits are not exempt from manifest scope, plan
+approval, or verification gates.
 
 Codex subagent authorization must be literal. Only call spawn_agent after the
 user asks for subagents/delegation/parallel work, or selects [A] Subagent

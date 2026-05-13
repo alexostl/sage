@@ -5,6 +5,139 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-13 — Batch 3 closeout approved
+
+**Decision:** Alex zatwierdził completion checkpoint Batcha 3 i poprosił o
+zamknięcie cyklu oraz pełny git handoff: stage, commit i push.
+
+**Evidence accepted:** `active_init.bats` 17/17, `pre-tool-validate.bats` 78/78,
+`post-tool-check.bats` 16/16, `stage3-agents-md.bats` 50/50, `bash -n`,
+`git diff --check` oraz dodatkowy `stage3-agents-md.bats` po podniesieniu
+compactness budgetu do 12000 bajtów.
+
+**Boundary:** `manifest.status: completed` ma być ostatnią mutacją `.sage` w
+tym closeoucie. Po tym kroku wykonujemy tylko git stage/commit/push.
+
+### 2026-05-13 — AGENTS compactness budget raised to 12000 bytes
+
+**Decision:** Alex zatwierdził podniesienie lokalnego compactness guardraila dla
+generated Codex `AGENTS.md` z 11000 do 12000 bajtów.
+
+**Why:** Limit 11000 zaczął wymuszać oszczędzanie "na zapałki" przy pojedynczych
+zdaniach. Po dodaniu project memory o minimization pass nadal mamy jakościowy
+hamulec przeciw bloatowi, więc 12000 jest rozsądniejszym budgetem.
+
+**Boundary:** To nie jest zgoda na rozbudowany prompt surface. Nowe always-loaded
+instrukcje nadal mają przechodzić minimization pass i pozostawać lakoniczne.
+
+### 2026-05-13 — Batch 3 implementation reached completion checkpoint
+
+**Decision:** Batch 3 został zaimplementowany i doprowadzony do completion
+checkpoint. Cztery sibling intake cycles oznaczono jako `status: completed` i
+`folded_into: 20260509-closeout-documentation-mutation-model`, bo zostały
+skonsumowane przez anchor cycle bez osobnej ukrytej implementacji.
+
+**Evidence:** `active_init.bats` 17/17, `pre-tool-validate.bats` 78/78,
+`post-tool-check.bats` 16/16, `stage3-agents-md.bats` 50/50, `bash -n` i
+`git diff --check` przeszły.
+
+**Boundary:** Anchor cycle zostaje `status: in-progress` i
+`phase: completion-checkpoint` do finalnej akceptacji Alexa. Post-closeout
+next-step pozostaje `stage/commit` bez domyślnego `push`.
+
+### 2026-05-13 — Batch 3 implementation approved
+
+**Decision:** Alex wybrał `[S] Skip review / approve` po read-only review planu
+Batcha 3 i doprecyzowaniu minimization pass. Cykl
+`20260509-closeout-documentation-mutation-model` przeszedł do `phase: deliver`.
+
+**Boundary:** Implementacja ma zostać w zatwierdzonym `manifest.scope`.
+Najpierw zrobić minimization pass: reuse istniejącej logiki, krótki prompt
+surface, targeted tests. Post-closeout next-step pozostaje `stage/commit` bez
+domyślnego `push`.
+
+### 2026-05-13 — Minimization pass before adding Sage logic
+
+**Decision:** Alex doprecyzował zasadę projektową: przy Batchu 3 i kolejnych
+cyklach przed dodawaniem logiki albo instrukcji robić minimization pass.
+
+**Meaning:** To nie jest dogmat „najpierw odejmij, potem dodaj”. Poprawna
+zasada brzmi: sprawdź, czy ten sam cel da się osiągnąć mniejszą zmianą, reuse
+istniejącej logiki, konsolidacją wordingów, targeted testem albo mechanicznym
+hookiem zamiast długiej instrukcji. Jeśli dodatek jest potrzebny, dodaj
+najmniejszy element, który zamyka problem.
+
+**Applied to Batch 3:** Generated `AGENTS.md` ma dostać lakoniczny kontrakt
+closeoutu, a szczegóły edge-case'ów mają siedzieć głównie w małych hookach,
+workflow docs i targeted tests.
+
+**Memory:** Zapisano project SageMemory
+`3ad7713ab93947c288bb6a751ca918ca`.
+
+### 2026-05-13 — Batch 3 plan reviewed with no blockers
+
+**Decision:** Read-only subagent review planu Batcha 3 zwrócił
+`Approve with notes`. Nie znaleziono blockerów dla fix scope gate.
+
+**Notes carried forward:** Post-closeout next-step pozostaje `stage/commit`
+bez domyślnego `push`. Completed-cycle resolver ma wygrać z unrelated newest
+active cycle. Decisions-only repo hygiene nie jest standalone `.gitignore`
+bypassem: legalna ścieżka to jeden repo-hygiene file plus wymagany wpis w
+`.sage/decisions.md`.
+
+**Boundary:** Implementacja nadal czeka na explicit approval Alexa dla fix
+scope gate. Review nie zatwierdza implementacji automatycznie.
+
+### 2026-05-13 — Batch 3 root cause approved and scope planned
+
+**Decision:** Alex wybrał `[S] Skip review / approve` po read-only review
+diagnozy Batcha 3. Root cause został zaakceptowany i przygotowano Systemic
+`plan.md` dla anchor cycle
+`20260509-closeout-documentation-mutation-model`.
+
+**Plan shape:** Fix ma objąć completed-cycle resolution, PreTool recovery
+message, workflow closeout order, generated `AGENTS.md` guidance, stage/commit
+handoff bez domyślnego push, decisions-only repo hygiene oraz targeted Bats
+tests.
+
+**Boundary:** Implementacja nadal jest zablokowana do akceptacji fix scope
+gate. Jeśli plan ma dotknąć plików poza `manifest.scope`, wymaga osobnego scope
+expansion checkpoint.
+
+### 2026-05-13 — Batch 3 root cause reviewed with no blockers
+
+**Decision:** Read-only subagent review diagnozy Batcha 3 zwrócił
+`Approve with notes`. Nie znaleziono blockerów dla root cause gate.
+
+**Notes carried forward:** Granica post-closeout git next-step ma pozostać
+`stage/commit` bez domyślnego `push`. Plan musi też pokryć subtelniejszy
+runtime risk: patch do `completed` cycle może spaść na inny aktywny cykl, jeśli
+resolver nie zwróci completed-specific result.
+
+**Boundary:** Implementacja nadal zablokowana. Następny legalny krok to decyzja
+Alexa na root cause gate: approve albo revise.
+
+### 2026-05-13 — Batch 3 root cause checkpoint
+
+**Decision needed:** Otworzono Batch 3 na anchor cycle
+`20260509-closeout-documentation-mutation-model` i doprowadzono diagnozę do
+`root-cause-gate`.
+
+**Root cause:** Sage ma rozproszony, niepełny model końca cyklu: workflowy,
+PreToolUse i PostToolUse znają różne fragmenty closeout lifecycle, ale nie ma
+jednego kontraktu „final self-review → artefakty/decyzje/handoff →
+manifest.status completed jako ostatnia mutacja → po closeoucie status
+stage/commit i pytanie o handoff bez epilogu w `.sage`”. Push nie należy do
+domyślnego post-closeout next-step; wymaga osobnej explicit decyzji.
+
+**Evidence:** `active_init.sh` nie ma osobnej semantyki dla `completed`;
+`pre-tool-validate.sh` daje ogólne no-active-cycle zamiast closeout recovery;
+`post-tool-check.sh` wykrywa `post_completion_mutation` dopiero po fakcie; a
+workflowy nie wymagają jasnego stage/commit next-step po closeoucie.
+
+**Boundary:** Implementacja nadal zablokowana. Następny legalny krok to decyzja
+Alexa na root cause gate: approve, read-only subagent review albo rewizja.
+
 ### 2026-05-13 — Batch 2 closeout approved
 
 **Decision:** Alex zapytał, czy Batch 2 można zamknąć z czystym sumieniem.

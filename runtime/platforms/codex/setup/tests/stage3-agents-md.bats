@@ -264,6 +264,16 @@ EOF
     ! grep -q 'How mutation preflight works' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md contains laconic closeout handoff contract" {
+    PRESET=base run_stage3
+    grep -q 'Closeout order' "$TARGET/AGENTS.md"
+    grep -q 'manifest.status completed last' "$TARGET/AGENTS.md"
+    grep -q 'stage/commit' "$TARGET/AGENTS.md"
+    grep -q 'no default push' "$TARGET/AGENTS.md"
+    grep -q 'no post-closeout .sage epilogue' "$TARGET/AGENTS.md"
+    ! grep -q 'How closeout handoff works' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md says active work does not force read-only implementation" {
     PRESET=base run_stage3
     grep -q 'When active work exists' "$TARGET/AGENTS.md"
@@ -396,7 +406,7 @@ EOF
 @test "stage3: generated AGENTS.md stays compact and points to skills/workflows" {
     PRESET=base run_stage3
     bytes="$(wc -c < "$TARGET/AGENTS.md" | tr -d ' ')"
-    [ "$bytes" -lt 11000 ] || {
+    [ "$bytes" -lt 12000 ] || {
         echo "AGENTS.md too large: $bytes bytes"
         return 1
     }

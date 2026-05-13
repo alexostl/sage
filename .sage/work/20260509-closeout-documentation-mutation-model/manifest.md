@@ -2,20 +2,30 @@
 cycle_id: "20260509-closeout-documentation-mutation-model"
 title: "Fix: closeout documentation mutation model"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-13
 owner: alexostl
 needs-triage: true
 priority: P1
 source_cycle: "20260509-runtime-process-closeout"
+batch: "Batch 3 - Closeout, handoff i dokumentacja po końcu cyklu"
+semantic_reclassification: accepted
+related:
+  - "20260510-closeout-ordering-workflow-hook-fix"
+  - "20260510-post-closeout-handoff-doc-mutation-fix"
+  - "20260513-post-closeout-git-next-step-build"
+  - "20260513-lightweight-repo-hygiene-decisions-fix"
 scope:
   - ".sage/work/20260509-closeout-documentation-mutation-model/*"
+  - ".sage/work/20260510-closeout-ordering-workflow-hook-fix/manifest.md"
+  - ".sage/work/20260510-post-closeout-handoff-doc-mutation-fix/manifest.md"
+  - ".sage/work/20260513-post-closeout-git-next-step-build/manifest.md"
+  - ".sage/work/20260513-lightweight-repo-hygiene-decisions-fix/manifest.md"
   - ".sage/decisions.md"
   - "runtime/platforms/codex/hooks/**"
   - "runtime/platforms/codex/setup/lib/agents-md.sh"
-  - "runtime/platforms/codex/setup/lib/config-toml.sh"
   - "runtime/platforms/codex/setup/tests/**"
   - "core/constitution/sage-process.constitution.md"
   - "core/workflows/**"
@@ -25,12 +35,9 @@ scope:
 
 ## State
 
-**Current phase:** intake — finding zapisany po review końcówki runtime/process
-closeout. Implementacja nie została rozpoczęta.
+**Current phase:** completed — Batch 3 został zatwierdzony i zamknięty.
 
-**Next step:** Uruchomić `/sage:fix`, zdiagnozować hook classification i
-zaprojektować wąski, audytowany tryb dla porządkowych zmian documentation/capture
-bez wymuszania sztucznego cyklu.
+**Next step:** Git handoff: stage, commit i push zgodnie z prośbą Alexa.
 
 ## Finding
 
