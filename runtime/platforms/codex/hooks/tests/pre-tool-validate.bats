@@ -164,6 +164,31 @@ make_cycle_with_writable_scope() {
     } > "$cycle_dir/manifest.md"
 }
 
+add_implementation_approval() {
+    local cycle="$1"
+    local mode="${2:-approved}"
+    local revision="${3:-}"
+    local cycle_dir="$PROJECT_ROOT/.sage/work/$cycle"
+    local tmp="$cycle_dir/manifest.tmp"
+    awk -v cycle="$cycle" -v mode="$mode" -v revision="$revision" '
+        /^scope:/ && !done {
+            print "implementation_approval:"
+            print "  mode: " mode
+            print "  approved_by: alexostl"
+            print "  approved_at: \"2026-05-14\""
+            print "  gate: fix-scope-gate"
+            print "  artifact: \".sage/work/" cycle "/plan.md\""
+            print "  scope: manifest"
+            if (mode == "conditional_revision") {
+                print "  revision: \"" revision "\""
+            }
+            done=1
+        }
+        { print }
+    ' "$cycle_dir/manifest.md" > "$tmp"
+    mv "$tmp" "$cycle_dir/manifest.md"
+}
+
 @test "pre-tool-validate.sh: no active cycle → exit 2, stderr says no active cycle" {
     cmd="$(make_patch_cmd Add src/foo.txt)"
     payload="$(make_payload "$cmd")"
@@ -407,8 +432,7 @@ EOF
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/from-self-created-manifest.txt")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "same turn"
-    echo "$output" | grep -q "user approval"
+    echo "$output" | grep -q "implementation approval contract"
     echo "$output" | grep -q "src/from-self-created-manifest.txt"
     echo "$output" | grep -q "source/runtime/test/instruction"
     ! echo "$output" | grep -q "source/runtime/test/config/instruction"
@@ -421,8 +445,7 @@ EOF
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-plan.txt")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "same turn"
-    echo "$output" | grep -q "user approval"
+    echo "$output" | grep -q "implementation approval contract"
 }
 
 @test "pre-tool-validate.sh: prior-turn plan can authorize source file_change" {
@@ -434,6 +457,74 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "pre-tool-validate.sh: prior approved plan allows same-turn manifest bookkeeping before source edit" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    add_implementation_approval "20260101-alpha"
+    printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-approved-manifest-bookkeeping.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: semantic_reclassification checkpoint after approval does not renew same-turn block" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    sed -i.bak '/phase: implement/a\
+semantic_reclassification: accepted
+' "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md"
+    rm -f "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md.bak"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    add_implementation_approval "20260101-alpha"
+    printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-semantic-checkpoint.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: same-turn milestone plan bookkeeping does not count as canonical self-approval" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan-milestone-1.md"
+    add_implementation_approval "20260101-alpha"
+    printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan-milestone-1.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-milestone-plan.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: conditional revision marker allows same-turn canonical plan revision" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    add_implementation_approval "20260101-alpha" "conditional_revision" "apply requested scope wording"
+    printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-conditional-plan-revision.txt")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: marker without prior canonical plan evidence still blocks AGENTS.md" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
+    add_implementation_approval "20260101-alpha"
+    printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload update "$PROJECT_ROOT/AGENTS.md")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "implementation approval contract"
+    echo "$output" | grep -q "AGENTS.md"
+}
+
+@test "pre-tool-validate.sh: manifest-only prior evidence without canonical plan still blocks AGENTS.md" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+    add_implementation_approval "20260101-alpha"
+    printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    payload="$(make_file_change_payload update "$PROJECT_ROOT/AGENTS.md")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "implementation approval contract"
+    echo "$output" | grep -q "AGENTS.md"
+}
+
 @test "pre-tool-validate.sh: same-turn manifest cannot authorize AGENTS.md" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
     printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
@@ -441,7 +532,7 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "instruction"
-    echo "$output" | grep -q "same turn"
+    echo "$output" | grep -q "implementation approval contract"
     echo "$output" | grep -q "AGENTS.md"
 }
 

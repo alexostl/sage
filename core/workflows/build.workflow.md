@@ -321,10 +321,12 @@ Sage: Plan saved to .sage/work/YYYYMMDD-slug/plan.md
     subagent gates if available, and execute with normal checkpoints
 [F] Full autonomous implementation — approve plan, explicitly authorize
     required subagent gates if available, and execute through final verification
+[I] Revise and Implement in the same turn — give specific bounded revision
+    instructions and approve implementation after those changes
 [R] Revise — tell me what to change
 [N] New session — type sage:build or natural-language resume to start implementation
 
-Pick A/S/C/F/R/N, or tell me what to change.
+Pick A/S/C/F/I/R/N, or tell me what to change.
 
 **On [A] Subagent review:**
 1. Prepend plan approach to decisions.md (Rule 7).
@@ -360,6 +362,16 @@ Pick A/S/C/F/R/N, or tell me what to change.
    - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
    - If scope is uncertain, stop and ask before implementation.
 5. Proceed to Step 6.
+
+**On [I] Revise and Implement in the same turn:**
+1. Apply only the specific user-requested plan revisions.
+2. Update `manifest.md` before implementation as above.
+3. Record `implementation_approval` in manifest frontmatter with
+   `mode: conditional_revision`, a non-empty `revision` summary, and
+   `artifact` pointing at the canonical `.sage/work/<cycle-id>/plan.md`.
+4. Proceed to Step 6 only if the revision stays inside the existing approved
+   scope and introduces no new decision, risk, ownership conflict, or ambiguous
+   assumption. Otherwise return to the checkpoint.
 
 **On [F] Full autonomous implementation:**
 1. Run the [A] review path unless the user explicitly asked to skip review.

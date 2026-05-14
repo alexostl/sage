@@ -223,10 +223,12 @@ Sage: Milestone plan saved to .sage/work/YYYYMMDD-slug/plan.md
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
     to review the plan; findings are shown and the user decides
 [S] Skip review — approve without independent review
+[I] Revise and Implement in the same turn — give specific bounded milestone
+    plan revision instructions and approve implementation after those changes
 [R] Revise — adjust the breakdown
 [N] New session — type /build to start milestone 1
 
-Pick A/S/R/N, or tell me what to change.
+Pick A/S/I/R/N, or tell me what to change.
 
 **On [A] Subagent review:**
 1. Prepend plan approach to decisions.md (Rule 7).
@@ -249,6 +251,15 @@ Pick A/S/R/N, or tell me what to change.
 2. Announce: "Skipping independent review."
 3. Log to decisions.md: "Plan approved without auto-review (user chose [S])."
 4. Proceed.
+
+**On [I] Revise and Implement in the same turn:**
+1. Apply only the specific user-requested milestone plan revisions.
+2. Record `implementation_approval` in manifest frontmatter with
+   `mode: conditional_revision`, a non-empty `revision` summary, and
+   `artifact` pointing at canonical `.sage/work/<cycle-id>/plan.md`.
+3. Proceed to implementation only if the revision stays inside the approved
+   milestone scope and introduces no new decision, risk, ownership conflict, or
+   ambiguous assumption. Otherwise return to the checkpoint.
 
 **Next steps (Zone 3):**
 

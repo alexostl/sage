@@ -323,6 +323,12 @@ EOF
     PRESET=base run_stage3
     grep -q '\[C\] Checkpointed implementation' "$TARGET/AGENTS.md"
     grep -q '\[F\] Full autonomous implementation' "$TARGET/AGENTS.md"
+    grep -q '\[I\] Revise and Implement in the same turn' "$TARGET/AGENTS.md"
+    grep -q 'explicit bounded conditional' "$TARGET/AGENTS.md"
+    grep -q 'approval' "$TARGET/AGENTS.md"
+    grep -q 'implementation_approval' "$TARGET/AGENTS.md"
+    grep -q 'existing canonical `plan.md`' "$TARGET/AGENTS.md"
+    grep -q 'never self-approval' "$TARGET/AGENTS.md"
     grep -q 'approved plan without intermediate' "$TARGET/AGENTS.md"
     grep -q 'scoped autonomy, not general autonomy' "$TARGET/AGENTS.md"
     grep -q 'approved plan and manifest scope' "$TARGET/AGENTS.md"

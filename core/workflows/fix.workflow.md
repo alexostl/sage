@@ -289,11 +289,13 @@ Sage: Fix scope: [Moderate/Systemic]
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
     to review the fix plan; findings are shown and the user decides
 [S] Skip review — approve without independent review
+[I] Revise and Implement in the same turn — give specific bounded revision
+    instructions and approve implementation after those changes
 [R] Revise — adjust the approach
 [E] Escalate — type /build or /architect instead
 [N] New session — type sage:fix or natural-language resume to continue
 
-Pick A/S/R/E/N, or tell me what to change.
+Pick A/S/I/R/E/N, or tell me what to change.
 
 **On [A]:** Run auto-review (fix plan review prompt), present findings, and
 return to the gate decision. See
@@ -305,6 +307,12 @@ On approval, update the manifest before implementation: keep `status:
 in-progress`, set `phase: deliver` (or the workflow's implementation phase),
 and ensure `scope:` contains every approved runtime, test, CLI, docs, and
 artifact path to be mutated.
+Record `implementation_approval` in manifest frontmatter before implementation:
+`mode: approved` for normal approval, or `mode: conditional_revision` plus a
+non-empty `revision` for `[I]`. `[I]` is explicit bounded conditional approval:
+only the user-specified revision may happen before implementation. Scope
+expansion, new decisions, new risks, or ambiguous revision instructions stop
+the workflow and return to the gate.
 
 ## Step 4: Implement Fix
 

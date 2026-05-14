@@ -271,6 +271,11 @@ to the approved plan and manifest scope. Any scope expansion cancels the grant;
 so does a new workflow/follow-up, product/architecture decision, key assumption,
 conflict, or material risk changes the plan.
 
+\`[I] Revise and Implement in the same turn\` is explicit bounded conditional
+approval: apply only the user-specified revision, record manifest frontmatter
+\`implementation_approval\` pointing at an existing canonical \`plan.md\`, and
+continue only when prior plan/scope evidence exists. It is never self-approval.
+
 When using subagents/reviewer agents, give project instructions, Sage scope, and
 MCP/tool expectations. Subagent edits are not exempt from manifest scope, plan
 approval, or verification gates.

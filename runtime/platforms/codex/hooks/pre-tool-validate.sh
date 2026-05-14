@@ -353,6 +353,41 @@ same_turn_bootstrapped_cycle() {
     ' "$log" >/dev/null 2>&1
 }
 
+has_valid_implementation_approval() {
+    local cwd="$1"
+    local session_id="$2"
+    local cycle_id="$3"
+    local turn_id="$4"
+    local manifest_file="$cwd/.sage/work/$cycle_id/manifest.md"
+    local plan_path=".sage/work/$cycle_id/plan.md"
+    local plan_file="$cwd/$plan_path"
+    local log="$cwd/.sage/.session-mutations.log"
+    local yaml mode artifact revision
+
+    [ -f "$manifest_file" ] || return 1
+    [ -f "$plan_file" ] || return 1
+    [ -f "$log" ] || return 1
+
+    yaml="$(manifest_yaml "$manifest_file")" || return 1
+    mode="$(printf '%s\n' "$yaml" | yq eval -r '.implementation_approval.mode // ""' - 2>/dev/null || true)"
+    artifact="$(printf '%s\n' "$yaml" | yq eval -r '.implementation_approval.artifact // ""' - 2>/dev/null || true)"
+    revision="$(printf '%s\n' "$yaml" | yq eval -r '.implementation_approval.revision // ""' - 2>/dev/null || true)"
+
+    case "$mode" in
+        approved) ;;
+        conditional_revision)
+            [ -n "$revision" ] || return 1 ;;
+        *)
+            return 1 ;;
+    esac
+
+    [ "$artifact" = "$plan_path" ] || return 1
+
+    jq -e --arg sid "$session_id" --arg turn "$turn_id" --arg cycle "$cycle_id" --arg plan "$plan_path" '
+        select(.session_id == $sid and .turn_id != $turn and .cycle_id == $cycle and ((.files // []) | index($plan)))
+    ' "$log" >/dev/null 2>&1
+}
+
 resolution="$(resolve_cycle_for_patch "$cwd" "${claimed_paths[@]}")"
 resolution_kind="${resolution%%:*}"
 resolution_value="${resolution#*:}"
@@ -460,9 +495,11 @@ else
         fi
     done
     if [ "${#boundary_paths[@]}" -gt 0 ] && same_turn_bootstrapped_cycle "$cwd" "$session_id" "$cycle_id" "$turn_id"; then
-        printf 'Sage: BLOCKING implementation/instruction mutation from a self-created cycle in the same turn: %s. Active cycle: %s. A manifest/plan created by this same turn is capture/planning state, not approval to edit source/runtime/test/instruction files. Config changes are calibrated separately by the lightweight structural allowlist. Next legal move: present the plan and wait for user approval, then continue in a later turn.\n' \
-            "${boundary_paths[*]}" "$cycle_id" >&2
-        exit 2
+        if ! has_valid_implementation_approval "$cwd" "$session_id" "$cycle_id" "$turn_id"; then
+            printf 'Sage: BLOCKING implementation/instruction mutation without a recognized implementation approval contract: %s. Active cycle: %s. Same-turn manifest/plan writes need manifest frontmatter `implementation_approval` pointing at an existing canonical plan.md with prior-turn plan evidence, and targets must stay in manifest scope. Next legal move: present or revise the plan for user approval, then record the implementation approval marker before editing source/runtime/test/instruction files.\n' \
+                "${boundary_paths[*]}" "$cycle_id" >&2
+            exit 2
+        fi
     fi
 
     risky_paths=()
