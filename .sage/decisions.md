@@ -4,6 +4,38 @@ Shared log for significant decisions and context.
 Both the AI agent and human collaborators write here.
 
 ---
+### 2026-05-14 — Batch 7 completed: Alex-native plain technical prose
+
+**Decision:** Batch 7 został zaakceptowany do domknięcia. Sage ma używać
+middle-ground stylu: plain technical prose z impact/cause przed technical
+mechanism i next action, bez infantylizowania technicznych tematów.
+
+**What changed:** Wspólny kontrakt trafił do
+`core/constitution/sage-process.constitution.md` oraz generated Codex
+`AGENTS.md` przez `runtime/platforms/codex/setup/lib/agents-md.sh`. `qa` i
+`design-review` dostały lokalny language override przy użyciu angielskich
+report templateów, a same templatey dostały krótkie Alex-native guidance.
+
+**Evidence:** Przeszły: `alex-native-core-text.bats` 5/5,
+`stage3-agents-md.bats` 51/51, `bash -n agents-md.sh`, `bin/sage update` ze
+Stage 10 sanity sweep oraz `git diff --check`.
+
+### 2026-05-14 — Batch 7 root cause accepted
+
+**Decision:** Alex zaakceptował diagnozę Batcha 7 po read-only subagent review:
+QA jest miejscem, gdzie problem ujawnił się na realnym raporcie, ale podobny
+surface istnieje też w `design-review`.
+
+**Root cause:** Alex-native kontrakt jest zapisany zbyt ogólnie, a raportowe
+workflowy wskazują angielskie templatey bez jawnego przypomnienia, że template
+daje strukturę, nie język docelowy. Agent może więc użyć angielskiej prozy albo
+zacząć od technicznych etykiet zamiast wyjaśnić po kolei: co się dzieje, czemu
+to problem, jak to się technicznie nazywa i co trzeba zmienić.
+
+**Boundary:** Scope planning ma objąć `qa` i `design-review` raport/template
+touchpoints oraz regresje tekstowe. `build` zostaje odróżniony, bo ma
+workflow-level guidance i główne templatey z Alex-native komentarzami.
+
 
 ### 2026-05-14 — Selfhost Bash hook false positive fixed
 

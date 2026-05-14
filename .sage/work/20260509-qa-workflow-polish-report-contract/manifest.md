@@ -2,15 +2,17 @@
 cycle_id: "20260509-qa-workflow-polish-report-contract"
 title: "Fix: QA workflow powinien wymuszać polską prozę raportów"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-14
 owner: alexostl
 priority: P2
-needs-triage: true
+needs-triage: false
 source: "conversation"
 suggested_workflow: fix
+folded_into: "20260509-alex-readable-change-explanations-fix"
+batch: 7
 related:
   - "core/workflows/qa.workflow.md"
   - "develop/templates/qa-report-template.md"
@@ -21,11 +23,19 @@ related:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie została rozpoczęta.
+**Current phase:** completed - folded into Batch 7
+`20260509-alex-readable-change-explanations-fix`.
 
-**Next step:** Wejść w osobny `/sage:fix` i doprecyzować `qa.workflow.md`, że
-raporty QA jako nowe artefakty `.sage` mają mieć prozę po polsku w projektach
-Alex-native, przy zachowaniu kanonicznych nazw technicznych i raw outputów.
+**Next step:** Brak osobnego fixa. Batch 7 doprecyzował `qa.workflow.md`,
+`develop/templates/qa-report-template.md`, analogiczny `design-review` surface
+oraz testy regresyjne.
+
+## Resolution
+
+Ten intake został zamknięty w Batchu 7. Implementacja dodała zasadę, że report
+template daje strukturę, a natural-language report prose podąża za project
+language contract. W Alex-native selfhost oznacza to polską plain technical
+prose, przy zachowaniu raw evidence, command names, ścieżek i identyfikatorów.
 
 ## Finding
 

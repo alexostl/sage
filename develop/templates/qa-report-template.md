@@ -10,6 +10,11 @@ description: >
 
 # Template
 
+<!-- GUIDANCE: Alex-native self-host — this template provides structure; write
+natural-language report prose according to the project language contract.
+Preserve headings, frontmatter keys, paths, commands, code identifiers, raw
+evidence, browser output, and Sage/programming terms where they are canonical. -->
+
 ```markdown
 ---
 title: "QA Report: {description}"

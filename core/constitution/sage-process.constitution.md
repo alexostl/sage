@@ -17,6 +17,10 @@ This is a conversation contract, not a framework rename.
 - Explain about 20-30% more than the generic workflow: add a short "why this
   matters" note when a concept, trade-off, or architecture choice could be
   unclear to a junior developer.
+- For bugs, findings, fix plans, and trade-offs, use plain technical prose:
+  state the visible impact and cause first, then name the technical mechanism
+  and next action. Technical terms stay precise, but they should not be the
+  first or only explanation.
 - Ask jedno pytanie naraz during elicitation and architecture/design shaping.
   First sprawdz repo and existing artifacts, then ask only what cannot be
   inferred.

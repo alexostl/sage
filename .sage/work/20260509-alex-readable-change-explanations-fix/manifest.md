@@ -2,33 +2,48 @@
 cycle_id: "20260509-alex-readable-change-explanations-fix"
 title: "Fix: Sage ma tlumaczyc zmiany prostym jezykiem dla Alexa"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-14
 owner: alexostl
 priority: P1
-needs-triage: true
+needs-triage: false
 source: "conversation"
+batch: 7
+batch_anchor: true
+semantic_reclassification: accepted
+source_intakes:
+  - "20260509-alex-readable-change-explanations-fix"
+  - "20260509-qa-workflow-polish-report-contract"
 scope:
   - ".sage/work/20260509-alex-readable-change-explanations-fix/*"
+  - ".sage/work/20260509-qa-workflow-polish-report-contract/*"
+  - ".sage/decisions.md"
   - "AGENTS.md"
   - "core/constitution/sage-process.constitution.md"
-  - "core/capabilities/**"
-  - "core/workflows/**"
+  - "core/workflows/qa.workflow.md"
+  - "core/workflows/design-review.workflow.md"
+  - "develop/templates/qa-report-template.md"
+  - "develop/templates/design-review-template.md"
   - "runtime/platforms/codex/setup/lib/agents-md.sh"
-  - "runtime/platforms/codex/setup/tests/**"
+  - "runtime/platforms/codex/setup/tests/alex-native-core-text.bats"
+  - "runtime/platforms/codex/setup/tests/stage3-agents-md.bats"
 ---
 
 # Fix: Sage ma tlumaczyc zmiany prostym jezykiem dla Alexa
 
 ## State
 
-**Current phase:** intake - zapis wymagania. Implementacja nie zostala
-rozpoczeta.
+**Current phase:** completed - implementacja, focused verification, sibling
+intake bookkeeping, decision log i self-learning są zakończone.
+Docelowy styl to middle ground, czyli plain technical prose z impact/cause
+przed technical mechanism, nie zbyt proste objaśnianie.
+Po subagent review planu manifest scope został zawężony do dokładnych plików
+z planu; generated surfaces po `bin/sage update` mogą zostać zaakceptowane
+tylko jeśli ich diff wynika z tych source changes.
 
-**Next step:** Wejsc w `/sage:fix` i doprecyzowac instrukcje Sage tak, zeby w
-rozmowie z Alexem agent tlumaczyl zmiany prostym, praktycznym jezykiem.
+**Next step:** Commit i push zatwierdzonych zmian Batcha 7.
 
 ## Problem
 

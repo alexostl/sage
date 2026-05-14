@@ -133,6 +133,11 @@ Save report to `.sage/work/[cycle-id]/qa-report.md` (if cycle context)
 or `.sage/docs/qa-report-[topic].md` (if standalone).
 
 Use the report template from `develop/templates/qa-report-template.md`.
+The template provides structure; report prose follows the project language contract.
+In Alex-native self-host projects, write natural-language findings in
+Polish plain technical prose while preserving paths, commands, raw evidence,
+browser output, and code identifiers verbatim. Bug descriptions should explain
+impact/cause before labels or internal mechanisms.
 
 🔒 **QA REPORT CHECKPOINT:**
 

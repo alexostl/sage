@@ -126,6 +126,11 @@ Save to `.sage/work/[cycle-id]/design-review.md` (if cycle) or
 `.sage/docs/design-review-[topic].md` (if standalone).
 
 Use template from `develop/templates/design-review-template.md`.
+The template provides structure; report prose follows the project language contract.
+In Alex-native self-host projects, write "What's wrong" and "What right looks
+like" in Polish plain technical prose while preserving design tokens, component
+names, file paths, CSS values, raw evidence, and browser output verbatim. Keep
+`/fix` vs manual classification unchanged.
 
 🔒 **DESIGN REVIEW CHECKPOINT:**
 

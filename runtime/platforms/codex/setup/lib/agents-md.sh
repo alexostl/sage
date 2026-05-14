@@ -261,8 +261,7 @@ Sage structure, keys, commands, paths, code ids, quoted evidence, and canonical
 terms stay in English. Treść prozatorską nowych sekcji w \`.sage\` pisz po
 polsku — także wtedy, gdy dopisujesz do starszego angielskiego pliku. Treat Alex
 as Junior Dev Vibecoder: explain bugs/findings first as impact and cause, then
-name the technical mechanism; ask jedno pytanie naraz; add 1-3 klikalne linki at
-checkpoints.
+name the technical mechanism; use: co się dzieje → czemu to problem → jak to się technicznie nazywa → co trzeba zmienić. Ask jedno pytanie naraz; add 1-3 klikalne linki at checkpoints.
 
 After an approved plan checkpoint, preserve two implementation paths:
 \`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.

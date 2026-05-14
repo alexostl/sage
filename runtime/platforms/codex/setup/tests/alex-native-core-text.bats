@@ -15,10 +15,26 @@ assert_contains() {
     grep -q "$pattern" "$REPO_ROOT/$file"
 }
 
+assert_between_contains() {
+    local file="$1"
+    local start="$2"
+    local end="$3"
+    local pattern="$4"
+    awk -v start="$start" -v end="$end" '
+        $0 ~ start { in_range = 1 }
+        in_range { print }
+        $0 ~ end { exit }
+    ' "$REPO_ROOT/$file" | grep -q "$pattern"
+}
+
 @test "alex-native core: constitution and navigator define the self-host contract" {
     assert_contains "core/constitution/sage-process.constitution.md" "Alex-native operating contract"
     assert_contains "core/constitution/sage-process.constitution.md" "Treść prozatorską nowych sekcji"
     assert_contains "core/constitution/sage-process.constitution.md" "starszego angielskiego pliku"
+    assert_contains "core/constitution/sage-process.constitution.md" "plain technical prose"
+    assert_contains "core/constitution/sage-process.constitution.md" "visible impact and cause"
+    assert_contains "core/constitution/sage-process.constitution.md" "technical mechanism"
+    assert_contains "core/constitution/sage-process.constitution.md" "next action"
     assert_contains "core/constitution/sage-process.constitution.md" "Full autonomous implementation"
     assert_contains "core/constitution/sage-process.constitution.md" "jedno pytanie naraz"
     assert_contains "core/constitution/sage-process.constitution.md" "1-3 klikalne linki"
@@ -72,4 +88,44 @@ assert_contains() {
     assert_contains "develop/templates/spec/minimal.spec-template.md" "Alex-native self-host"
     assert_contains "develop/templates/plan/standard.plan-template.md" "Alex-native self-host"
     assert_contains "develop/templates/architecture/decision-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/qa-report-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/qa-report-template.md" "project language contract"
+    assert_contains "develop/templates/qa-report-template.md" "Preserve"
+    assert_contains "develop/templates/design-review-template.md" "Alex-native self-host"
+    assert_contains "develop/templates/design-review-template.md" "project language contract"
+    assert_contains "develop/templates/design-review-template.md" "Preserve"
+}
+
+@test "alex-native core: report workflows apply project language at template use" {
+    assert_between_contains \
+        "core/workflows/qa.workflow.md" \
+        "Use the report template" \
+        "QA REPORT CHECKPOINT" \
+        "template provides structure"
+    assert_between_contains \
+        "core/workflows/qa.workflow.md" \
+        "Use the report template" \
+        "QA REPORT CHECKPOINT" \
+        "project language contract"
+    assert_between_contains \
+        "core/workflows/qa.workflow.md" \
+        "Use the report template" \
+        "QA REPORT CHECKPOINT" \
+        "raw evidence"
+
+    assert_between_contains \
+        "core/workflows/design-review.workflow.md" \
+        "Use template from" \
+        "DESIGN REVIEW CHECKPOINT" \
+        "template provides structure"
+    assert_between_contains \
+        "core/workflows/design-review.workflow.md" \
+        "Use template from" \
+        "DESIGN REVIEW CHECKPOINT" \
+        "project language contract"
+    assert_between_contains \
+        "core/workflows/design-review.workflow.md" \
+        "Use template from" \
+        "DESIGN REVIEW CHECKPOINT" \
+        "raw evidence"
 }
