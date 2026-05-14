@@ -16,6 +16,11 @@
 # v1 plan ref: T1.4 (Group B foundation).
 
 set -euo pipefail
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/json_log.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/dirty_state.sh"
 
 # Read stdin payload (best-effort; never crash session on bad JSON).
 payload=""
@@ -25,11 +30,27 @@ fi
 
 # Extract project_dir; fall back to PWD on failure.
 project_dir=""
+session_id="unknown"
 if [ -n "$payload" ] && command -v jq >/dev/null 2>&1; then
     project_dir="$(printf '%s' "$payload" | jq -r '.project_dir // empty' 2>/dev/null || true)"
+    session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"' 2>/dev/null || echo unknown)"
 fi
 [ -n "$project_dir" ] || project_dir="$PWD"
 [ -d "$project_dir" ] || project_dir="$PWD"
+[ -n "$session_id" ] || session_id="unknown"
+
+baseline_log="$project_dir/.sage/.session-baseline.log"
+if [ -d "$project_dir/.sage" ]; then
+    baseline_files='[]'
+    while IFS= read -r path; do
+        [ -n "$path" ] || continue
+        fp="$(dirty_fingerprint "$project_dir" "$path")"
+        baseline_files="$(jq -c --arg p "$path" --arg fp "$fp" '. + [{path:$p, fingerprint:$fp}]' <<< "$baseline_files")"
+    done < <(dirty_paths "$project_dir")
+    baseline_line="$(jq -nc --arg sid "$session_id" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson files "$baseline_files" \
+        '{kind:"session_baseline", session_id:$sid, ts:$ts, files:$files}')"
+    json_log_append "$baseline_log" "$baseline_line" 2>/dev/null || true
+fi
 
 # Step 1 — banner.
 printf '=== Sage / Codex — session start ===\n'

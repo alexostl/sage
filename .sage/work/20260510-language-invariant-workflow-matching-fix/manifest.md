@@ -1,20 +1,34 @@
 ---
 cycle_id: "20260510-language-invariant-workflow-matching-fix"
 title: "Fix: language-invariant workflow and harness matching"
-workflow: intake
-phase: intake
-status: intake
+workflow: fix
+phase: completed
+status: completed
 created: 2026-05-10
-updated: 2026-05-10
+updated: 2026-05-14
 owner: alexostl
 priority: P1
-classification: Systemic
+classification: Moderate
+semantic_reclassification: accepted
 source_cycle: "20260509-workflow-entry-resume-recovery-autonomy-fix"
+source_intakes:
+  - "20260509-mcp-incident-followup-fixes"
+  - "20260509-target-repo-ownership-harness-fix"
 tags:
   - workflow-matching
   - harness
   - hooks
   - language-invariant
+scope:
+  - ".sage/work/20260510-language-invariant-workflow-matching-fix/*"
+  - ".sage/work/20260509-mcp-incident-followup-fixes/manifest.md"
+  - ".sage/work/20260509-target-repo-ownership-harness-fix/manifest.md"
+  - ".sage/decisions.md"
+  - "runtime/platforms/codex/harness/**"
+  - "runtime/platforms/codex/audit/sage-writers.yaml"
+  - "runtime/platforms/codex/hooks/**"
+  - "runtime/platforms/codex/setup/tests/stage3-agents-md.bats"
+  - "runtime/platforms/codex/setup/tests/stage5-6-hooks.bats"
 ---
 
 # Fix: language-invariant workflow and harness matching
@@ -56,10 +70,16 @@ rubrykę mimo poprawnego zachowania semantycznego. Agent powiedział po polsku,
 nie dotyczy tylko jednej rubryki, ale całej klasy sprawdzeń natural-language
 behavior.
 
+## Batch 5 state
+
+Ten cycle jest anchor dla Batcha 5:
+
+- `20260509-mcp-incident-followup-fixes`;
+- `20260510-language-invariant-workflow-matching-fix`;
+- `20260509-target-repo-ownership-harness-fix`.
+
 ## Next Legal Move
 
-Wznowić ten intake jako osobny `/sage:fix` i zacząć od audytu repozytorium:
-znaleźć wszystkie miejsca, gdzie natural-language behavior jest sprawdzany
-językowo przez regex/frazę, a następnie rozdzielić je na szybkie poprawki
-rubryk oraz większe decyzje architektoniczne. Ten intake jest capture-only; nie
-zmienia runtime ani rubryk samodzielnie.
+Cycle jest w `completion-checkpoint`. Następny legalny krok to decyzja Alexa:
+approve closeout, revise albo dodatkowa weryfikacja. Nie oznaczać anchor cycle
+jako `completed` przed akceptacją completion checkpoint.

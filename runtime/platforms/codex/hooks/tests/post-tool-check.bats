@@ -215,6 +215,54 @@ EOF
     fi
 }
 
+@test "post-tool-check.sh: decisions.md is a journal, not a frontmatter artifact" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage
+    cat > .sage/decisions.md <<'EOF'
+# Decisions
+
+---
+
+### 2026-05-14 — Decision with colon
+
+**Decision:** this journal entry is not YAML frontmatter.
+EOF
+    git add .sage/decisions.md
+    cmd="$(make_patch_cmd Add .sage/decisions.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "broken_frontmatter" "$log"
+    fi
+}
+
+@test "post-tool-check.sh: capture-only sage manifest no-op emits audit event instead of claim_no_op" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage/work/20260514-capture
+    cat > .sage/work/20260514-capture/manifest.md <<'EOF'
+---
+cycle_id: "20260514-capture"
+workflow: fix
+phase: intake
+status: intake
+---
+# Capture
+EOF
+    git add .sage/work/20260514-capture/manifest.md
+    git commit -q -m "seed capture"
+
+    cmd="$(make_patch_cmd Update .sage/work/20260514-capture/manifest.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "capture_documentation_mutation" "$log"
+    ! grep -q "claim_no_op" "$log"
+}
+
 @test "post-tool-check.sh: incident JSON line is valid (parseable + has severity)" {
     cd "$PROJECT_ROOT"
     cmd="$(make_patch_cmd Update seed.txt)"

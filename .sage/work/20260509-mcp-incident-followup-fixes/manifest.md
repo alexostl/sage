@@ -2,14 +2,15 @@
 cycle_id: "20260509-mcp-incident-followup-fixes"
 title: "Fix: follow-upy z MCP incidents po odfiltrowaniu historii"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-14
 owner: alexostl
 priority: P1
 needs-triage: true
 source: ".sage/.mcp-incidents.log review"
+folded_into: "20260510-language-invariant-workflow-matching-fix"
 scope:
   - ".sage/work/20260509-mcp-incident-followup-fixes/*"
   - ".sage/.mcp-incidents.log"
@@ -24,11 +25,13 @@ scope:
 
 ## State
 
-**Current phase:** intake - lista realnych follow-upow po review
-`.sage/.mcp-incidents.log`. Implementacja nie zostala rozpoczeta.
+**Current phase:** completed — folded into Batch 5 anchor
+`20260510-language-invariant-workflow-matching-fix`.
 
-**Next step:** Wejsc w `/sage:fix`, potwierdzic ktore punkty laczymy z
-istniejacymi intake cycles, a ktore robimy w tym cyklu.
+**Result:** Batch 5 zaadresował realne follow-upy: `.sage/decisions.md` nie
+jest już frontmatter artifact, dirty baseline odróżnia stary brudny stan od
+bieżących bypassów, capture/documentation-only zostawia jawny audit/event ślad
+zamiast fałszywego `claim_no_op`, a `phase_jump_observed` jest deduplikowany.
 
 ## Context
 

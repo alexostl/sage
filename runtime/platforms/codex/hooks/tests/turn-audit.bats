@@ -70,6 +70,16 @@ log_cycle_mutation() {
         >> "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
+log_baseline() {
+    local sid="$1"
+    shift
+    local files_json
+    files_json=$(printf '%s\n' "$@" | jq -R 'split("\t") | {path: .[0], fingerprint: .[1]}' | jq -sc .)
+    jq -nc --arg sid "$sid" --argjson f "$files_json" \
+        '{kind:"session_baseline", session_id:$sid, ts:"2026-04-30T12:00:00Z", files:$f}' \
+        >> "$PROJECT_ROOT/.sage/.session-baseline.log"
+}
+
 @test "turn-audit.sh: no mutations + no diff → exit 0, no incidents" {
     payload="$(make_payload)"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -280,6 +290,59 @@ EOF
     found_bypass_log=0
     [ -f "$log" ] && grep -q '"file":".sage/.session-mutations.log"' "$log" && found_bypass_log=1
     [ "$found_bypass_log" -eq 0 ]
+}
+
+@test "turn-audit.sh: dirty file present at session start does not emit bypass when unchanged" {
+    cd "$PROJECT_ROOT"
+    echo "dirty-before" >> seed.txt
+    fp="$(cksum < seed.txt | awk '{print $1 ":" $2}')"
+    log_baseline "test-session" "seed.txt	$fp"
+
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q '"kind":"bypass_mutation".*"file":"seed.txt"' "$log"
+    fi
+}
+
+@test "turn-audit.sh: dirty file changed again during session still emits bypass" {
+    cd "$PROJECT_ROOT"
+    echo "dirty-before" >> seed.txt
+    fp="$(cksum < seed.txt | awk '{print $1 ":" $2}')"
+    log_baseline "test-session" "seed.txt	$fp"
+    echo "dirty-after" >> seed.txt
+
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q '"kind":"bypass_mutation".*"file":"seed.txt"' "$log"
+}
+
+@test "turn-audit.sh: phase_jump_observed is deduplicated for same cycle file and status" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage/work/20260101-alpha
+    cat > .sage/work/20260101-alpha/manifest.md <<'EOF'
+---
+status: completed
+title: "alpha"
+---
+EOF
+    git add .sage/work/20260101-alpha/manifest.md
+    log_mutation "test-session" "turn-1" ".sage/work/20260101-alpha/manifest.md"
+
+    payload="$(make_payload "test-session" "turn-1")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    count="$(grep -c '"kind":"phase_jump_observed".*"file":".sage/work/20260101-alpha/manifest.md"' "$log")"
+    [ "$count" -eq 1 ]
 }
 
 @test "turn-audit.sh: Moderate+ fix edits 3 implementation files before plan+manifest → artifact_order_violation" {

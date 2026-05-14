@@ -2,14 +2,15 @@
 cycle_id: "20260509-target-repo-ownership-harness-fix"
 title: "Fix: transcript assertion for target repo ownership"
 workflow: fix
-phase: intake
-status: intake
+phase: completed
+status: completed
 created: 2026-05-09
-updated: 2026-05-09
+updated: 2026-05-14
 owner: alexostl
 source_cycle: "20260509-runtime-process-dummy-qa"
 needs-triage: true
 priority: P2
+folded_into: "20260510-language-invariant-workflow-matching-fix"
 scope:
   - ".sage/work/20260509-target-repo-ownership-harness-fix/*"
   - ".sage/decisions.md"
@@ -23,12 +24,13 @@ scope:
 
 ## State
 
-**Current phase:** intake — finding zapisany po Project Dummy QA. Implementacja
-nie została rozpoczęta.
+**Current phase:** completed — folded into Batch 5 anchor
+`20260510-language-invariant-workflow-matching-fix`.
 
-**Next step:** Uruchomić `/sage:fix` i dopisać test/harness assertion, który
-łapie próby zapisu workflow state do parent/framework repo podczas target
-harness run.
+**Result:** Batch 5 potwierdził i zachował RealHarness assertion dla forbidden
+parent/framework repo `.sage/**` transcript paths. Scenario
+`11-bug-report-no-fix` nadal failuje, jeśli transcript wspomina parent repo
+state write.
 
 ## Finding
 

@@ -5,6 +5,133 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-14 — Batch 5 approved and closed
+
+**Decision:** Alex zaakceptował completion checkpoint Batcha 5 oraz poprosił
+o commit i push. Anchor cycle
+`20260510-language-invariant-workflow-matching-fix` może zostać oznaczony jako
+`completed`.
+
+**Evidence:** Weryfikacja z checkpointu była zielona: combined Bats `1..142`,
+`bash -n` dla zmienionych hooków oraz `git diff --check` bez outputu.
+
+**Boundary:** Commit ma objąć Batch 5 i powiązane source-intake closeouty.
+Niezależna zmiana w Batch 6 manifest nie należy do tego commita.
+
+### 2026-05-14 — Batch 5 implementation reached completion checkpoint
+
+**Decision:** Batch 5 został zaimplementowany i doprowadzony do completion
+checkpoint. Dwa sibling intake cycles oznaczono jako `status: completed` i
+`folded_into: 20260510-language-invariant-workflow-matching-fix`.
+
+**Evidence:** Zielone: combined Bats `1..142`, w tym session baseline,
+post-tool-check, turn-audit, sage-writers, aggregate-signals, stage5-6 hooks i
+stage3 AGENTS. Dodatkowo `bash -n` dla zmienionych hooków oraz
+`git diff --check` przeszły bez outputu.
+
+**Boundary:** Anchor cycle zostaje `status: in-progress` i
+`phase: completion-checkpoint` do finalnej akceptacji Alexa. Nie oznaczać go
+`completed` przed approval.
+
+### 2026-05-14 — Batch 5 plan approved for implementation
+
+**Decision:** Alex wybrał `[S] Skip review` po rewizji Batcha 5 fix planu.
+Plan i manifest scope zostały zaakceptowane, a anchor cycle przechodzi do
+`phase: deliver`.
+
+**Boundary:** Implementacja ma trzymać się zatwierdzonego scope. Szczególnie:
+dirty baseline idzie osobnym `.session-baseline.log`, musi mieć test
+same-file dirty-then-bypass, capture/documentation-only musi zostawić jawny
+audit/event ślad, a scenario 12 ma zostać bounded do stop/escalation
+categories bez LLM classifiera.
+
+### 2026-05-14 — Batch 5 plan auto-review needs revision
+
+**Decision:** Alex wybrał `[A] Subagent review` dla Batcha 5 fix planu, a po
+werdykcie `NEEDS REVISION` wybrał `[R] Revise`.
+
+**Findings:** Review nie znalazł CRITICAL. Trzy MAJOR gaps: baseline dirty
+state mógłby ukryć same-file bypass po starcie sesji; capture/documentation-only
+path musi zostawiać audit/event ślad, nie tylko wyciszać `claim_no_op`; oraz
+baseline nie powinien być dopisywany do `.session-mutations.log` bez zmiany
+writer contractu.
+
+**Result:** Plan został poprawiony: używa osobnego `.session-baseline.log`,
+wymaga fingerprint/mtime/size zamiast path-only baseline, dodaje same-file
+dirty-then-bypass test, wymaga audytowanego capture/documentation-only eventu
+i rozszerza scope o `runtime/platforms/codex/audit/sage-writers.yaml`.
+
+### 2026-05-14 — Batch 5 root cause approved and scope planned
+
+**Decision:** Alex wybrał `[S] Skip review` po rewizji root cause Batcha 5.
+Root cause został zaakceptowany i przygotowano plan fix scope.
+
+**Plan shape:** Fix scope jest Moderate mimo systemowej przyczyny: bez LLM
+classifiera, bez dużej przebudowy target ownership i bez zmiany publicznego
+workflow API. Plan obejmuje kalibrację RealHarness scenario 12, utrzymanie
+scenario 11 parent-repo assertion, baseline dirty state dla hooks,
+wyłączenie fałszywego frontmatter checku dla `.sage/decisions.md`,
+capture/documentation-only rozróżnienie dla `claim_no_op` oraz deduplikację
+`phase_jump_observed`.
+
+**Boundary:** Implementacja nadal jest zablokowana do fix scope gate. Jeśli
+baseline dirty state wymaga osobnego logu albo zaczyna ukrywać nowe zmiany w
+tym samym pliku po starcie sesji, trzeba wrócić po scope expansion.
+
+### 2026-05-14 — Batch 5 root cause auto-review needs revision
+
+**Decision:** Alex wybrał `[A] Subagent review` dla root cause Batcha 5, a po
+werdykcie `NEEDS REVISION` wybrał `[R] Revise`.
+
+**Findings:** Review nie znalazł CRITICAL. Dwa MAJOR gaps: diagnoza za słabo
+opisywała `claim_no_op` dla legalnych capture/intake-only zmian oraz nie
+nazywała osobno policy-level braku lżejszego audytowanego trybu dla
+documentation/capture-only `.sage/**`.
+
+**Result:** Root cause został poprawiony przed ponownym root-cause gate.
+
+### 2026-05-14 — Polish subagent handoff prompts routed to Batch 6
+
+**Decision:** Alex poprosił, żeby do Batcha 6 albo 7 dopisać wymaganie: prompty
+dla subagentów tworzone przez agenta robiącego handoff mają być po polsku.
+Wymaganie zostało dopisane do intake
+`20260510-subagent-self-learning-recall-fix`, czyli Batcha 6.
+
+**Why:** To dotyczy przede wszystkim delegacji i prompt-policy subagentów.
+Warstwa językowa jest Alex-native, ale mechanizm, który trzeba poprawić, żyje w
+Batchu 6: subagent review/fix/research ma dostać poprawny prompt od głównego
+agenta.
+
+**Boundary:** Natural-language prose promptu ma być po polsku, ale canonical
+identifiers, ścieżki, command names, frontmatter keys, tool names, quoted
+evidence i raw outputy zostają nietłumaczone. Globalna mapa batchy nie została
+zmieniona teraz, bo aktywny scope Batcha 5 nie obejmuje
+`.sage/work/20260509-open-work-cluster-map/cluster-map.md`.
+
+### 2026-05-14 — Batch 5 root cause checkpoint
+
+**Decision needed:** Rozpoczęto Batch 5 na anchor cycle
+`20260510-language-invariant-workflow-matching-fix` i doprowadzono diagnozę do
+`root-cause-gate`.
+
+**Root cause:** Sage ocenia część agent behavior przez kruche ślady zamiast
+stabilnych kontraktów: harness używa regexów po natural-language transcriptach,
+incident hooks porównują bieżący session log z całym dirty worktree bez
+baseline'u startu sesji, a audit/frontmatter probes nie rozróżniają typów
+`.sage` markdownów ani deduplikowanych eventów.
+
+**Evidence:** Scenario 12 nadal wymaga konkretnych fraz w
+`required_transcript_patterns`; `aggregate-signals.sh` robi czysty `grep -E`
+po transkrypcie; `post-tool-check.sh` i `turn-audit.sh` bazują na
+`git status --porcelain -uall`; `.sage/decisions.md` reprodukuje fałszywy
+`broken_frontmatter`; `.mcp-incidents.log` ma tysiące powtarzalnych
+`unclaimed_change`, `bypass_mutation` i `phase_jump_observed`.
+
+**Boundary:** Nie implementować runtime/test zmian przed akceptacją root cause
+i osobnym fix scope gate. Target-repo ownership assertion jest już częściowo
+obecny w harnessie; w Batchu 5 traktujemy go jako suite/bookkeeping follow-up,
+nie jako dużą przebudowę runtime ownership modelu.
+
 ### 2026-05-13 — Batch 4 closeout approved
 
 **Decision:** Alex zaakceptowal completion checkpoint Batcha 4 i poprosil o

@@ -178,3 +178,26 @@ EOF
     run bash -c "echo 'not-json' | '$HOOK'"
     [ "$status" -eq 0 ]
 }
+
+@test "session-init.sh: records dirty state baseline for current session" {
+    cd "$PROJECT_ROOT"
+    git init -q -b main
+    git config user.email "test@test"
+    git config user.name "test"
+    echo "seed" > tracked.txt
+    git add tracked.txt
+    git commit -q -m "seed"
+    echo "dirty" >> tracked.txt
+    mkdir -p notes
+    echo "new" > notes/new.txt
+
+    payload="$(make_payload "$PROJECT_ROOT")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+
+    log="$PROJECT_ROOT/.sage/.session-baseline.log"
+    [ -f "$log" ]
+    jq -e 'select(.kind == "session_baseline" and .session_id == "test-uuid")' "$log" >/dev/null
+    jq -e 'select(.kind == "session_baseline") | .files[] | select(.path == "tracked.txt" and (.fingerprint | length > 0))' "$log" >/dev/null
+    jq -e 'select(.kind == "session_baseline") | .files[] | select(.path == "notes/new.txt" and (.fingerprint | length > 0))' "$log" >/dev/null
+}

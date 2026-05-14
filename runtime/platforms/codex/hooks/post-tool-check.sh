@@ -144,13 +144,41 @@ contains() {
     return 1
 }
 
+is_capture_documentation_path() {
+    case "$1" in
+        .sage/work/*|.sage/docs/*|.sage/decisions.md) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+all_claimed_capture_only=1
+for p in "${claimed_paths[@]}"; do
+    if ! is_capture_documentation_path "$p"; then
+        all_claimed_capture_only=0
+        break
+    fi
+done
+
+if [ "$all_claimed_capture_only" -eq 1 ]; then
+    for p in "${claimed_paths[@]}"; do
+        [ -e "$cwd/$p" ] || continue
+        emit_incident "capture_documentation_mutation" "$p" "info"
+    done
+fi
+
 # claim_no_op: claimed but not in diff
 for p in "${claimed_paths[@]}"; do
     if [ "${#actual_paths[@]}" -gt 0 ]; then
         if ! contains "$p" "${actual_paths[@]}"; then
+            if [ "$all_claimed_capture_only" -eq 1 ] && is_capture_documentation_path "$p" && [ -e "$cwd/$p" ]; then
+                continue
+            fi
             emit_incident "claim_no_op" "$p" "warn"
         fi
     else
+        if [ "$all_claimed_capture_only" -eq 1 ] && is_capture_documentation_path "$p" && [ -e "$cwd/$p" ]; then
+            continue
+        fi
         emit_incident "claim_no_op" "$p" "warn"
     fi
 done
@@ -167,6 +195,7 @@ if command -v yq >/dev/null 2>&1; then
     for p in ${actual_paths[@]+"${actual_paths[@]}"}; do
         case "$p" in .sage/*) ;; *) continue ;; esac
         case "$p" in *.md) ;; *) continue ;; esac
+        [ "$p" = ".sage/decisions.md" ] && continue
         [ -f "$cwd/$p" ] || continue
         # Extract frontmatter between first '---' and next '---'.
         fm="$(awk '/^---$/{c++; next} c==1{print} c>=2{exit}' "$cwd/$p" 2>/dev/null || true)"

@@ -21,6 +21,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/path_normalize.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/artifact_order.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/dirty_state.sh"
 
 if ! command -v jq >/dev/null 2>&1; then
     exit 0
@@ -40,6 +42,7 @@ fi
 
 incidents_log="$cwd/.sage/.mcp-incidents.log"
 mutations_log="$cwd/.sage/.session-mutations.log"
+baseline_log="$cwd/.sage/.session-baseline.log"
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 emit_incident() {
@@ -107,6 +110,11 @@ mutation_severity() {
 
 # Step 3 — bypass_mutation: in git-diff but not in session-mutations log.
 for p in ${actual_paths[@]+"${actual_paths[@]}"}; do
+    baseline_fp="$(session_baseline_fingerprint "$baseline_log" "$session_id" "$p" || true)"
+    if [ -n "$baseline_fp" ]; then
+        current_fp="$(dirty_fingerprint "$cwd" "$p")"
+        [ "$current_fp" = "$baseline_fp" ] && continue
+    fi
     if [ "${#claimed_paths[@]}" -gt 0 ]; then
         if ! contains "$p" "${claimed_paths[@]}"; then
             emit_incident "bypass_mutation" "$p" "$(mutation_severity "$p")"
@@ -197,6 +205,11 @@ if command -v yq >/dev/null 2>&1; then
             cycle="$(basename "$(dirname "$p")")"
             extras="$(jq -nc --arg cycle "$cycle" --arg ns "$new_status" \
                 '{cycle:$cycle, new_status:$ns}')"
+            if [ -f "$incidents_log" ] && jq -e --arg file "$p" --arg cycle "$cycle" --arg ns "$new_status" '
+                select(.kind == "phase_jump_observed" and .file == $file and .cycle == $cycle and .new_status == $ns)
+            ' "$incidents_log" >/dev/null 2>&1; then
+                continue
+            fi
             emit_incident "phase_jump_observed" "$p" "info" "$extras"
         fi
     done

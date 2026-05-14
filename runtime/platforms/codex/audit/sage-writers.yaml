@@ -30,6 +30,10 @@
   writers:
     - pre-tool-validate.sh
 
+.sage/.session-baseline.log:
+  writers:
+    - session-init.sh
+
 .sage/.auto-fixes.log:
   # v1 recovery-first audit: every safe hook auto-fix records the detected
   # state, safety rationale, resulting state, and next legal move.

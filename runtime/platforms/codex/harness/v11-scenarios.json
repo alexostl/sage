@@ -151,9 +151,9 @@
           "^src/"
         ],
         "required_transcript_patterns": [
-          "scoped autonomy|Full autonomous implementation|approved plan|manifest scope|bez checkpoint|without checkpoints",
-          "scope expansion|grant|outside scope|poza scope",
-          "key assumption|założen|checkpoint|decyz"
+          "stop|stopp|zatrzym|checkpoint",
+          "scope expansion|outside scope|poza scope|poza zatwierdzony zakres|zakres|assumption|założ",
+          "decision|decyz|escalat|eskal"
         ]
       }
     },
