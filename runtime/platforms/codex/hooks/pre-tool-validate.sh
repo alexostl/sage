@@ -46,17 +46,129 @@ session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
 turn_id="$(printf '%s' "$payload" | jq -r '.turn_id // "unknown"')"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty')"
 
+bash_strip_token_path() {
+    local token="$1"
+
+    case "$token" in
+        [0-9]">>"*) token="${token#*>>}" ;;
+        [0-9]">"*) token="${token#*>}" ;;
+        ">>"*) token="${token#>>}" ;;
+        ">"*) token="${token#>}" ;;
+    esac
+
+    token="${token#\"}"; token="${token%\"}"
+    token="${token#\'}"; token="${token%\'}"
+    token="${token%;}"
+    case "$token" in ./*) token="${token#./}" ;; esac
+    printf '%s' "$token"
+}
+
+bash_redirection_target_mutates() {
+    local target
+    target="$(bash_strip_token_path "$1")"
+
+    case "$target" in
+        ""|/dev/null|/dev/fd/*|/proc/self/fd/*|\&1|\&2)
+            return 1 ;;
+        *)
+            return 0 ;;
+    esac
+}
+
+bash_has_mutating_output_redirection() {
+    local command="$1"
+    local expect_target=0
+    local token
+
+    # Simple token scan only: enough to distinguish real file writes from
+    # descriptor/no-op redirects without becoming a shell parser.
+    set -f
+    # shellcheck disable=SC2086
+    for token in $command; do
+        if [ "$expect_target" -eq 1 ]; then
+            if bash_redirection_target_mutates "$token"; then
+                set +f
+                return 0
+            fi
+            expect_target=0
+            continue
+        fi
+
+        case "$token" in
+            ">"|">>"|[0-9]">"|[0-9]">>")
+                expect_target=1 ;;
+            [0-9]">>"*|[0-9]">"*|">>"*|">"*)
+                if bash_redirection_target_mutates "$token"; then
+                    set +f
+                    return 0
+                fi ;;
+        esac
+    done
+    set +f
+
+    return 1
+}
+
+bash_is_allowed_local_artifact_path() {
+    case "$1" in
+        .sage/.*.log|.sage/.approval-pending|.sage/.codex-validated-version|.codex/hooks.json.user-edit-backup-*)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+bash_token_targets_guarded_repo_path() {
+    local path
+    path="$(bash_strip_token_path "$1")"
+
+    case "$path" in
+        ""|-|--*|\&*|/dev/*)
+            return 1 ;;
+    esac
+
+    path="$(normalize_path "$path" "$cwd")"
+    case "$path" in
+        /*) return 1 ;;
+    esac
+
+    bash_is_allowed_local_artifact_path "$path" && return 1
+
+    case "$path" in
+        .sage/work/*|.sage/decisions.md|.sage-memory/*|AGENTS.md|CLAUDE.md|.codex/*|.claude/*|runtime/*|core/*|bin/*|src/*|tests/*|*/tests/*|*.bats|.gitignore)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+bash_command_targets_guarded_repo_path() {
+    local command="$1"
+    local token
+
+    set -f
+    # shellcheck disable=SC2086
+    for token in $command; do
+        if bash_token_targets_guarded_repo_path "$token"; then
+            set +f
+            return 0
+        fi
+    done
+    set +f
+    return 1
+}
+
 if [ "$tool_name" = "Bash" ]; then
     mutating=0
     targets_guarded=0
-    if [[ "$cmd" =~ (^|[[:space:];|&])(cat[[:space:]].*\>|tee([[:space:]]|$)|sed[[:space:]][^;\|\&]*-i|perl[[:space:]][^;\|\&]*-.*pi|touch|mkdir|rm|mv|cp|install)([[:space:]]|$) ]] || [[ "$cmd" =~ (^|[^\<])\>\>?([^\|]|$) ]]; then
+    if [[ "$cmd" =~ (^|[[:space:];|&])(tee([[:space:]]|$)|sed[[:space:]][^;\|\&]*-i|perl[[:space:]][^;\|\&]*-.*pi|touch|mkdir|rm|mv|cp|install)([[:space:]]|$) ]] || bash_has_mutating_output_redirection "$cmd"; then
         mutating=1
     fi
     binary_like=0
     if [[ "$cmd" =~ \.(png|jpg|jpeg|gif|webp|pdf|zip|gz|tar|ico|icns|woff|woff2|ttf|otf)([[:space:]]|$) ]]; then
         binary_like=1
     fi
-    if [[ "$cmd" == *".sage/work/"* ]] || [[ "$cmd" == *".sage/decisions.md"* ]] || [[ "$cmd" == *".sage-memory/"* ]] || [[ "$cmd" == *"src/"* ]] || [[ "$cmd" == *"tests/"* ]] || [[ "$cmd" == *"runtime/"* ]] || [[ "$cmd" == *"core/"* ]] || [[ "$cmd" == *"bin/"* ]]; then
+    if bash_command_targets_guarded_repo_path "$cmd"; then
         targets_guarded=1
     fi
     if [ "$mutating" -eq 1 ] && [[ "$cmd" == SAGE_BINARY_MUTATION=1* ]]; then

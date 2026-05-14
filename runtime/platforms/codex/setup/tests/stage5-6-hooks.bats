@@ -3,7 +3,7 @@
 #
 # Plan contract (T1.13):
 #   Stage 5: full regenerate of `<target>/.codex/hooks.json` registry —
-#     4 events (SessionStart, PreToolUse[apply_patch|Edit|Write + Bash],
+#     4 events (SessionStart, PreToolUse[Bash|apply_patch|Edit|Write],
 #     PostToolUse[apply_patch|Edit|Write], Stop). Backup user file
 #     before overwrite when content differs.
 #   Stage 6: copy `<sage>/runtime/platforms/codex/hooks/*.sh` →
@@ -48,20 +48,14 @@ run_stage() {
     [ "$cmd" = ".codex/hooks/session-init.sh" ]
 }
 
-@test "stage5: PreToolUse uses file-edit matcher aliases → pre-tool-validate.sh" {
+@test "stage5: PreToolUse uses single matcher group for Bash and file edits" {
     run_stage 5
     matcher="$(jq -r '.hooks.PreToolUse[0].matcher' "$TARGET/.codex/hooks.json")"
     cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
-    [ "$matcher" = "apply_patch|Edit|Write" ]
+    count="$(jq '.hooks.PreToolUse | length' "$TARGET/.codex/hooks.json")"
+    [ "$matcher" = "Bash|apply_patch|Edit|Write" ]
     [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
-}
-
-@test "stage5: PreToolUse uses matcher=Bash → pre-tool-validate.sh" {
-    run_stage 5
-    matcher="$(jq -r '.hooks.PreToolUse[1].matcher' "$TARGET/.codex/hooks.json")"
-    cmd="$(jq -r '.hooks.PreToolUse[1].hooks[0].command' "$TARGET/.codex/hooks.json")"
-    [ "$matcher" = "Bash" ]
-    [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
+    [ "$count" -eq 1 ]
 }
 
 @test "stage5: PostToolUse uses file-edit matcher aliases → post-tool-check.sh" {

@@ -178,6 +178,12 @@ make_cycle_with_writable_scope() {
     [ "$status" -eq 0 ]
 }
 
+@test "pre-tool-validate.sh: Bash read command with stderr to /dev/null is allowed" {
+    payload="$(make_bash_payload "sed -n '1,160p' runtime/platforms/codex/hooks/hooks.json 2>/dev/null || true")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
 @test "pre-tool-validate.sh: Bash shell edit to manifest active_session_id is blocked" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
     payload="$(make_bash_payload "perl -0pi -e 's/active_session_id: unknown/active_session_id: test-uuid/' .sage/work/20260101-alpha/manifest.md")"
@@ -189,6 +195,25 @@ make_cycle_with_writable_scope() {
 
 @test "pre-tool-validate.sh: Bash write to project path is blocked" {
     payload="$(make_bash_payload "mkdir -p src/notes && cat > src/notes/random.md <<'EOF'\nhello\nEOF")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 2 ]
+    echo "$stderr" "$output" | grep -q "use apply_patch"
+}
+
+@test "pre-tool-validate.sh: Bash write outside repo is allowed even with guarded-looking path segments" {
+    payload="$(make_bash_payload "mkdir -p /tmp/sage-outside/runtime && cat > /tmp/sage-outside/runtime/random.md <<'EOF'\nhello\nEOF")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: Bash write to local ignored hook log is allowed" {
+    payload="$(make_bash_payload "printf '%s\n' event >> .sage/.mcp-incidents.log")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: Bash write to managed gitignored hooks json is blocked" {
+    payload="$(make_bash_payload "printf '%s\n' '{}' > .codex/hooks.json")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 2 ]
     echo "$stderr" "$output" | grep -q "use apply_patch"

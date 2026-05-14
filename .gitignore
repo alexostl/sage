@@ -53,3 +53,11 @@ dist/
 # Python
 __pycache__/
 *.pyc
+
+# Sage hook artifacts (managed by `bin/sage init` — remove this block to commit hook logs)
+.sage/.mcp-incidents.log
+.sage/.session-mutations.log
+.sage/.skipped-checks.log
+.sage/.approval-pending
+.sage/.codex-validated-version
+# end Sage hook artifacts

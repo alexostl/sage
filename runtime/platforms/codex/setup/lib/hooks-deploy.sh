@@ -2,7 +2,7 @@
 # hooks-deploy.sh — Stage 5 (.codex/hooks.json) + Stage 6 (deploy hook scripts).
 #
 # Stage 5: full regenerate of `.codex/hooks.json` registry.
-#   - 4 events (SessionStart, PreToolUse[apply_patch|Edit|Write + Bash],
+#   - 4 events (SessionStart, PreToolUse[Bash|apply_patch|Edit|Write],
 #     PostToolUse[apply_patch|Edit|Write], Stop).
 #   - If a different file is present: backup as
 #     `hooks.json.user-edit-backup-<iso-ts>`, then overwrite.
@@ -33,13 +33,7 @@ _build_hooks_json() {
     ],
     "PreToolUse": [
       {
-        "matcher": "apply_patch|Edit|Write",
-        "hooks": [
-          { "type": "command", "command": ".codex/hooks/pre-tool-validate.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
+        "matcher": "Bash|apply_patch|Edit|Write",
         "hooks": [
           { "type": "command", "command": ".codex/hooks/pre-tool-validate.sh" }
         ]
@@ -88,7 +82,7 @@ compose_hooks_json() {
 
     cat <<EOF
 [stage 5] composed .codex/hooks.json
-  events=SessionStart, PreToolUse[apply_patch|Edit|Write+Bash], PostToolUse[apply_patch|Edit|Write], Stop
+  events=SessionStart, PreToolUse[Bash|apply_patch|Edit|Write], PostToolUse[apply_patch|Edit|Write], Stop
   path=$target_file
 EOF
 }

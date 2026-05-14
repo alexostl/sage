@@ -5,6 +5,101 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-14 — Selfhost Bash hook false positive fixed
+
+**Decision:** Bash `PreToolUse` guard został uspokojony bez wyłączania ochrony
+przed realnymi shell writes do managed/project paths.
+
+**What changed:** Descriptor/no-op redirects (`2>/dev/null`, `>/dev/null`,
+`/dev/fd/*`, `/proc/self/fd/*`, `&1`, `&2`) nie są już traktowane jak mutacja.
+Mutacje Bash poza repo są legalne dla tego guardu. Lokalne ignored hook/log
+artifacts w repo mogą przechodzić, ale managed/generated surfaces jak
+`.codex/hooks.json` nadal są blokowane przy Bash write.
+
+**Evidence:** Przeszły: `bash -n`, `pre-tool-validate.bats` 82/82,
+`bin/sage update`, `stage5-6-hooks.bats` 13/13, `stage10-tighten.bats` 14/14,
+active hook byte-identity check, `jq` matcher/count check, generated surfaces
+diff check i `git diff --check`.
+
+### 2026-05-14 — Selfhost Bash hook false positive after thread read
+
+**Decision:** Rewizja `PreToolUse` musi objąć logikę Bash hooka, nie tylko
+liczbę matcher groups w Codex UI.
+
+**Why:** Wątek `019e25e7-de3f-7271-a2dd-7c99fbd215a3` pokazał, że read-only
+`sed ... 2>/dev/null || true` został zablokowany. Root cause to regex w
+`pre-tool-validate.sh`, który traktował `2>/dev/null` jako mutujący file write,
+a obecność ścieżki `runtime/...` w tej samej komendzie aktywowała guarded path
+block.
+
+**Boundary:** Jeden matcher group `Bash|apply_patch|Edit|Write` zostaje jako
+UI cleanup, ale właściwa poprawka musi odróżniać shell redirection do
+`/dev/null` i deskryptorów od realnych writes do project/managed paths. Mutacje
+Bash poza repo mają być jednoznacznie legalne dla tego guardu. Gitignored
+lokalne artefakty hooków/logów w repo mogą przechodzić, ale managed surfaces
+typu `.codex/hooks.json` pozostają chronione.
+
+### 2026-05-14 — Selfhost PreToolUse duplicate fixed
+
+**Decision:** Skonsolidowano generated Codex `PreToolUse` hook registry do
+jednego matcher group `Bash|apply_patch|Edit|Write`.
+
+**Why:** Codex Desktop pokazywał dwa aktywne hooki, bo Stage 5 generował dwa
+matcher groups wskazujące na tę samą komendę `pre-tool-validate.sh`. Jeden
+regex matcher zachowuje coverage dla `Bash`, `apply_patch`, `Edit`, `Write`,
+ale UI i operacyjny model widzą jeden zainstalowany hook.
+
+**Evidence:** Aktywny `.codex/hooks.json` ma `.hooks.PreToolUse | length == 1`.
+Przeszły: `jq -e .`, `bash -n`, `stage5-6-hooks.bats` 13/13,
+`bin/sage update`, `stage10-tighten.bats` 14/14, generated surfaces diff check
+i `git diff --check`.
+
+### 2026-05-14 — Selfhost sage update PreToolUse duplicate UI finding
+
+**Decision:** Po `bin/sage update` Alex zauważył w Codex Desktop dwa aktywne
+hooki pod `PreToolUse`. Rewizja update passu ma skonsolidować generated
+`PreToolUse` matcher groups w jeden wpis.
+
+**Root cause:** `.codex/hooks.json` generował dwa matcher groups uruchamiające
+tę samą komendę `pre-tool-validate.sh`: osobno dla `apply_patch|Edit|Write` i
+osobno dla `Bash`. To nie powinno podwajać wykonania dla jednego tool call, ale
+UI pokazuje to jako dwa zainstalowane hooki.
+
+**Boundary:** Oficjalny Codex hooks contract mówi, że `matcher` jest regexem po
+tool name / aliases i wspiera `Bash`, `apply_patch`, `Edit`, `Write`. Legalna
+minimalna poprawka to jeden matcher group `Bash|apply_patch|Edit|Write`.
+
+### 2026-05-14 — Selfhost sage update reached completion checkpoint
+
+**Decision:** `bin/sage update` został wykonany po Batchu 6 i doprowadzony do
+completion checkpoint w cyklu `20260514-selfhost-sage-update-pass`.
+
+**Evidence:** Update zakończył się `exit 0`. Tracked generated surfaces
+(`AGENTS.md`, `CLAUDE.md`, `.agents`, `.claude`, `.codex/config.toml`,
+`.codex/hooks`, `.codex/hooks.json`) nie mają diffu. Jedyna zmiana generatora
+w tracked files to managed `.gitignore` block dla lokalnych Sage hook artifacts.
+Przeszły: `git diff --check`, generated diff check, `git check-ignore -v`,
+`bash -n`, `stage9-bootstrap.bats` 18/18, `stage3-agents-md.bats` 51/51 oraz
+`stage7-skills.bats` 12/12.
+
+**Boundary:** Cykl zostaje `status: in-progress`,
+`phase: completion-checkpoint` do finalnej akceptacji Alexa. Nie wykonano
+stage/commit/push.
+
+### 2026-05-14 — Selfhost sage update pass started after Batch 6
+
+**Decision:** Alex potwierdził, że Batch 6 jest skończony i można wykonać
+kontrolowany `bin/sage update` w `sage-selfhost`.
+
+**Why:** Batche 1-6 dotykały generated instruction surfaces, hooków, loaderów i
+prompt policy. Selfhost update pass ma sprawdzić, czy regenerowane platform
+files pozostają spójne z aktualnym frameworkiem.
+
+**Boundary:** Utworzono osobny cycle
+`20260514-selfhost-sage-update-pass`. To jest update/regeneration audit, nie
+nowy feature. Jeśli `bin/sage update` wygeneruje duży lub nieoczekiwany diff,
+zatrzymujemy się po diagnozie i targeted verification.
+
 ### 2026-05-14 — Intake captured: targeted real harness scenarios
 
 **Decision:** Alex zauważył, że real harness powinien móc targetować dowolną
