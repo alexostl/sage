@@ -167,7 +167,7 @@ Sage: Architecture design saved. ADRs in .sage/docs/decision-*.md
 Decision: [key architecture decisions]. (prepend to .sage/decisions.md)
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
-    to review ADRs/design, then continue to plan
+    to review ADRs/design; findings are shown and the user decides
 [S] Skip review — approve without independent review
 [R] Revise — here's what needs changing
 [Q] Question — I want to understand [specific decision] better
@@ -186,7 +186,7 @@ handoff: |
   Next agent should: [specific guidance for milestone planning]
 ```
 3. Prepend architecture decisions to decisions.md (Rule 7).
-4. **Run auto-review BEFORE proceeding to Step 4:**
+4. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + auto_review ≠ false + user chose
    an option that explicitly authorized subagent review):
@@ -197,7 +197,8 @@ handoff: |
      Prepend review verdict to decisions.md.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
-5. THEN proceed to Step 4.
+5. Do not proceed to Step 4 until the user chooses an approval path after
+   seeing findings.
 
 **On [S] Skip review:**
 1. Update frontmatter, write handoff, append decisions (same as above).
@@ -220,7 +221,7 @@ Save to `.sage/work/YYYYMMDD-slug/plan.md` with frontmatter.
 Sage: Milestone plan saved to .sage/work/YYYYMMDD-slug/plan.md
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
-    to review the plan, then start milestone 1
+    to review the plan; findings are shown and the user decides
 [S] Skip review — approve without independent review
 [R] Revise — adjust the breakdown
 [N] New session — type /build to start milestone 1
@@ -229,7 +230,7 @@ Pick A/S/R/N, or tell me what to change.
 
 **On [A] Subagent review:**
 1. Prepend plan approach to decisions.md (Rule 7).
-2. **Run auto-review BEFORE proceeding:**
+2. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + auto_review ≠ false + user chose
    an option that explicitly authorized subagent review):
@@ -240,7 +241,8 @@ Pick A/S/R/N, or tell me what to change.
      Prepend review verdict to decisions.md.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
-3. THEN proceed.
+3. Do not proceed until the user chooses an approval path after seeing
+   findings.
 
 **On [S] Skip review:**
 1. Prepend plan approach to decisions.md.

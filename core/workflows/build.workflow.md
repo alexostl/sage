@@ -240,7 +240,7 @@ Sage: Spec saved to .sage/work/YYYYMMDD-slug/spec.md
 Decision: [key technical decisions]. (prepend to .sage/decisions.md)
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
-    to review the spec, then continue to plan
+    to review the spec; findings are shown and the user decides
 [S] Skip review — approve without independent review
 [C] Continue autonomously — explicitly authorize subagent review if available,
     then plan and stop before implementation if needed
@@ -260,7 +260,7 @@ handoff: |
   Next agent should: [specific guidance for planning phase]
 ```
 3. Prepend decision to decisions.md (Rule 7).
-4. **Run auto-review BEFORE proceeding to Step 5:**
+4. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + Standard+ scope +
    auto_review ≠ false in config + user chose an option that explicitly
@@ -272,7 +272,8 @@ handoff: |
      Prepend review verdict to decisions.md.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
-5. THEN proceed to Step 5.
+5. Do not proceed to Step 5 until the user chooses an approval or
+   autonomous-continuation path after seeing findings.
 
 **On [S] Skip review:**
 1. Update spec frontmatter, write handoff, append decision (same as above).
@@ -314,7 +315,7 @@ updated: YYYY-MM-DD
 Sage: Plan saved to .sage/work/YYYYMMDD-slug/plan.md
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
-    to review the plan, then start building
+    to review the plan; findings are shown and the user decides
 [S] Skip review — approve without independent review
 [C] Checkpointed implementation — approve plan, explicitly authorize required
     subagent gates if available, and execute with normal checkpoints
@@ -327,7 +328,7 @@ Pick A/S/C/F/R/N, or tell me what to change.
 
 **On [A] Subagent review:**
 1. Prepend plan approach to decisions.md (Rule 7).
-2. **Run auto-review BEFORE proceeding to Step 6:**
+2. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + Standard+ scope +
    auto_review ≠ false in config + user chose an option that explicitly
@@ -345,7 +346,8 @@ Pick A/S/C/F/R/N, or tell me what to change.
      will mutate, including tests and implementation files.
    - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
    - If scope is uncertain, stop and ask before implementation.
-4. THEN proceed to Step 6.
+4. Do not proceed to Step 6 until the user chooses an approval or
+   autonomous-implementation path after seeing findings.
 
 **On [S] Skip review:**
 1. Prepend plan approach to decisions.md.

@@ -31,12 +31,13 @@ workflow checkpoint. It is part of the [A] flow, not a separate step.
 
 The workflow checkpoint presents:
 ```
-[A] Review — sub-agent reviews, then proceed
+[A] Review — sub-agent reviews, findings are shown, user decides
 [S] Skip review — approve without independent review
 ```
 
-When the user picks [A], the workflow MUST run auto-review before
-proceeding to the next phase. The only way to skip is [S].
+When the user picks [A], the workflow MUST run auto-review, present findings,
+and return to the checkpoint decision. [A] authorizes review only; it is not
+approval for the next phase. The only way to approve without review is [S].
 
 ### Conditions (checked by the workflow before spawning)
 
@@ -68,7 +69,7 @@ manually for a full evaluation." Do not block the workflow.
 ```
 ⚡ Running spec review (sub-agent)...
 ✓ Auto-review: PASS — no issues found.
-Proceeding to [next phase].
+Findings shown. User decides whether to approve the next phase.
 ```
 
 ### Issues found (no CRITICAL)
@@ -146,9 +147,35 @@ Blocked rationalizations:
 the top of every sub-agent prompt. Sub-agents MUST NOT modify any
 files — no Edit, no Write, no code changes. Their role is to find
 issues and report them. The user decides what to do with findings.
+This is a review-role and prompt contract. Sandbox-enforced read-only
+requires runtime support or Codex custom agent configuration outside
+this capability.
 
 If a sub-agent modifies a spec, plan, or code file, the review is
 INVALID and must be discarded. Re-run with the original artifact.
+
+### Targeted Recall For Subagent Review
+
+Include this block in every review sub-agent prompt when SageMemory or
+project self-learning can affect the review:
+
+```
+Targeted Recall For Subagent Review:
+- Do not preload memory for every task.
+- Before any SageMemory operation, set/select the current project with
+  `sage_memory_set_project` when the tool is available or required.
+- Use targeted project/domain recall only when durable context may matter.
+- For Sage-related review/fix/research where prior corrections could affect
+  judgment, search self-learning with exactly
+  `filter_tags: ["self-learning"]`.
+- If SageMemory tools are unavailable, read `.sage-memory/self-learning.md`
+  only when the target project provides it; otherwise report that memory
+  fallback was unavailable.
+- In the review report, state which prevention rules affected the review.
+```
+
+Do not replace `filter_tags: ["self-learning"]` with a generic learning tag,
+generic "learning", or a broad memory preload.
 
 ### Spec Review
 

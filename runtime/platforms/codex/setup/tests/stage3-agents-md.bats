@@ -139,6 +139,9 @@ EOF
     grep -q 'Discover available Sage Memory tools' "$TARGET/AGENTS.md"
     grep -q 'available Codex' "$TARGET/AGENTS.md"
     grep -q 'tool-discovery surface' "$TARGET/AGENTS.md"
+    grep -q 'Targeted Recall Before Work' "$TARGET/AGENTS.md"
+    grep -q 'Use targeted project/domain recall only when' "$TARGET/AGENTS.md"
+    grep -q 'Do not run broad .*sage_memory_search.*session-start preload' "$TARGET/AGENTS.md"
     grep -q 'Fall back to `.sage-memory/` files only when MCP tools are unavailable' "$TARGET/AGENTS.md"
     grep -q 'Codex built-in Memories are a' "$TARGET/AGENTS.md"
 }
@@ -152,6 +155,8 @@ command = "node"
 EOF
     PRESET=base run_stage3
     grep -q 'Discover available Sage Memory tools' "$TARGET/AGENTS.md"
+    grep -q 'Targeted Recall Before Work' "$TARGET/AGENTS.md"
+    grep -q 'filter_tags: \["self-learning"\]' "$TARGET/AGENTS.md"
     grep -q 'Fall back to `.sage-memory/` files only when MCP tools are unavailable' "$TARGET/AGENTS.md"
 }
 
@@ -401,6 +406,17 @@ EOF
     grep -q 'Do not collapse them into' "$TARGET/AGENTS.md"
     grep -q 'generic approval' "$TARGET/AGENTS.md"
     grep -q 'read-only subagent' "$TARGET/AGENTS.md"
+}
+
+@test "stage3: generated AGENTS.md carries compact targeted subagent recall contract" {
+    PRESET=base run_stage3
+    grep -q 'Targeted Recall For Subagent Review' "$TARGET/AGENTS.md"
+    grep -q 'Do not preload memory for every task' "$TARGET/AGENTS.md"
+    grep -q 'sage_memory_set_project' "$TARGET/AGENTS.md"
+    grep -q 'filter_tags: \["self-learning"\]' "$TARGET/AGENTS.md"
+    grep -q '\.sage-memory/self-learning.md' "$TARGET/AGENTS.md"
+    grep -q 'prevention rules' "$TARGET/AGENTS.md"
+    ! grep -q 'filter_tags: \["learning"\]' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md stays compact and points to skills/workflows" {

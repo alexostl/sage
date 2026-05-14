@@ -2,16 +2,20 @@
 cycle_id: "20260510-subagent-self-learning-recall-fix"
 title: "Fix: subagenci musza jawnie robic self-learning recall"
 workflow: fix
-phase: intake
-status: intake
+phase: verify
+status: completed
 created: 2026-05-10
-updated: 2026-05-10
+updated: 2026-05-14
 owner: alexostl
-needs-triage: true
+needs-triage: false
 priority: P1
+semantic_reclassification: accepted
 source: "conversation"
 suggested_workflow: fix
+batch: 6
+batch_anchor: true
 related:
+  - ".sage/work/20260510-subagent-review-approval-boundary-fix/manifest.md"
   - "AGENTS.md"
   - ".sage-memory/memory.db"
   - ".sage-memory/self-learning.md"
@@ -23,6 +27,7 @@ related:
   - ".codex/sessions/2026/05/09/rollout-2026-05-09T23-59-29-019e0ec0-b0f4-7482-a92e-30ad16c33d3f.jsonl"
 scope:
   - ".sage/work/20260510-subagent-self-learning-recall-fix/*"
+  - ".sage/work/20260510-subagent-review-approval-boundary-fix/*"
   - ".sage/decisions.md"
   - "AGENTS.md"
   - "core/workflows/**"
@@ -35,12 +40,16 @@ scope:
 
 ## State
 
-**Current phase:** intake - capture only. Implementacja nie zostala rozpoczeta.
+**Current phase:** verify. Status `completed`; Alex approved completion, commit,
+and push.
 
-**Next step:** Wejsc w osobny `/sage:fix`, potwierdzic root cause na podstawie
-ostatnich transcriptow i dodac regression coverage dla dwoch prompt-policy
-poprawek: kanonicznego `filter_tags: ["self-learning"]` oraz obowiazkowego
-bloku recallu w promptach subagentow.
+**Next step:** Commit and push the approved changes.
+
+**Batch 6 active state (2026-05-14):** Root cause zapisany w
+`root-cause.md` i zaakceptowany przez Alexa przez `[S] Skip review`; fix scope
+plan zostal zrewidowany po auto-review i zatwierdzony przez Alexa przez
+`[S] Skip review`. Implementacja i focused verification sa zakonczone; Alex
+approved completion, commit, and push.
 
 ## Finding
 
@@ -71,6 +80,9 @@ Dla Standard+ pracy i kazdego subagenta review/fix/research zwiazanego z Sage:
   dostepne, ustaw projekt i wyszukaj relevantne self-learning corrections
   przed review; jesli narzedzia nie sa dostepne, uzyj fallbacku
   `.sage-memory/self-learning.md` lub raportuj brak dostepu;
+- jesli subagent prompt jest tworzony przez agenta robiacego handoff dla Alexa,
+  natural-language prose promptu ma byc po polsku. Struktura, komendy, sciezki,
+  frontmatter keys, narzedzia i raw evidence zostaja kanoniczne/verbatim;
 - subagent raportuje, jakie learningi/prevention rules wplynely na ocene;
 - `filter_tags: ["learning"]` nie jest traktowane jako poprawny zamiennik
   `["self-learning"]`.
@@ -92,6 +104,11 @@ wdrozone razem:
    If tools are unavailable, read `.sage-memory/self-learning.md` or report
    that memory fallback was unavailable. In your report, state which
    prevention rules affected your review."
+3. **Polski handoff prompt dla subagenta:** jesli glowny agent deleguje
+   subagentowi review/fix/research w ramach handoffu dla Alexa, instrukcja
+   natural-language ma byc po polsku. Nie tlumaczyc canonical identifiers:
+   `filter_tags: ["self-learning"]`, sciezek, command names, frontmatter keys,
+   tool names, quoted evidence ani raw outputow.
 
 ## Candidate scope
 
@@ -99,6 +116,8 @@ wdrozone razem:
   albo workflow guidance dla subagentow.
 - Dopisac kanoniczny blok "Memory Before Subagent Review" do odpowiednich
   workflow/capability templates.
+- Dopisac kontrakt jezykowy dla promptow subagentow tworzonych przy handoffie:
+  polska proza dla Alexa, canonical technical terms bez tlumaczenia.
 - Upewnic sie, ze template/prompt glownych agentow przekazuje ten blok takze
   przy `fork_context=false`, gdzie subagent nie dziedziczy recallu glownego
   agenta.

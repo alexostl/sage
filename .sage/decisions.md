@@ -5,6 +5,241 @@ Both the AI agent and human collaborators write here.
 
 ---
 
+### 2026-05-14 — Intake captured: targeted real harness scenarios
+
+**Decision:** Alex zauważył, że real harness powinien móc targetować dowolną
+liczbę scenariuszy zamiast wymuszać pełny run. Utworzono capture-only cycle
+`20260514-real-harness-targeted-scenarios-fix`.
+
+**Why:** Batch 6 pokazał potrzebę punktowego real-agent evidence dla scenariuszy
+takich jak `09-memory-correction-reuse`, bez kosztu pełnego harnessa.
+
+**Boundary:** Intake dotyczy runner/reporting ergonomics:
+`runtime/platforms/codex/harness/run-harness.sh`, ewentualnie agregatora,
+testów i docs. Nie zmienia semantyki istniejących scenariuszy ani nie oznacza,
+że partial run spełnia full release-blocker harness.
+
+### 2026-05-14 — Codex runtime alignment scope narrowed
+
+**Decision:** Alex wskazał, że pomysł "OpenAI/Codex alignment gate do
+przyszłych batchy" jest już zapisany w memory, więc nie powinien powiększać
+manifestu `20260514-codex-runtime-alignment-fix`.
+
+**Scope impact:** Z manifestu usunięto wymaganie dodawania alignment gate do
+przyszłych root-cause/plan checkpoints oraz stop condition o rozjeździe docs vs
+runtime warning. Inicjatywa zostaje zawężona do bieżącego Codex runtime/config:
+effective config check, stabilne hook command paths i sync/check aktywnego
+`.codex/hooks.json`.
+
+### 2026-05-14 — Batch 6 implementation verified
+
+**Decision:** Batch 6 implementation is ready for completion checkpoint.
+Workflow `[A] Subagent review` wording now returns findings to the user instead
+of approving the next phase, auto-review prompts include targeted self-learning
+recall, and generated Codex `AGENTS.md` uses targeted recall rather than broad
+session-start memory preload.
+
+**Verification:** `bats runtime/platforms/codex/setup/tests/subagent-review-policy.bats
+runtime/platforms/codex/setup/tests/stage3-agents-md.bats
+runtime/platforms/codex/setup/tests/alex-native-core-text.bats` passed 58/58.
+`bash -n runtime/platforms/codex/setup/lib/agents-md.sh` and `git diff --check`
+passed. `validate-workflows.sh` exited 0 but reported 0 workflows discovered.
+
+### 2026-05-14 — Codex runtime alignment fix captured
+
+**Decision:** Alex zdecydował, że worktree cleanup zostaje w osobnym wątku, a
+pozostałe problemy alignmentu Codex runtime/config mają wejść do jednej
+inicjatywy fix.
+
+**Created:** `.sage/work/20260514-codex-runtime-alignment-fix/manifest.md`.
+
+**Scope intent:** Fix ma objąć effective config check, stabilne repo-local hook
+command paths, sync/check aktywnego `.codex/hooks.json` względem generatora
+oraz zasadę, że przy konflikcie stale OpenAI docs z aktualnym Codex
+Desktop/CLI warning lokalny runtime warning wygrywa dla kompatybilności.
+
+**Boundary:** Worktree cleanup i stare worktree configi są poza tym zakresem.
+Implementacja nie została rozpoczęta.
+
+### 2026-05-14 — Batch 6 semantic reclassification accepted
+
+**Decision:** Batch 6 mutuje workflow docs, auto-review capability, generated
+Codex instruction renderer and tests. Po zatwierdzonym Systemic fix scope
+dodano `semantic_reclassification: accepted` do manifestu, żeby runtime hooki
+legalnie dopuściły test/runtime/instruction surface mutations.
+
+**Boundary:** To nie rozszerza scope poza zatwierdzony plan; odblokowuje tylko
+mutacje już wymienione w manifest scope i planie.
+
+### 2026-05-14 — Batch 6 fix scope approved for implementation
+
+**Decision:** Alex wybrał `[S] Skip review` po rewizji planu Batcha 6. Plan
+jest zatwierdzony do implementacji bez kolejnego auto-review.
+
+**Boundary:** Implementacja ma trzymać się zatwierdzonego scope: workflow
+approval wording, auto-review prompt policy, generated Codex `AGENTS.md`
+guidance, source-level regression test, stage3 regression tests i artefakty
+cyklu. Manifest przeszedł do `phase: deliver`.
+
+### 2026-05-14 — Batch 6 fix plan revised after auto-review
+
+**Decision:** Plan Batcha 6 został zrewidowany po verdict Hooke’a `NEEDS
+REVISION`. Rewizja adresuje MAJOR findings: testy nie mogą opierać się głównie
+na generated `AGENTS.md`, muszą też pilnować canonical source surfaces.
+
+**Plan impact:** Plan dodaje konkretny source-level regression test
+`runtime/platforms/codex/setup/tests/subagent-review-policy.bats`, który ma
+sprawdzać `core/workflows/{fix,build,architect}.workflow.md` oraz
+`core/capabilities/review/auto-review/SKILL.md`. Test ma łapać stare `[A]`
+wording (`then implement`, `then start building`, `then continue to plan`,
+`then proceed`), zachowanie osobnych ścieżek `[S]`, `[C]`, `[F]`, oraz targeted
+recall contract (`sage_memory_set_project`, `filter_tags: ["self-learning"]`,
+`.sage-memory/self-learning.md`, `prevention rules`).
+
+### 2026-05-14 — Batch 6 distinguishes set_project from recall
+
+**Decision:** Alex doprecyzował, że `sage_memory_set_project` nadal jest
+potrzebne przed użyciem SageMemory. To nie przeczy targeted recall, bo
+`set_project` tylko wybiera aktywny project database; nie jest preloadem ani
+wyszukiwaniem memory.
+
+**Plan impact:** Batch 6 plan rozdziela teraz dwie czynności: subagent, który
+używa SageMemory, najpierw ustawia/wybiera current project, a dopiero potem
+wykonuje `sage_memory_search` tylko jako targeted recall, gdy trwały kontekst
+albo self-learning corrections mogą wpłynąć na review. Zapisano self-learning
+`75fee88fdd074db6a051ce46a631560e`.
+
+### 2026-05-14 — Batch 6 aligned with targeted SageMemory recall
+
+**Decision:** Alex zauważył, że Batch 6 plan może sprzeciwiać się świeżemu
+modelowi `alex-os-dev`: agenci nie mają robić `sage_memory_search` jako
+bezwarunkowego kroku przed każdą pracą. Sprawdzono `alex-os-dev` commit
+`a683e28` i cycle `20260513-knowledge-routing-refinement`.
+
+**Finding:** Źródło prawdy mówi: SageMemory nie jest session-start preloadem.
+Obowiązuje targeted recall, gdy zadanie może zależeć od trwałego kontekstu,
+decyzji, encji, preferencji, wcześniejszych korekt albo historii ustaleń.
+Failed recall nie blokuje normalnej pracy; failed save/learning blokuje albo
+wymaga legalnego fallbacku.
+
+**Plan impact:** Batch 6 plan został poprawiony z "Memory Before Subagent
+Review" na "Targeted Recall For Subagent Review". Subagent prompt policy ma
+używać `filter_tags: ["self-learning"]` dla correction-sensitive work, ale nie
+ma wymuszać broad memory preloadu. Zapisano self-learning
+`4a7dc6d1e6854064b6c406ecdd89c0c5`.
+
+### 2026-05-14 — Intake captured: instruction surface minimization pass
+
+**Decision:** Alex poprosił o dodanie nowego fixa do intake: dopisać
+minimization pass do `AGENTS.md`, constitution i/lub developer instruction
+(dokładny surface TBD). Utworzono capture-only cycle
+`20260514-instruction-surface-minimization-pass-fix`.
+
+**Context:** Sage Memory przypomniało istniejącą zasadę
+`3ad7713ab93947c288bb6a751ca918ca`: przed dodaniem nowej logiki lub instrukcji
+agent ma sprawdzić, czy ten sam cel da się osiągnąć mniejszą zmianą, reuse,
+konsolidacją, targeted testem albo mechanicznym guardrailem.
+
+**Boundary:** Ten intake nie rozstrzyga jeszcze miejsca implementacji i nie
+oznacza automatycznego dokładania kolejnego długiego bloku do generated
+`AGENTS.md`. Przyszły `/sage:fix` ma najpierw wykonać minimization pass nad
+samym sposobem wdrożenia tej zasady.
+
+### 2026-05-14 — Auto-review: Batch 6 fix plan
+
+**Verdict:** NEEDS REVISION. Subagent review nie znalazł CRITICAL, ale wskazał
+trzy MAJOR gaps: test strategy obejmuje głównie generated `AGENTS.md`, a nie
+canonical workflow/auto-review source surfaces; brakuje testu wykrywającego
+stare `[A]` wording typu `then implement` / `then start building`; testy nie
+pilnują, że `[S]`, `[C]`, `[F]` pozostają osobnymi ścieżkami.
+
+**Docs:** OpenAI docs potwierdziły założenia planu: subagents są explicit,
+dziedziczą sandbox policy, custom agents mogą mieć `sandbox_mode =
+"read-only"`, `AGENTS.md` ma global/project/nested loading i default
+`project_doc_max_bytes` 32 KiB, a `approvals_reviewer = auto_review` nie
+zmienia sandboxingu.
+
+**User chose:** R — revise plan before approval, including the additional
+targeted-recall correction from `alex-os-dev`. (auto-review sub-agent)
+
+### 2026-05-14 — Batch 6 Codex mechanics checked against OpenAI docs
+
+**Decision:** Alex zauważył, że plan Batcha 6 dotyka mechanik specyficznych dla
+Codexa i powinien być sprawdzony z oficjalnymi OpenAI docs przed implementacją.
+Sprawdzono OpenAI Codex docs dla subagents, config reference i `AGENTS.md`.
+
+**Findings:** Docs potwierdzają, że Codex spawnuje subagents tylko po jawnym
+żądaniu użytkownika, wspiera built-in/custom agents, subagents dziedziczą
+parent sandbox policy, a custom agent może mieć `sandbox_mode = "read-only"`.
+`AGENTS.md` jest ładowany przy starcie run/session przez instruction chain i ma
+limit rozmiaru, więc generated guidance powinno zostać krótkie.
+
+**Plan impact:** Batch 6 plan został poprawiony: "read-only subagent" w tym
+patchu oznacza promptowy review-role contract, nie sandbox-enforced read-only
+isolation, chyba że osobno skonfigurujemy custom agent. Zapisano self-learning
+`2d8ca5db03f44e51a7f53c454d085749`, żeby przy przyszłych Codex-specific
+mechanics zawsze używać `openai-docs`.
+
+### 2026-05-14 — Batch 6 root cause approved for scope planning
+
+**Decision:** Alex wybrał `[S] Skip review` po rewizji root cause Batcha 6.
+Poprawiona diagnoza zostaje zaakceptowana i cykl przechodzi do fix scope
+planning.
+
+**Boundary:** Implementacja nadal jest zablokowana do fix scope gate. Pełny
+patch jest `Systemic` według progu fix workflow, więc plan musi jawnie
+zatwierdzić albo wszystkie wskazane surfaces, albo zawężenie/split.
+
+### 2026-05-14 — Batch 6 root cause revised after auto-review
+
+**Decision needed:** Root cause Batcha 6 został poprawiony po auto-review
+`NEEDS REVISION`.
+
+**Changes:** Diagnoza rozdziela teraz dwa pod-problemy: approval boundary oraz
+subagent memory recall. Usunięto założenie pełnego incident transcript chainu,
+bo stare manifestowe `.codex/sessions/...` ścieżki nie istnieją w repo, a
+globalne logi nie pokazują kompletnego sequence. Evidence opiera się teraz na
+source-level prompt-policy gap w workflow/capability/generator files.
+
+**Scope correction:** Fix jest `Systemic` według progu fix workflow, jeśli ma
+objąć wszystkie wskazane surfaces w jednym patchu: trzy workflow files,
+`auto-review/SKILL.md`, Codex `agents-md.sh` i stage3 tests. Nie wymaga to
+nowej architektury ani upstream SageMemory change, ale wymaga jawnego
+scope approval albo zawężenia.
+
+### 2026-05-14 — Auto-review: Batch 6 root cause
+
+**Verdict:** NEEDS REVISION. Subagent review nie znalazł CRITICAL, ale wskazał
+trzy MAJOR gaps: scope może być zaniżony względem progu `Systemic`; diagnoza
+nie wyklucza ad-hoc prompt/caller misuse i innych subagent surfaces; chain jest
+logiczny, ale częściowo hipotetyczny bez konkretnego transcript/log evidence.
+
+**User chose:** R — revise root cause before scope planning. (auto-review sub-agent)
+
+### 2026-05-14 — Batch 6 root cause checkpoint
+
+**Decision needed:** Rozpoczęto Batch 6 na anchor cycle
+`20260510-subagent-self-learning-recall-fix` i doprowadzono diagnozę do
+`root-cause-gate`.
+
+**Root cause:** Kontrakt delegacji subagentów jest rozproszony między workflow
+checkpoint wording, auto-review capability prompts i generated Codex
+instructions. Brakuje jednego jawnego "Memory Before Subagent Review" blocku
+oraz jednoznacznej granicy, że `[A] Subagent review` autoryzuje tylko read-only
+review, a nie automatyczne zatwierdzenie planu/root cause ani start
+implementacji po findings.
+
+**Evidence:** `fix.workflow.md`, `build.workflow.md`, `architect.workflow.md`
+i `auto-review/SKILL.md` zawierają warianty `then proceed` /
+`then implement` / `then start building`; Codex `AGENTS.md` renderer nie
+podaje dokładnego `filter_tags: ["self-learning"]` ani fallbacku
+`.sage-memory/self-learning.md` dla subagentów; stage3 tests nie obejmują tego
+kontraktu.
+
+**Boundary:** Implementacja jest zablokowana do root-cause approval. Planowany
+fix wygląda na Moderate, bez zmiany upstream SageMemory i bez nowej
+architektury.
+
 ### 2026-05-14 — Batch 5 approved and closed
 
 **Decision:** Alex zaakceptował completion checkpoint Batcha 5 oraz poprosił

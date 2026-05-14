@@ -202,7 +202,7 @@ Sage: Root cause analysis complete.
   Confidence: [high/medium/low]
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
-    to verify diagnosis, then proceed
+    to verify diagnosis; findings are shown and the user decides
 [S] Skip review — approve without independent review
 [R] Revise — investigate further
 [K] Stuck — try a different approach (activates problem-solving)
@@ -210,9 +210,10 @@ Sage: Root cause analysis complete.
 
 Pick A/S/R/K/N, or tell me what to change.
 
-**On [A]:** Run auto-review (root cause review prompt) before
-proceeding. This catches weak diagnoses — symptom-level fixes that
-will break again. See `sage/core/capabilities/review/auto-review/SKILL.md`.
+**On [A]:** Run auto-review (root cause review prompt), present findings,
+and return to the gate decision. This catches weak diagnoses — symptom-level
+fixes that will break again. See
+`sage/core/capabilities/review/auto-review/SKILL.md`.
 Selecting [A] is the user's explicit authorization to spawn a read-only
 subagent for this review when the platform tool is available.
 
@@ -286,7 +287,7 @@ Sage: Fix scope: [Moderate/Systemic]
   Risk: [what could go wrong]
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
-    to review the fix plan, then implement
+    to review the fix plan; findings are shown and the user decides
 [S] Skip review — approve without independent review
 [R] Revise — adjust the approach
 [E] Escalate — type /build or /architect instead
@@ -294,8 +295,9 @@ Sage: Fix scope: [Moderate/Systemic]
 
 Pick A/S/R/E/N, or tell me what to change.
 
-**On [A]:** Run auto-review (fix plan review prompt) before
-implementing. See `sage/core/capabilities/review/auto-review/SKILL.md`.
+**On [A]:** Run auto-review (fix plan review prompt), present findings, and
+return to the gate decision. See
+`sage/core/capabilities/review/auto-review/SKILL.md`.
 Selecting [A] is the user's explicit authorization to spawn a read-only
 subagent for this review when the platform tool is available.
 

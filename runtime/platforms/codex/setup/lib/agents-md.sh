@@ -137,32 +137,42 @@ _render_rule_1a() {
     local variant="$1"
     if [ "$variant" = "mcp" ]; then
         cat <<'EOF'
-### Rule 1A — Memory Before Work
+### Rule 1A — Targeted Recall Before Work
 
-Before Standard+ work, try Sage Memory first:
+Before Standard+ work, decide whether durable project context may matter:
 1. Discover available Sage Memory tools through the available Codex
    tool-discovery surface. In Codex Desktop this may be \`tool_search\`; in
    CLI/app-server contexts use the available MCP status/tool surfaces or
    configured MCP tools.
-2. Activate/select the current project if the tool requires it.
-3. Search project/domain memory and self-learning corrections.
-4. Fall back to `.sage-memory/` files only when MCP tools are unavailable.
+2. Activate/select the current project before any SageMemory operation.
+3. Use targeted project/domain recall only when decisions, entities,
+   preferences, prior corrections, or project history could affect the work.
+4. For correction-sensitive work, search self-learning with
+   \`filter_tags: ["self-learning"]\`.
+5. Fall back to `.sage-memory/` files only when MCP tools are unavailable.
+
+Do not run broad \`sage_memory_search\` as a session-start preload.
 
 Sage Memory is the project/correction store. Codex built-in Memories are a
 separate platform feature and are not the Sage workflow state backend.
 EOF
     else
         cat <<'EOF'
-### Rule 1A — Memory Before Work
+### Rule 1A — Targeted Recall Before Work
 
-Before Standard+ work, try Sage Memory first:
+Before Standard+ work, decide whether durable project context may matter:
 1. Discover available Sage Memory tools through the available Codex
    tool-discovery surface. In Codex Desktop this may be \`tool_search\`; in
    CLI/app-server contexts use the available MCP status/tool surfaces or
    configured MCP tools.
-2. Activate/select the current project if the tool requires it.
-3. Search project/domain memory and self-learning corrections.
-4. Fall back to `.sage-memory/` files only when MCP tools are unavailable.
+2. Activate/select the current project before any SageMemory operation.
+3. Use targeted project/domain recall only when decisions, entities,
+   preferences, prior corrections, or project history could affect the work.
+4. For correction-sensitive work, search self-learning with
+   \`filter_tags: ["self-learning"]\`.
+5. Fall back to `.sage-memory/` files only when MCP tools are unavailable.
+
+Do not run broad \`sage_memory_search\` as a session-start preload.
 
 Sage Memory is the project/correction store. Codex built-in Memories are a
 separate platform feature and are not the Sage workflow state backend.
@@ -360,6 +370,17 @@ Build spec and plan checkpoints must preserve both approval paths:
 [A] Subagent review and [S] Skip review. Do not collapse them into
 generic approval. The [A] wording must explicitly authorize Codex to spawn a
 read-only subagent so it satisfies the active spawn_agent tool policy.
+
+### Targeted Recall For Subagent Review
+
+Do not preload memory for every task. For Sage-related review/fix/research
+subagents where durable context or prior corrections may affect judgment:
+set/select the current project with \`sage_memory_set_project\` before any
+SageMemory operation, then search self-learning with exactly
+\`filter_tags: ["self-learning"]\`. If SageMemory tools are unavailable, read
+\`.sage-memory/self-learning.md\` only when the target project provides it; if
+that fallback is unavailable, say so. Report which prevention rules affected
+the review. Never use the generic learning tag as the self-learning query.
 
 Before any completion checkpoint: tests exist, tests pass (paste
 actual output, do not summarize), implementation matches the spec.
