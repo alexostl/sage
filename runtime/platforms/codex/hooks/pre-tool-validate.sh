@@ -311,6 +311,152 @@ is_lightweight_config_only_patch() {
     return 0
 }
 
+patch_changed_line_count() {
+    printf '%s\n' "$cmd" |
+        awk '/^[+-]/ && $0 !~ /^\+\+\+/ && $0 !~ /^---/ { count++ } END { print count + 0 }'
+}
+
+patch_added_content() {
+    printf '%s\n' "$cmd" |
+        awk '/^\+/ && $0 !~ /^\+\+\+/ { sub(/^\+/, ""); print }'
+}
+
+is_secret_like_path() {
+    local lower
+    lower="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+        .env|.env.*|*.env|*.env.*|*secret*|*credential*|*token*|*auth*|*private*key*|*.pem|*.key|*.p12|*.pfx)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+line_is_placeholder_secret_value() {
+    local line="$1"
+    local lower
+    lower="$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')"
+
+    case "$lower" in
+        ""|\#*|*placeholder*|*example*|*replace_me*|*replace-me*|*your_*|*changeme*|*change_me*|*todo*|*dummy*|*not-a-secret*|*do-not-use*)
+            return 0 ;;
+        *=)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+line_contains_real_secret_value() {
+    local line="$1"
+
+    printf '%s' "$line" | grep -E 'sk-[A-Za-z0-9_-]{12,}|AKIA[0-9A-Z]{12,}|BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY' >/dev/null 2>&1 && return 0
+
+    if printf '%s' "$line" | grep -Eiq '(^|[^A-Za-z0-9_])(api[_-]?key|secret|token|credential|password|private[_-]?key|auth)[A-Za-z0-9_-]*[[:space:]]*[:=][[:space:]]*[^[:space:]#]+'; then
+        line_is_placeholder_secret_value "$line" && return 1
+        return 0
+    fi
+
+    return 1
+}
+
+patch_contains_real_secret_value() {
+    local line
+    while IFS= read -r line; do
+        line_contains_real_secret_value "$line" && return 0
+    done < <(patch_added_content)
+    return 1
+}
+
+is_placeholder_secret_patch() {
+    [ "${#claimed_paths[@]}" -gt 0 ] || return 1
+
+    local i path op saw_secret_path=0 line saw_content=0
+    for i in "${!claimed_paths[@]}"; do
+        path="${claimed_paths[$i]}"
+        op="${claimed_ops[$i]}"
+        case "$op" in Add|Update) ;; *) return 1 ;; esac
+        if is_secret_like_path "$path"; then
+            saw_secret_path=1
+        fi
+    done
+    [ "$saw_secret_path" -eq 1 ] || return 1
+
+    patch_contains_real_secret_value && return 1
+
+    while IFS= read -r line; do
+        saw_content=1
+        line_is_placeholder_secret_value "$line" || return 1
+    done < <(patch_added_content)
+    [ "$saw_content" -eq 1 ]
+}
+
+is_surgical_patch() {
+    local path
+
+    [ "$tool_name" = "apply_patch" ] || return 1
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    [ "${claimed_ops[0]}" = "Update" ] || return 1
+    path="${claimed_paths[0]}"
+    case "$path" in
+        /*)
+            return 1 ;;
+    esac
+    case "$path" in
+        .sage/*|.sage-memory/*|.codex/*|.git/*|config/*|.gitignore)
+            return 1 ;;
+    esac
+    is_secret_like_path "$path" && return 1
+    [ "$(patch_changed_line_count)" -le 2 ] || return 1
+    patch_contains_real_secret_value && return 1
+
+    return 0
+}
+
+is_cross_repo_new_intake_patch() {
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    [ "${claimed_ops[0]}" = "Add" ] || return 1
+
+    local path="${claimed_paths[0]}"
+    local repo_root cycle_id cycle_dir
+
+    case "$path" in
+        /*/.sage/work/*/manifest.md) ;;
+        *) return 1 ;;
+    esac
+
+    case "$path" in
+        "$cwd"/*|"/private$cwd"/*)
+            return 1 ;;
+    esac
+    case "$cwd" in
+        /private/*)
+            case "$path" in
+                "${cwd#/private}"/*) return 1 ;;
+            esac ;;
+    esac
+
+    repo_root="${path%%/.sage/work/*}"
+    cycle_id="${path#"$repo_root/.sage/work/"}"
+    cycle_id="${cycle_id%/manifest.md}"
+    cycle_dir="$repo_root/.sage/work/$cycle_id"
+
+    case "$cycle_id" in
+        [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[a-z0-9]*) ;;
+        *) return 1 ;;
+    esac
+
+    [ -d "$repo_root" ] || return 1
+    [ -e "$path" ] && return 1
+    if [ -d "$cycle_dir" ] && [ -n "$(find "$cycle_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
 is_local_ignored_artifact_patch() {
     [ "${#claimed_paths[@]}" -gt 0 ] || return 1
 
@@ -452,7 +598,22 @@ has_valid_implementation_approval() {
 }
 
 mutation_kind=""
-if is_local_ignored_artifact_patch; then
+if patch_contains_real_secret_value; then
+    printf 'Sage: BLOCKING real secret value write. Agents may create placeholder env/config files, but real secrets must be edited by the user. Next legal move: write placeholders only, or ask the user to fill the secret locally.\n' >&2
+    exit 2
+elif is_surgical_patch; then
+    resolution_kind="surgical"
+    resolution_value=""
+    mutation_kind="surgical_edit"
+elif is_placeholder_secret_patch; then
+    resolution_kind="placeholder-secret"
+    resolution_value=""
+    mutation_kind="placeholder_secret"
+elif is_cross_repo_new_intake_patch; then
+    resolution_kind="cross-repo-new-intake"
+    resolution_value=""
+    mutation_kind="cross_repo_new_intake"
+elif is_local_ignored_artifact_patch; then
     resolution_kind="local-ignored-artifact"
     resolution_value=""
     mutation_kind="local_ignored_artifact"
@@ -467,7 +628,13 @@ if [ "$resolution_kind" = "ambiguous" ]; then
     exit 2
 fi
 
-if [ "$resolution_kind" = "local-ignored-artifact" ]; then
+if [ "$resolution_kind" = "surgical" ]; then
+    cycle_id=""
+elif [ "$resolution_kind" = "placeholder-secret" ]; then
+    cycle_id=""
+elif [ "$resolution_kind" = "cross-repo-new-intake" ]; then
+    cycle_id=""
+elif [ "$resolution_kind" = "local-ignored-artifact" ]; then
     cycle_id=""
 elif [ "$resolution_kind" = "bootstrap" ]; then
     cycle_id="$resolution_value"
@@ -476,7 +643,7 @@ elif [ "$resolution_kind" = "completed" ]; then
     if is_completed_manifest_reconciliation_patch "$cycle_id"; then
         mutation_kind="completed_manifest_reconciliation"
     else
-        printf 'Sage: BLOCKING completed cycle mutation. Cycle: %s. This cycle may have been closed before closeout artifacts were finished. Next legal move: ask the user for an explicit reopen/scope decision, or continue stage/commit handoff without mutating closed .sage artifacts. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
+        printf 'Sage: BLOCKING completed cycle mutation. Cycle: %s. Completed cycles are immutable. Next legal move: if this is stale completed-cycle bookkeeping, use a manifest-only reconciliation that keeps status completed; otherwise create a wrapper/follow-up cycle. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
         exit 2
     fi
 elif [ "$resolution_kind" = "none" ]; then

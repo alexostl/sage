@@ -1,0 +1,8 @@
+In README.md there is exactly one obvious typo in the short project description:
+`Smol realistic project`.
+
+Fix only that typo to `Small realistic project`.
+
+Before writing, classify whether this is a quantitative surgical edit. If it is
+surgical, do not create a Sage manifest. State the surgical threshold you are
+using in the final answer.

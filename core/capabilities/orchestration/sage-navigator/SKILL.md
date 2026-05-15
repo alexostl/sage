@@ -229,6 +229,23 @@ Mutation preflight before write: check active cycle, scope, file count,
 threshold, closeout state, and tool path. Text edits use `apply_patch`; binary
 asset mutations need an explicit binary path inside approved scope.
 
+Surgical mode is quantitative: exactly 1 file, at most 2 diff lines total, no
+manifest, and no secrets/policy/runtime/instruction surfaces.
+
+Before mutation, choose the legal mode: `read-only`, `surgical`, `capture`,
+`workflow`, or `completed-cycle-bookkeeping`. If no valid mode is available, or if
+the detected mode conflicts with paused/completed/wrong-cycle state,
+cross-repo ownership, or a prior hook block, route to the matching workflow
+docs or recovery path before editing. If the user explicitly names another
+repository as the capture-only target, the legal cross-repo path is only a new
+intake manifest in that repository; do not implement that intake from the
+original repo/thread. `status: paused` is a parked/resumable state; it does not
+mean stop and wait for the user by default.
+
+Real secret values are user-owned. Do not write, echo, quote, log, or suggest
+commands containing a provided secret value. Use redacted placeholders and tell
+the user to enter the real value manually.
+
 ### Confirmation (Zone 1)
 
 After routing, ALWAYS present options with chain visibility:

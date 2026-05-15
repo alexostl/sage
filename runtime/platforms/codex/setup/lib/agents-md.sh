@@ -67,6 +67,9 @@ Base (all projects):
 1. Tests before code — every behavior has a test before implementation
 2. No silent failures — errors handled, logged, or propagated
 3. Secrets never in code — use env vars or secret managers
+   Agent must not write, echo, quote, log, or suggest commands containing real
+   secret values; use redacted placeholders and ask the user to enter values
+   manually.
 4. Dependencies explicit — declared with pinned versions
 5. Changes reversible — migrations reversible, deployments rollbackable"
 
@@ -250,6 +253,9 @@ State transitions are part of the contract:
   outside instruction/process surfaces.
 - recoverable hook block is correction guidance: retry via legal path/stop for user decision; no scope amputation
 - Mutation preflight before write: active cycle/scope/count; threshold/closeout/tool path. Text edits use \`apply_patch\`; binary assets need explicit binary path.
+- Surgical mode is quantitative: exactly 1 file, at most 2 diff lines total,
+  no manifest, and no secrets/policy/runtime/instruction surfaces.
+- Before mutation, choose the legal mode: read-only, surgical, capture, workflow, or completed-cycle-bookkeeping. If there is no valid mode, a mode mismatch, paused/completed/wrong-cycle state, cross-repo ambiguity, or prior hook block, activate Sage Navigator/workflow docs before editing; paused means route/recover, not wait.
 - Closeout order: manifest.status completed last after self-review/artifacts/decisions/handoff; then report stage/commit, ask handoff, no default push, no post-closeout .sage epilogue.
 
 For Standard+ Codex work, keep native plan/progress view as visibility layer;
@@ -352,9 +358,13 @@ authoritative for the task. The Sage framework repository must not impersonate
 target repo workflow state when Sage is invoked from another repo.
 
 If repo ownership is ambiguous, hard-stop and ask which repository is the
-target. Do not auto-fix across repository boundaries. Absolute paths outside
-the target repo are out of scope unless they are explicitly listed in the
-active manifest scope.
+target. Do not auto-fix across repository boundaries. If the user explicitly
+names another repository as the target for capture-only work, that repository
+owns the new intake state; create only a new \`.sage/work/<cycle>/manifest.md\`
+there and do not continue implementing it from the original repo/thread.
+Absolute paths outside the target repo are out of scope unless they are
+explicitly listed in the active manifest scope or match this new-intake-only
+capture path.
 
 Do not write \`.sage/**\` outside the target repo. Source/runtime/test/
 instruction behavior changes require the proper Sage workflow and approved

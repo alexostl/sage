@@ -269,6 +269,17 @@ EOF
     ! grep -q 'How mutation preflight works' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md routes invalid mutation modes before editing" {
+    PRESET=base run_stage3
+    grep -q 'Before mutation, choose the legal mode' "$TARGET/AGENTS.md"
+    grep -q 'read-only, surgical, capture, workflow, or completed-cycle-bookkeeping' "$TARGET/AGENTS.md"
+    grep -q 'no valid mode' "$TARGET/AGENTS.md"
+    grep -q 'paused/completed/wrong-cycle' "$TARGET/AGENTS.md"
+    grep -q 'cross-repo ambiguity' "$TARGET/AGENTS.md"
+    grep -q 'Sage Navigator/workflow docs before editing' "$TARGET/AGENTS.md"
+    grep -q 'paused means route/recover, not wait' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md contains laconic closeout handoff contract" {
     PRESET=base run_stage3
     grep -q 'Closeout order' "$TARGET/AGENTS.md"
@@ -380,6 +391,17 @@ EOF
     grep -q 'sage doctor' "$TARGET/AGENTS.md"
 }
 
+@test "shared navigator: mutation mode router sends ambiguity to workflow docs" {
+    grep -q 'Before mutation, choose the legal mode' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q '`read-only`, `surgical`, `capture`' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'completed-cycle-bookkeeping' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'paused/completed/wrong-cycle state' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'cross-repo ownership' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'new intake manifest' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'route to the matching workflow' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+    grep -q 'does not mean stop and wait' "$REPO_ROOT/core/capabilities/orchestration/sage-navigator/SKILL.md"
+}
+
 @test "stage3: generated AGENTS.md defines deterministic artifact router" {
     PRESET=base run_stage3
     grep -q 'Artifact Router' "$TARGET/AGENTS.md"
@@ -413,6 +435,8 @@ EOF
     grep -q 'state, memory, scope, gates, and recovery' "$TARGET/AGENTS.md"
     grep -q 'framework repository must not impersonate' "$TARGET/AGENTS.md"
     grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
+    grep -q 'new intake state' "$TARGET/AGENTS.md"
+    grep -q 'new-intake-only' "$TARGET/AGENTS.md"
     grep -q 'Do not write `.sage/\*\*` outside the target repo' "$TARGET/AGENTS.md"
     grep -q 'Source/runtime/test/' "$TARGET/AGENTS.md"
     grep -q 'instruction behavior changes require the proper Sage workflow' "$TARGET/AGENTS.md"

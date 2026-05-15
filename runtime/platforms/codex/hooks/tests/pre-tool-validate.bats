@@ -580,8 +580,9 @@ semantic_reclassification: accepted
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
     echo "$output" | grep -qi "completed cycle"
-    echo "$output" | grep -qi "closed before closeout artifacts"
-    echo "$output" | grep -qi "handoff"
+    echo "$output" | grep -qi "immutable"
+    echo "$output" | grep -qi "manifest-only reconciliation"
+    echo "$output" | grep -qi "wrapper/follow-up"
 }
 
 @test "pre-tool-validate.sh: completed cycle artifact path beats unrelated active cycle" {
@@ -601,6 +602,7 @@ semantic_reclassification: accepted
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
+    jq -e 'select(.mutation_kind == "completed_manifest_reconciliation")' "$PROJECT_ROOT/.sage/.session-mutations.log" >/dev/null
 }
 
 @test "pre-tool-validate.sh: completed manifest-only reconciliation blocks reopen status" {
@@ -713,6 +715,52 @@ semantic_reclassification: accepted
     [ -f "$log" ]
     grep -q '"config/codex-config.toml"' "$log"
     tail -n1 "$log" | jq -e '.cycle_id == ""' >/dev/null
+}
+
+@test "pre-tool-validate.sh: quantitative surgical update allowed without active cycle" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: README.md\n@@\n-Smol realistic project\n+Small realistic project\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "surgical_edit"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: surgical update rejects over two changed lines without active cycle" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: README.md\n@@\n-a\n-b\n+c\n+d\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: surgical update rejects multi-file patch without active cycle" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: README.md\n@@\n-a\n+b\n*** Update File: docs/architecture.md\n@@\n-c\n+d\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: placeholder env artifact allowed without active cycle" {
+    cmd="$(printf '*** Begin Patch\n*** Add File: .env.local.example\n+OPENAI_API_KEY=placeholder\n+DATABASE_URL=postgres://placeholder\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '".env.local.example"' "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "placeholder_secret"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: real secret value blocks even when file would be surgical" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: .env.local\n@@\n+OPENAI_API_KEY=sk-real-secret-value-for-test-123456\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "real secret"
+    echo "$output" | grep -qi "placeholder"
 }
 
 @test "pre-tool-validate.sh: local ignored artifact allowed without active cycle" {
@@ -1361,4 +1409,59 @@ EOF
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "outside cycle scope"
     echo "$output" | grep -q "$outside_path"
+}
+
+@test "pre-tool-validate.sh: cross-repo new intake manifest is allowed as capture only" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    outside_dir="$(mktemp -d -t sage_other_repo.XXXXXX)"
+    mkdir -p "$outside_dir/.sage/work"
+    outside_path="$outside_dir/.sage/work/20260102-cross-repo-finding/manifest.md"
+    cmd="$(make_patch_cmd Add "$outside_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    rm -rf "$outside_dir"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q "$outside_path" "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "cross_repo_new_intake"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: cross-repo SageDocs add-only is blocked in M1" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    outside_dir="$(mktemp -d -t sage_other_repo.XXXXXX)"
+    mkdir -p "$outside_dir/.sage/docs"
+    outside_path="$outside_dir/.sage/docs/analysis-cross-repo.md"
+    cmd="$(make_patch_cmd Add "$outside_path")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    rm -rf "$outside_dir"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "outside cycle scope"
+}
+
+@test "pre-tool-validate.sh: cross-repo intake blocks existing manifest edit" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    outside_dir="$(mktemp -d -t sage_other_repo.XXXXXX)"
+    outside_cycle="$outside_dir/.sage/work/20260102-cross-repo-finding"
+    mkdir -p "$outside_cycle"
+    printf -- '---\nstatus: intake\n---\n' > "$outside_cycle/manifest.md"
+    cmd="$(make_patch_cmd Update "$outside_cycle/manifest.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    rm -rf "$outside_dir"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "outside cycle scope"
+}
+
+@test "pre-tool-validate.sh: cross-repo intake blocks second file" {
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    outside_dir="$(mktemp -d -t sage_other_repo.XXXXXX)"
+    mkdir -p "$outside_dir/.sage/work"
+    cmd="$(printf '*** Begin Patch\n*** Add File: %s/.sage/work/20260102-cross-repo-finding/manifest.md\n+---\n+status: intake\n+---\n*** Add File: %s/.sage/work/20260102-cross-repo-finding/notes.md\n+notes\n*** End Patch\n' "$outside_dir" "$outside_dir")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    rm -rf "$outside_dir"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "outside cycle scope"
 }

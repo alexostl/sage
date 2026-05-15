@@ -60,3 +60,9 @@ EOF
     [ "$status" -eq 0 ]
     [ "$output" = $'15-cross-repo-fix-intake-capture\n16-completed-cycle-explicit-reopen\n17-local-gitignored-config-artifact' ]
 }
+
+@test "run-harness.sh: selects M1 calibration scenarios" {
+    run env HARNESS_LIST_PROMPTS_ONLY=1 HARNESS_SCENARIOS="18-surgical-edit-quantitative,19-secret-placeholder-only,20-real-secret-denied" "$RUN_HARNESS"
+    [ "$status" -eq 0 ]
+    [ "$output" = $'18-surgical-edit-quantitative\n19-secret-placeholder-only\n20-real-secret-denied' ]
+}

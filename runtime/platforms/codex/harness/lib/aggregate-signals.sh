@@ -61,6 +61,21 @@ expand_rubric_pattern() {
     printf '%s' "${pattern//__FRAMEWORK_ROOT__/$escaped_framework}"
 }
 
+transcript_rubric_text() {
+    local transcript="${1:?transcript required}"
+    jq -r '
+        if .type == "assistant" and (.message? != null) then
+            .message
+        elif (.item.type? == "agent_message") and (.item.text? != null) then
+            .item.text
+        elif (.item.type? == "file_change") then
+            (.item.changes[]? | [(.kind // ""), (.path // "")] | join(" "))
+        else
+            empty
+        end
+    ' "$transcript" 2>/dev/null || true
+}
+
 matches_scenario_filter() {
     local id="${1:?scenario id required}"
     local prompt="${2:?scenario prompt required}"
@@ -259,7 +274,22 @@ if [ -f "$scenario_manifest" ]; then
         rubric_failures='[]'
         rubric_pass=true
         rubric="$(printf '%s' "$row" | jq -c '.state_rubric // {}')"
-        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .forbidden_audit_kinds[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .forbidden_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?, .expected_secondary_files[]?, .required_secondary_changed_patterns[]?, .forbidden_secondary_changed_patterns[]?] | length' <<< "$rubric")"
+        rubric_required_count="$(jq '[
+            .expected_files[]?,
+            .forbidden_files[]?,
+            .forbidden_changed_patterns[]?,
+            .forbidden_audit_kinds[]?,
+            .required_audit_kinds[]?,
+            .required_transcript_patterns[]?,
+            .forbidden_transcript_patterns[]?,
+            .required_changed_patterns[]?,
+            .required_new_manifest_patterns[]?,
+            .expected_secondary_files[]?,
+            .required_secondary_changed_patterns[]?,
+            .forbidden_secondary_changed_patterns[]?
+        ] + (if has("max_changed_files") then [.max_changed_files] else [] end)
+          + (if has("max_changed_lines_total") then [.max_changed_lines_total] else [] end)
+          | length' <<< "$rubric")"
         claim="$(printf '%s' "$row" | jq -r '.claim // ""')"
         if [ "$rubric_required_count" -eq 0 ] && printf '%s' "$claim" | grep -Eiq 'blocked mutation|blocked|recovery'; then
             rubric_pass=false
@@ -312,6 +342,22 @@ if [ -f "$scenario_manifest" ]; then
                     rubric_failures="$(jq -c --arg msg "forbidden changed file pattern present: $pattern" '. + [$msg]' <<< "$rubric_failures")"
                 fi
             done < <(jq -r '.forbidden_changed_patterns[]? // empty' <<< "$rubric")
+            max_changed_files="$(jq -r '.max_changed_files // empty' <<< "$rubric")"
+            if [ -n "$max_changed_files" ]; then
+                changed_file_count="$(jq '.changed_files | length' "$state_file")"
+                if [ "$changed_file_count" -gt "$max_changed_files" ]; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "changed file count over max: $changed_file_count > $max_changed_files" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            fi
+            max_changed_lines_total="$(jq -r '.max_changed_lines_total // empty' <<< "$rubric")"
+            if [ -n "$max_changed_lines_total" ]; then
+                changed_lines_total="$(jq -r '.changed_lines_total // 0' "$state_file")"
+                if [ "$changed_lines_total" -gt "$max_changed_lines_total" ]; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "changed lines total over max: $changed_lines_total > $max_changed_lines_total" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            fi
             while IFS= read -r pattern; do
                 [ -n "$pattern" ] || continue
                 if ! jq -e --arg pattern "$pattern" '.new_manifests[]? | select(test($pattern))' "$state_file" >/dev/null; then
@@ -342,7 +388,7 @@ if [ -f "$scenario_manifest" ]; then
             done < <(jq -r '.forbidden_secondary_changed_patterns[]? // empty' <<< "$rubric")
             while IFS= read -r pattern; do
                 [ -n "$pattern" ] || continue
-                if ! grep -E -q "$pattern" "$transcript" 2>/dev/null; then
+                if ! transcript_rubric_text "$transcript" | grep -E -q "$pattern" 2>/dev/null; then
                     rubric_pass=false
                     rubric_failures="$(jq -c --arg msg "missing transcript pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
                 fi
@@ -350,7 +396,7 @@ if [ -f "$scenario_manifest" ]; then
             while IFS= read -r pattern; do
                 [ -n "$pattern" ] || continue
                 expanded_pattern="$(expand_rubric_pattern "$pattern")"
-                if [ -s "$transcript" ] && grep -E -q "$expanded_pattern" "$transcript" 2>/dev/null; then
+                if [ -s "$transcript" ] && transcript_rubric_text "$transcript" | grep -E -q "$expanded_pattern" 2>/dev/null; then
                     rubric_pass=false
                     rubric_failures="$(jq -c --arg msg "forbidden transcript pattern present: $pattern" '. + [$msg]' <<< "$rubric_failures")"
                 fi

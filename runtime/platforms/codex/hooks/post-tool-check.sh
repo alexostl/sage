@@ -160,6 +160,14 @@ is_capture_documentation_path() {
     esac
 }
 
+is_local_ignored_artifact_path() {
+    case "$1" in
+        .sage-local/*) ;;
+        *) return 1 ;;
+    esac
+    git -C "$cwd" check-ignore -q -- "$1" >/dev/null 2>&1 || return 1
+}
+
 all_claimed_capture_only=1
 for p in "${claimed_paths[@]}"; do
     if ! is_capture_documentation_path "$p"; then
@@ -175,6 +183,21 @@ if [ "$all_claimed_capture_only" -eq 1 ]; then
     done
 fi
 
+all_claimed_local_ignored=1
+for p in "${claimed_paths[@]}"; do
+    if ! is_local_ignored_artifact_path "$p"; then
+        all_claimed_local_ignored=0
+        break
+    fi
+done
+
+if [ "$all_claimed_local_ignored" -eq 1 ]; then
+    for p in "${claimed_paths[@]}"; do
+        [ -e "$cwd/$p" ] || continue
+        emit_incident "local_ignored_artifact_mutation" "$p" "info"
+    done
+fi
+
 # claim_no_op: claimed but not in diff
 for p in "${claimed_paths[@]}"; do
     if [ "${#actual_paths[@]}" -gt 0 ]; then
@@ -182,10 +205,16 @@ for p in "${claimed_paths[@]}"; do
             if [ "$all_claimed_capture_only" -eq 1 ] && is_capture_documentation_path "$p" && [ -e "$cwd/$p" ]; then
                 continue
             fi
+            if [ "$all_claimed_local_ignored" -eq 1 ] && is_local_ignored_artifact_path "$p" && [ -e "$cwd/$p" ]; then
+                continue
+            fi
             emit_incident "claim_no_op" "$p" "warn"
         fi
     else
         if [ "$all_claimed_capture_only" -eq 1 ] && is_capture_documentation_path "$p" && [ -e "$cwd/$p" ]; then
+            continue
+        fi
+        if [ "$all_claimed_local_ignored" -eq 1 ] && is_local_ignored_artifact_path "$p" && [ -e "$cwd/$p" ]; then
             continue
         fi
         emit_incident "claim_no_op" "$p" "warn"

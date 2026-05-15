@@ -289,6 +289,24 @@ EOF
     ! grep -q "claim_no_op" "$log"
 }
 
+@test "post-tool-check.sh: local ignored artifact emits audit event instead of claim_no_op" {
+    cd "$PROJECT_ROOT"
+    printf '.sage-local/\n' > .gitignore
+    git add .gitignore
+    git commit -q -m "ignore local sage artifacts"
+    mkdir -p .sage-local
+    printf '{}\n' > .sage-local/hook-discovery.json
+
+    cmd="$(make_patch_cmd Add .sage-local/hook-discovery.json)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "local_ignored_artifact_mutation" "$log"
+    ! grep -q "claim_no_op" "$log"
+}
+
 @test "post-tool-check.sh: incident JSON line is valid (parseable + has severity)" {
     cd "$PROJECT_ROOT"
     cmd="$(make_patch_cmd Update seed.txt)"

@@ -181,6 +181,18 @@ EOF
                 ) || true
             fi
             ;;
+        18-surgical-edit-quantitative)
+            cat > "$TARGET/README.md" <<'EOF'
+# Dummy Project
+
+Smol realistic project for Sage/Codex harness runs.
+EOF
+            (
+                cd "$TARGET" || exit 1
+                git add README.md
+                git commit -q -m "harness fixture: surgical typo" >/dev/null 2>&1 || true
+            ) || true
+            ;;
     esac
 }
 
@@ -409,7 +421,14 @@ for prompt_file in "${PROMPT_FILES[@]}"; do
     files_json="$(cd "$TARGET" && find . -type f ! -path './.git/*' | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
     manifests_json="$(cd "$TARGET" && find .sage/work -mindepth 2 -maxdepth 2 -name manifest.md -type f 2>/dev/null | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
     new_manifests_json="$(jq -nc --argjson before "$before_manifests_json" --argjson after "$manifests_json" '$after - $before')"
-    changed_files_json="$(cd "$TARGET" && git status --porcelain -uall 2>/dev/null | sed 's#^...##' | sort -u | jq -R . | jq -sc .)"
+    changed_files_json="$(cd "$TARGET" && git status --porcelain -uall 2>/dev/null | sed 's#^...##' | awk '
+        $0 !~ /^\.sage\/\.(session-baseline|session-mutations|mcp-incidents|auto-fixes)\.log$/
+    ' | sort -u | jq -R . | jq -sc .)"
+    changed_lines_total="$(cd "$TARGET" && git diff --numstat 2>/dev/null | awk '
+        $3 ~ /^\.sage\/\.(session-baseline|session-mutations|mcp-incidents|auto-fixes)\.log$/ { next }
+        $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ { total += $1 + $2 }
+        END { print total + 0 }
+    ')"
     incidents_json='[]'
     if [ -f "$TARGET/.sage/.mcp-incidents.log" ]; then
         incidents_json="$(read_json_or_key_value_log "$TARGET/.sage/.mcp-incidents.log" "$((before_incident_lines + 1))")"
@@ -437,12 +456,13 @@ for prompt_file in "${PROMPT_FILES[@]}"; do
         --argjson manifests "$manifests_json" \
         --argjson new_manifests "$new_manifests_json" \
         --argjson changed_files "$changed_files_json" \
+        --argjson changed_lines_total "$changed_lines_total" \
         --arg secondary_target "$SECONDARY_TARGET" \
         --argjson secondary_files "$secondary_files_json" \
         --argjson secondary_changed_files "$secondary_changed_files_json" \
         --argjson incidents "$incidents_json" \
         --argjson auto_fixes "$auto_fixes_json" \
-        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, run_mode:$run_mode, hook_mode:$hook_mode, service_tier:$service_tier, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, secondary_target:$secondary_target, secondary_files:$secondary_files, secondary_changed_files:$secondary_changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
+        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, run_mode:$run_mode, hook_mode:$hook_mode, service_tier:$service_tier, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, changed_lines_total:$changed_lines_total, secondary_target:$secondary_target, secondary_files:$secondary_files, secondary_changed_files:$secondary_changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
         > "$out.state.json"
 
     # Commit each session's porcelain so the NEXT session's Stop hook
