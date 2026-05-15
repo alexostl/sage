@@ -237,10 +237,10 @@ Before mutation, choose the legal mode: `read-only`, `surgical`, `capture`,
 the detected mode conflicts with paused/completed/wrong-cycle state,
 cross-repo ownership, or a prior hook block, route to the matching workflow
 docs or recovery path before editing. If the user explicitly names another
-repository as the capture-only target, the legal cross-repo path is only a new
-intake manifest in that repository; do not implement that intake from the
-original repo/thread. `status: paused` is a parked/resumable state; it does not
-mean stop and wait for the user by default.
+repository as the capture-only target, the legal cross-repo path is only a new intake manifest
+in that repository; do not implement that intake from the
+original repo/thread. `status: paused` is a parked/resumable state; it does not mean stop and wait
+for the user by default.
 
 Real secret values are user-owned. Do not write, echo, quote, log, or suggest
 commands containing a provided secret value. Use redacted placeholders and tell
