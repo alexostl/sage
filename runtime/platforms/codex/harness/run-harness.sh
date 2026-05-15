@@ -53,6 +53,7 @@ log_line_count() {
 
 OUT_DIR="${HARNESS_OUT:-$(mktemp -d -t codex-harness.XXXXXX)}"
 TARGET="$OUT_DIR/target"
+SECONDARY_TARGET="$OUT_DIR/secondary-target"
 TRANSCRIPTS="$OUT_DIR/transcripts"
 HARNESS_MODEL="${HARNESS_MODEL:-gpt-5.4}"
 HARNESS_REASONING="${HARNESS_REASONING:-medium}"
@@ -126,6 +127,63 @@ append_prompt_file() {
     PROMPT_FILES+=("$prompt_path")
 }
 
+selected_prompts_need_secondary_target() {
+    local prompt_path
+    for prompt_path in "${PROMPT_FILES[@]}"; do
+        [ -f "$prompt_path" ] || continue
+        if grep -q '__HARNESS_SECONDARY_TARGET__' "$prompt_path"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+escape_sed_replacement() {
+    printf '%s' "$1" | sed 's/[\/&]/\\&/g'
+}
+
+apply_prompt_fixture() {
+    local name="${1:?prompt name required}"
+
+    case "$name" in
+        16-completed-cycle-explicit-reopen)
+            mkdir -p "$TARGET/.sage/work/20260515-closed-hook-study"
+            cat > "$TARGET/.sage/work/20260515-closed-hook-study/manifest.md" <<'EOF'
+---
+cycle_id: 20260515-closed-hook-study
+workflow: architect
+phase: completed
+status: completed
+created: 2026-05-15
+scope:
+  - .sage/work/20260515-closed-hook-study/**
+---
+
+# Closed Hook Study
+
+## Closeout
+
+This fixture is intentionally marked completed before the prompt begins.
+EOF
+            (
+                cd "$TARGET" || exit 1
+                git add .sage/work/20260515-closed-hook-study/manifest.md
+                git commit -q -m "harness fixture: completed cycle" >/dev/null 2>&1 || true
+            ) || true
+            ;;
+        17-local-gitignored-config-artifact)
+            if ! grep -qxF ".sage-local/" "$TARGET/.gitignore" 2>/dev/null; then
+                printf '\n.sage-local/\n' >> "$TARGET/.gitignore"
+                (
+                    cd "$TARGET" || exit 1
+                    git add .gitignore
+                    git commit -q -m "harness fixture: local sage ignore" >/dev/null 2>&1 || true
+                ) || true
+            fi
+            ;;
+    esac
+}
+
 declare -a PROMPT_FILES
 if [ -n "$HARNESS_SCENARIOS" ]; then
     while IFS= read -r raw_selector; do
@@ -149,6 +207,11 @@ fi
     echo "ERROR: no harness prompts selected." >&2
     exit 2
 }
+if selected_prompts_need_secondary_target; then
+    HARNESS_NEEDS_SECONDARY_TARGET=1
+else
+    HARNESS_NEEDS_SECONDARY_TARGET=0
+fi
 if [ -n "$HARNESS_SCENARIOS" ]; then
     HARNESS_RUN_MODE="targeted"
 else
@@ -163,6 +226,9 @@ fi
 
 echo "==> Harness output: $OUT_DIR"
 echo "==> Target dir:     $TARGET"
+if [ "$HARNESS_NEEDS_SECONDARY_TARGET" = "1" ]; then
+    echo "==> Secondary dir:  $SECONDARY_TARGET"
+fi
 echo "==> Target mode:    $HARNESS_TARGET_MODE"
 echo "==> Model profile:  $HARNESS_MODEL / reasoning=$HARNESS_REASONING"
 echo "==> Hook mode:      $HARNESS_HOOK_MODE"
@@ -225,6 +291,35 @@ echo "==> Running bin/sage init --platform codex --preset base..."
     exit 1
 }
 
+if [ "$HARNESS_NEEDS_SECONDARY_TARGET" = "1" ]; then
+    mkdir -p "$SECONDARY_TARGET"
+    (
+        cd "$SECONDARY_TARGET" || exit 1
+        git init -q -b main
+        git config user.email "harness@sage.local"
+        git config user.name "harness"
+        mkdir -p docs
+        cat > README.md <<'EOF'
+# Secondary Target
+
+Separate realistic target repository for cross-repo Sage ownership checks.
+EOF
+        git add -A
+        git commit -q -m "seed"
+    ) || { echo "ERROR: secondary git init failed" >&2; exit 1; }
+    ( cd "$SECONDARY_TARGET" && "$SAGE_BIN" init --platform codex --preset base ) \
+        >"$OUT_DIR/sage-init-secondary.log" 2>&1 || {
+        echo "ERROR: secondary bin/sage init failed — see $OUT_DIR/sage-init-secondary.log" >&2
+        tail -20 "$OUT_DIR/sage-init-secondary.log" >&2
+        exit 1
+    }
+    (
+        cd "$SECONDARY_TARGET" || exit 1
+        git add -A
+        git commit -q -m "sage init: codex platform" >/dev/null 2>&1 || true
+    ) || true
+fi
+
 # Codex 0.126.0-alpha.15 requires [history].persistence in config.toml
 # for `codex exec` to start cleanly. The generator already emits this,
 # but defensive guard for the harness.
@@ -272,7 +367,13 @@ for prompt_file in "${PROMPT_FILES[@]}"; do
     name="$(basename "$prompt_file" .txt)"
     out="$TRANSCRIPTS/$name.jsonl"
 
-    prompt_text="$(cat "$prompt_file")"
+    apply_prompt_fixture "$name"
+    primary_target_escaped="$(escape_sed_replacement "$TARGET")"
+    secondary_target_escaped="$(escape_sed_replacement "$SECONDARY_TARGET")"
+    prompt_text="$(sed \
+        -e "s#__HARNESS_PRIMARY_TARGET__#$primary_target_escaped#g" \
+        -e "s#__HARNESS_SECONDARY_TARGET__#$secondary_target_escaped#g" \
+        "$prompt_file")"
     echo "==> [${prompt_idx}/${prompt_total}] $name"
     echo "    prompt: $prompt_text"
 
@@ -317,6 +418,12 @@ for prompt_file in "${PROMPT_FILES[@]}"; do
     if [ -f "$TARGET/.sage/.auto-fixes.log" ]; then
         auto_fixes_json="$(read_json_or_key_value_log "$TARGET/.sage/.auto-fixes.log" "$((before_auto_fix_lines + 1))")"
     fi
+    secondary_files_json='[]'
+    secondary_changed_files_json='[]'
+    if [ "$HARNESS_NEEDS_SECONDARY_TARGET" = "1" ] && [ -d "$SECONDARY_TARGET/.git" ]; then
+        secondary_files_json="$(cd "$SECONDARY_TARGET" && find . -type f ! -path './.git/*' | sed 's#^\./##' | sort | jq -R . | jq -sc .)"
+        secondary_changed_files_json="$(cd "$SECONDARY_TARGET" && git status --porcelain -uall 2>/dev/null | sed 's#^...##' | sort -u | jq -R . | jq -sc .)"
+    fi
     jq -n \
         --arg prompt "$name" \
         --arg model "$HARNESS_MODEL" \
@@ -330,9 +437,12 @@ for prompt_file in "${PROMPT_FILES[@]}"; do
         --argjson manifests "$manifests_json" \
         --argjson new_manifests "$new_manifests_json" \
         --argjson changed_files "$changed_files_json" \
+        --arg secondary_target "$SECONDARY_TARGET" \
+        --argjson secondary_files "$secondary_files_json" \
+        --argjson secondary_changed_files "$secondary_changed_files_json" \
         --argjson incidents "$incidents_json" \
         --argjson auto_fixes "$auto_fixes_json" \
-        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, run_mode:$run_mode, hook_mode:$hook_mode, service_tier:$service_tier, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
+        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, run_mode:$run_mode, hook_mode:$hook_mode, service_tier:$service_tier, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, secondary_target:$secondary_target, secondary_files:$secondary_files, secondary_changed_files:$secondary_changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
         > "$out.state.json"
 
     # Commit each session's porcelain so the NEXT session's Stop hook
@@ -346,6 +456,13 @@ for prompt_file in "${PROMPT_FILES[@]}"; do
         git add -A
         git commit -q -m "harness: $name" >/dev/null 2>&1 || true
     ) || true
+    if [ "$HARNESS_NEEDS_SECONDARY_TARGET" = "1" ] && [ -d "$SECONDARY_TARGET/.git" ]; then
+        (
+            cd "$SECONDARY_TARGET" || exit 1
+            git add -A
+            git commit -q -m "harness: $name" >/dev/null 2>&1 || true
+        ) || true
+    fi
 done
 
 # --- Step 3: aggregate signals -------------------------------------

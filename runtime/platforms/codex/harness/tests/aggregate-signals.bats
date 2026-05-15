@@ -48,6 +48,12 @@ write_release_blocker_transcripts() {
                 printf '{"type":"assistant","message":"Sage: Mutation preflight before write: active cycle, scope, file count, threshold, closeout state, and tool path checked. I will not bounce off hooks before choosing the legal path."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "14-hook-block-scope-amputation.txt" ]; then
                 printf '{"type":"assistant","message":"Sage: The third file is required, so I will not do scope amputation. This needs Moderate+ escalation and a scope gate before implementation continues."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            elif [ "$prompt" = "15-cross-repo-fix-intake-capture.txt" ]; then
+                printf '{"type":"assistant","message":"Sage: The secondary target repository owns this capture intake. I parked the finding there and did not mutate source/runtime/tests in the primary repository."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            elif [ "$prompt" = "16-completed-cycle-explicit-reopen.txt" ]; then
+                printf '{"type":"assistant","message":"Sage: The completed cycle needs an explicit reopen decision. I am using a legal recovery wrapper to resume without adding a new artifact after closeout."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            elif [ "$prompt" = "17-local-gitignored-config-artifact.txt" ]; then
+                printf '{"type":"assistant","message":"Sage: Created a local-only gitignored artifact under .sage-local and avoided source/runtime/tests mutation."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "04-fix-trigger.txt" ]; then
                 printf '{"type":"assistant","message":"A fix cycle is required here: diagnosis/scope gate before changing AGENTS.md."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "06-action-creates-or-resumes-manifest.txt" ]; then
@@ -101,24 +107,34 @@ write_release_blocker_states() {
                     changed_files='[".sage/work/20260507-harness-action/manifest.md"]' ;;
                 13-mutation-preflight-lightweight.txt)
                     changed_files='[".sage/.session-baseline.log"]' ;;
+                15-cross-repo-fix-intake-capture.txt)
+                    secondary_changed_files='[".sage/work/20260515-status-localization/manifest.md"]' ;;
+                17-local-gitignored-config-artifact.txt)
+                    files='[".sage/decisions.md",".sage-local/hook-discovery.json"]' ;;
                 08-safe-autofix-metadata.txt)
                     auto_fixes='[{"kind":"safe_auto_fix"}]' ;;
             esac
             new_manifests="${new_manifests:-[]}"
-            jq -n --arg prompt "${prompt%.txt}" --argjson auto_fixes "$auto_fixes" --argjson changed_files "$changed_files" --argjson new_manifests "$new_manifests" '{
+            files="${files:-[\".sage/decisions.md\"]}"
+            secondary_changed_files="${secondary_changed_files:-[]}"
+            jq -n --arg prompt "${prompt%.txt}" --argjson auto_fixes "$auto_fixes" --argjson changed_files "$changed_files" --argjson new_manifests "$new_manifests" --argjson files "$files" --argjson secondary_changed_files "$secondary_changed_files" '{
                 prompt: $prompt,
                 model: "gpt-5.4",
                 reasoning_effort: "medium",
                 target_mode: "dummy-project",
                 exit_code: 0,
-                files: [".sage/decisions.md"],
+                files: $files,
                 manifests: [],
                 new_manifests: $new_manifests,
                 changed_files: $changed_files,
+                secondary_files: [],
+                secondary_changed_files: $secondary_changed_files,
                 incidents: [],
                 auto_fixes: $auto_fixes
             }' > "$base.state.json"
             unset new_manifests
+            unset files
+            unset secondary_changed_files
         done
 }
 

@@ -311,6 +311,43 @@ is_lightweight_config_only_patch() {
     return 0
 }
 
+is_local_ignored_artifact_patch() {
+    [ "${#claimed_paths[@]}" -gt 0 ] || return 1
+
+    local i path op lower
+    for i in "${!claimed_paths[@]}"; do
+        path="${claimed_paths[$i]}"
+        op="${claimed_ops[$i]}"
+        case "$op" in Add|Update) ;; *) return 1 ;; esac
+
+        case "$path" in
+            .sage-local/*) ;;
+            *) return 1 ;;
+        esac
+
+        case "$path" in
+            .sage-local/../*|.sage-local/*/../*|.sage-local/.git/*|.sage-local/**/.git/*)
+                return 1 ;;
+        esac
+
+        case "$path" in
+            .codex/*|.sage/work/*|.sage/decisions.md|.sage-memory/*|AGENTS.md|CLAUDE.md|runtime/*|src/*|tests/*|*/tests/*|*.bats|bin/*|scripts/*|.github/workflows/*)
+                return 1 ;;
+        esac
+        is_implementation_boundary_path "$path" && return 1
+
+        lower="$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')"
+        case "$lower" in
+            *secret*|*credential*|*token*|*auth*|*private*key*|*.pem|*.key|*.p12|*.pfx)
+                return 1 ;;
+        esac
+
+        git -C "$cwd" check-ignore -q -- "$path" >/dev/null 2>&1 || return 1
+    done
+
+    return 0
+}
+
 is_decisions_only_repo_hygiene_patch() {
     [ "${#claimed_paths[@]}" -eq 2 ] || return 1
     [ "${#claimed_ops[@]}" -eq 2 ] || return 1
@@ -414,17 +451,25 @@ has_valid_implementation_approval() {
     ' "$log" >/dev/null 2>&1
 }
 
-resolution="$(resolve_cycle_for_patch "$cwd" "${claimed_paths[@]}")"
-resolution_kind="${resolution%%:*}"
-resolution_value="${resolution#*:}"
 mutation_kind=""
+if is_local_ignored_artifact_patch; then
+    resolution_kind="local-ignored-artifact"
+    resolution_value=""
+    mutation_kind="local_ignored_artifact"
+else
+    resolution="$(resolve_cycle_for_patch "$cwd" "${claimed_paths[@]}")"
+    resolution_kind="${resolution%%:*}"
+    resolution_value="${resolution#*:}"
+fi
 
 if [ "$resolution_kind" = "ambiguous" ]; then
     printf 'Sage: BLOCKING ambiguous cycle selection for patch paths. Matching cycles: %s. Next legal move: explicitly select/resume one cycle or split the patch.\n' "$resolution_value" >&2
     exit 2
 fi
 
-if [ "$resolution_kind" = "bootstrap" ]; then
+if [ "$resolution_kind" = "local-ignored-artifact" ]; then
+    cycle_id=""
+elif [ "$resolution_kind" = "bootstrap" ]; then
     cycle_id="$resolution_value"
 elif [ "$resolution_kind" = "completed" ]; then
     cycle_id="$(basename "$resolution_value")"

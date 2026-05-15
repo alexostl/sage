@@ -259,7 +259,7 @@ if [ -f "$scenario_manifest" ]; then
         rubric_failures='[]'
         rubric_pass=true
         rubric="$(printf '%s' "$row" | jq -c '.state_rubric // {}')"
-        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .forbidden_audit_kinds[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .forbidden_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?] | length' <<< "$rubric")"
+        rubric_required_count="$(jq '[.expected_files[]?, .forbidden_files[]?, .forbidden_changed_patterns[]?, .forbidden_audit_kinds[]?, .required_audit_kinds[]?, .required_transcript_patterns[]?, .forbidden_transcript_patterns[]?, .required_changed_patterns[]?, .required_new_manifest_patterns[]?, .expected_secondary_files[]?, .required_secondary_changed_patterns[]?, .forbidden_secondary_changed_patterns[]?] | length' <<< "$rubric")"
         claim="$(printf '%s' "$row" | jq -r '.claim // ""')"
         if [ "$rubric_required_count" -eq 0 ] && printf '%s' "$claim" | grep -Eiq 'blocked mutation|blocked|recovery'; then
             rubric_pass=false
@@ -319,6 +319,27 @@ if [ -f "$scenario_manifest" ]; then
                     rubric_failures="$(jq -c --arg msg "missing new manifest pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
                 fi
             done < <(jq -r '.required_new_manifest_patterns[]? // empty' <<< "$rubric")
+            while IFS= read -r expected; do
+                [ -n "$expected" ] || continue
+                if ! jq -e --arg p "$expected" '(.secondary_files // []) | index($p)' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing expected secondary file: $expected" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.expected_secondary_files[]? // empty' <<< "$rubric")
+            while IFS= read -r pattern; do
+                [ -n "$pattern" ] || continue
+                if ! jq -e --arg pattern "$pattern" '(.secondary_changed_files // [])[]? | select(test($pattern))' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "missing secondary changed file pattern: $pattern" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.required_secondary_changed_patterns[]? // empty' <<< "$rubric")
+            while IFS= read -r pattern; do
+                [ -n "$pattern" ] || continue
+                if jq -e --arg pattern "$pattern" '(.secondary_changed_files // [])[]? | select(test($pattern))' "$state_file" >/dev/null; then
+                    rubric_pass=false
+                    rubric_failures="$(jq -c --arg msg "forbidden secondary changed file pattern present: $pattern" '. + [$msg]' <<< "$rubric_failures")"
+                fi
+            done < <(jq -r '.forbidden_secondary_changed_patterns[]? // empty' <<< "$rubric")
             while IFS= read -r pattern; do
                 [ -n "$pattern" ] || continue
                 if ! grep -E -q "$pattern" "$transcript" 2>/dev/null; then

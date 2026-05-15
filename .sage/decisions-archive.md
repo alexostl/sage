@@ -1,5 +1,70 @@
 # Decisions Archive
 
+### 2026-05-14 — Batch 6 implementation verified
+
+**Decision:** Batch 6 implementation is ready for completion checkpoint.
+Workflow `[A] Subagent review` wording now returns findings to the user instead
+of approving the next phase, auto-review prompts include targeted self-learning
+recall, and generated Codex `AGENTS.md` uses targeted recall rather than broad
+session-start memory preload.
+
+**Verification:** `bats runtime/platforms/codex/setup/tests/subagent-review-policy.bats
+runtime/platforms/codex/setup/tests/stage3-agents-md.bats
+runtime/platforms/codex/setup/tests/alex-native-core-text.bats` passed 58/58.
+`bash -n runtime/platforms/codex/setup/lib/agents-md.sh` and `git diff --check`
+passed. `validate-workflows.sh` exited 0 but reported 0 workflows discovered.
+
+### 2026-05-14 — Codex runtime alignment fix captured
+
+**Decision:** Alex zdecydował, że worktree cleanup zostaje w osobnym wątku, a
+pozostałe problemy alignmentu Codex runtime/config mają wejść do jednej
+inicjatywy fix.
+
+**Created:** `.sage/work/20260514-codex-runtime-alignment-fix/manifest.md`.
+
+**Scope intent:** Fix ma objąć effective config check, stabilne repo-local hook
+command paths, sync/check aktywnego `.codex/hooks.json` względem generatora
+oraz zasadę, że przy konflikcie stale OpenAI docs z aktualnym Codex
+Desktop/CLI warning lokalny runtime warning wygrywa dla kompatybilności.
+
+**Boundary:** Worktree cleanup i stare worktree configi są poza tym zakresem.
+Implementacja nie została rozpoczęta.
+
+### 2026-05-14 — Batch 6 semantic reclassification accepted
+
+**Decision:** Batch 6 mutuje workflow docs, auto-review capability, generated
+Codex instruction renderer and tests. Po zatwierdzonym Systemic fix scope
+dodano `semantic_reclassification: accepted` do manifestu, żeby runtime hooki
+legalnie dopuściły test/runtime/instruction surface mutations.
+
+**Boundary:** To nie rozszerza scope poza zatwierdzony plan; odblokowuje tylko
+mutacje już wymienione w manifest scope i planie.
+
+### 2026-05-14 — Batch 6 fix scope approved for implementation
+
+**Decision:** Alex wybrał `[S] Skip review` po rewizji planu Batcha 6. Plan
+jest zatwierdzony do implementacji bez kolejnego auto-review.
+
+**Boundary:** Implementacja ma trzymać się zatwierdzonego scope: workflow
+approval wording, auto-review prompt policy, generated Codex `AGENTS.md`
+guidance, source-level regression test, stage3 regression tests i artefakty
+cyklu. Manifest przeszedł do `phase: deliver`.
+
+### 2026-05-14 — Batch 6 fix plan revised after auto-review
+
+**Decision:** Plan Batcha 6 został zrewidowany po verdict Hooke’a `NEEDS
+REVISION`. Rewizja adresuje MAJOR findings: testy nie mogą opierać się głównie
+na generated `AGENTS.md`, muszą też pilnować canonical source surfaces.
+
+**Plan impact:** Plan dodaje konkretny source-level regression test
+`runtime/platforms/codex/setup/tests/subagent-review-policy.bats`, który ma
+sprawdzać `core/workflows/{fix,build,architect}.workflow.md` oraz
+`core/capabilities/review/auto-review/SKILL.md`. Test ma łapać stare `[A]`
+wording (`then implement`, `then start building`, `then continue to plan`,
+`then proceed`), zachowanie osobnych ścieżek `[S]`, `[C]`, `[F]`, oraz targeted
+recall contract (`sage_memory_set_project`, `filter_tags: ["self-learning"]`,
+`.sage-memory/self-learning.md`, `prevention rules`).
+
 ### 2026-05-14 — Batch 6 distinguishes set_project from recall
 
 **Decision:** Alex doprecyzował, że `sage_memory_set_project` nadal jest

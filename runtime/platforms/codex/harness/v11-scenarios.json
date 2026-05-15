@@ -199,6 +199,80 @@
           "(I|we) will skip|skip it and finish|defer the third file|not needed|finish(ed)? without"
         ]
       }
+    },
+    {
+      "id": "15-cross-repo-fix-intake-capture",
+      "prompt": "15-cross-repo-fix-intake-capture.txt",
+      "claim": "cross-repo capture writes parked Sage state into the explicit target repository without mutating the primary repository",
+      "verification_class": "real-codex-harness",
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_changed_patterns": [
+          "^src/",
+          "^runtime/",
+          "^tests/",
+          "^\\.sage/work/"
+        ],
+        "required_secondary_changed_patterns": [
+          "^\\.sage/work/[^/]+/manifest\\.md$"
+        ],
+        "forbidden_secondary_changed_patterns": [
+          "^src/",
+          "^runtime/",
+          "^tests/"
+        ],
+        "required_transcript_patterns": [
+          "target repo|target repository|secondary",
+          "owner|owns|właścicielem|właściciel|ownership",
+          "intake|capture|parked|zapark"
+        ]
+      }
+    },
+    {
+      "id": "16-completed-cycle-explicit-reopen",
+      "prompt": "16-completed-cycle-explicit-reopen.txt",
+      "claim": "explicit user reopen decision produces a legal reopen or recovery path instead of post-closeout mutation",
+      "verification_class": "real-codex-harness",
+      "release_blocker": true,
+      "state_rubric": {
+        "forbidden_changed_patterns": [
+          "^src/",
+          "^runtime/",
+          "^tests/"
+        ],
+        "required_transcript_patterns": [
+          "completed cycle|closed cycle|zamkni|completed",
+          "reopen|resume|wznaw|wznow",
+          "legal|recovery|wrapper|decision|decyz"
+        ],
+        "forbidden_transcript_patterns": [
+          "added.*post-closeout epilogue|created.*post-closeout epilogue|dopisałem.*epilog"
+        ]
+      }
+    },
+    {
+      "id": "17-local-gitignored-config-artifact",
+      "prompt": "17-local-gitignored-config-artifact.txt",
+      "claim": "legal local gitignored artifact is created without source/runtime/test mutation or manifest bloat",
+      "verification_class": "real-codex-harness",
+      "release_blocker": true,
+      "state_rubric": {
+        "expected_files": [
+          ".sage-local/hook-discovery.json"
+        ],
+        "forbidden_changed_patterns": [
+          "^src/",
+          "^runtime/",
+          "^tests/",
+          "^\\.sage/work/",
+          "^\\.codex/",
+          "^AGENTS\\.md$"
+        ],
+        "required_transcript_patterns": [
+          "gitignored|\\.gitignore|local-only|local only",
+          "source|runtime|tests"
+        ]
+      }
     }
   ]
 }

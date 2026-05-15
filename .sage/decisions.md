@@ -6,6 +6,146 @@ Both the AI agent and human collaborators write here.
 - [2026-05-15] Zamknięto bieżący wątek bez pełnego RealHarness: targeted RealHarness dla `08-safe-autofix-metadata` i `13-mutation-preflight-lightweight` przeszedł (`present=2`, `missing=[]`), a pełny run został świadomie deferred decyzją Alexa przed commit/push.
 ---
 
+### 2026-05-15 — Target hook architecture brief accepted
+
+**Decision:** Alex zaakceptował `Target Architecture Brief` dla hook policy
+layer po Milestone 0.2. Kierunek zostaje minimalny: outcome classes
+`block/allow/capture/recover/audit`, bez szerokiego rewrite’u
+`pre-tool-validate.sh` w tej turze.
+
+**Boundary:** Pierwszy commit/fix ma zamknąć tylko narrow allow dla
+`.sage-local/**` ignorowanego przez Git oraz RealHarness coverage dla
+scenariuszy `15-17`. `0.3 Audit Noise Calibration`, cross-repo capture policy i
+completed-cycle recovery zostają osobnymi kandydatami.
+
+### 2026-05-15 — Milestone 0.2 and first Minimization Path fix closed
+
+**Decision:** Zamknięto Milestone 0.2 oraz pierwszy wdrożony fix
+`local_ignored_artifact`. Hooki zostają włączone, hard enforcement dla
+source/runtime/test/instruction surfaces pozostaje aktywny, a jedyny nowy allow
+dotyczy `.sage-local/**` faktycznie ignorowanego przez Git.
+
+**Verification:** `bash -n` dla zmienionych hook/harness skryptów, `jq empty`
+dla `v11-scenarios.json`, `git diff --check`, hook suite `1..98` oraz harness
+suite `1..26` przeszły. RealHarness guard po fixie potwierdził `17` oraz
+`03+17` bez `.sage/work` manifest bloatu.
+
+### 2026-05-15 — Intake captured: decisions log parser format drift
+
+**Decision:** Dodano capture-only intake
+`20260515-decisions-log-parser-format-fix`, bo runtime Codex nadal parsuje
+decision log po `^### `, a realny `.sage/decisions.md` może zawierać najnowsze
+wpisy w formacie `- [YYYY-MM-DD] ...`.
+
+**Boundary:** Implementacja nie została rozpoczęta. Przyszły fix ma objąć
+spójny parser dla rotacji, `sage status --json`, plain status, opcjonalnie
+session banner oraz testy Bats pokrywające realny format decision logu.
+
+### 2026-05-15 — Intake: cross-repo writes limited to SageDocs
+
+**Decision:** Dodano intake
+`20260515-cross-repo-sagedocs-permission-fix`, żeby doprecyzować instrukcje
+agenta dla mutacji w innych repozytoriach.
+
+**Boundary:** Domyślna zgoda ma obejmować tylko SageDocs w obcym repo,
+praktycznie ścieżki typu `.sage/docs/**` przy jednoznacznym zadaniu
+dokumentacyjnym. Wszystkie inne cross-repo mutacje, w tym `.sage/work/**`,
+`.sage/decisions.md`, `.sage-memory/**`, source/runtime/test/config,
+instruction surfaces, hooks, generated files i Git state, wymagają jawnej
+zgody użytkownika albo pracy w tamtym repo jako target.
+
+### 2026-05-15 — Milestone 0 resumes through recovery wrapper
+
+**Decision:** Milestone 0 Discovery Spike nadal jest `in-progress`. Commit
+`9df7ba5` zamknął prerequisite RealHarness/runtime/status/decisions, nie pełny
+Discovery Spike. Bezpośrednie otwarcie
+`.sage/work/20260515-codex-hook-policy-consolidation/manifest.md` blokuje obecny
+hook `completed cycle mutation`, więc kontynuacja idzie przez
+`.sage/work/20260515-hook-policy-discovery-spike/`.
+
+**Impact:** Stary cykl zostaje source artifact i ścieżką evidence. Dalsze
+artefakty Discovery Spike oraz ewentualne małe zmiany harness/hook potrzebne do
+badania są scopowane do nowego recovery wrappera.
+
+### 2026-05-15 — Hook redesign must follow Minimization Path
+
+**Decision:** Alex zgodził się iść w kierunku ograniczenia albo
+przeprojektowania hooków, ale tylko pod warunkiem `Minimization Path`.
+
+**Constraint:** Plan nie może być “większą architekturą dla większej
+architektury”. Ma minimalizować odpowiedzialność hooków tam, gdzie dane pokażą
+false positive, recovery bloat albo usability loss, i zostawić hard enforcement
+tam, gdzie chroni przed source/runtime/test mutation poza workflow.
+
+**Gate:** Przed wdrożeniem trzeba bardzo dobrze sprawdzić plan pod kątem tego,
+czy zmiana faktycznie poprawi usability przy zachowaniu bezpieczeństwa workflow.
+
+### 2026-05-15 — Milestone 0.2 approved for Minimization Path validation
+
+**Decision:** Alex wybrał `[A] Approve Milestone 0.2`. Następna faza Discovery
+Spike ma sprawdzić trzy brakujące klasy problemów: cross-repo fix/intake
+capture, completed-cycle explicit reopen i legalny local/gitignored
+config/artifact.
+
+**Boundary:** Nadal nie przebudowujemy produkcyjnego `pre-tool-validate.sh` bez
+Run 02 evidence. Najpierw sprawdzić, czy scenariusze `15-17` da się wiernie
+uruchomić w RealHarness; jeśli nie, przygotować controlled run zamiast
+rozbudowywać harness na ślepo.
+
+### 2026-05-15 — Run 02 identifies local-only manifest bloat as first target
+
+**Decision:** Run 02 potwierdził, że `hooks-off` przechodzi scenariusze `15-17`,
+a `hooks-on` po zaostrzeniu rubryki failuje `17-local-gitignored-config-artifact`
+przez utworzenie `.sage/work` manifestu dla ignorowanego local-only configu.
+
+**Impact:** To jest pierwszy najmniejszy kandydat do `Minimization Path`:
+legalny gitignored/local-only artifact powinien być obsługiwany jako wąskie
+`allow` albo `audit`, bez tworzenia manifest bloatu i bez otwierania furtki dla
+source/runtime/test mutation poza workflow.
+
+### 2026-05-15 — Minimization Path architecture checkpoint drafted
+
+**Decision:** Przygotowano checkpoint planu architektury
+`Minimization Path`. Plan ogranicza pierwszy implementation candidate do
+`17-local-gitignored-config-artifact`: narrow local-only/gitignored allow/audit
+bez `.sage/work` manifest bloatu.
+
+**Boundary:** Bez osobnej akceptacji nie wdrażać jeszcze cross-repo policy,
+completed-cycle direct reopen ani pełnego audit-only redesignu. Hard blocki dla
+source/runtime/test/instruction mutation poza workflow mają zostać zachowane.
+
+### 2026-05-15 — First Minimization Path fix approved
+
+**Decision:** Alex wybrał `[A] Approve first fix`. Wdrażany jest tylko
+`17-local-gitignored-config-artifact`: wąski allow/audit dla legalnego
+`.sage-local/**` ignorowanego przez Git, bez tworzenia `.sage/work` manifestu.
+
+**Boundary:** Nie ruszać jeszcze cross-repo policy, completed-cycle direct reopen
+ani pełnego audit-only redesignu. Fix nie może przepuszczać source/runtime/test,
+`.codex/**`, `AGENTS.md`, `.sage/work/**` ani innych managed/production surfaces
+bez workflow.
+
+### 2026-05-15 — First Minimization Path fix verified
+
+**Decision:** Wąski allow dla `.sage-local/**` ignorowanego przez Git został
+wdrożony i zweryfikowany. Deterministyczny hook suite przeszedł `1..98`, a
+RealHarness `17` oraz regression guard `03+17` przeszły w `hooks-on` bez
+`.sage/work` manifest bloatu.
+
+**Residual:** `17` nadal emituje audit warning `claim_no_op` dla ignorowanego
+pliku, bo nie pojawia się on w normalnym git porcelain. To nie blokuje pierwszego
+fixu; ewentualna redukcja tego audit noise powinna być osobnym małym follow-upem.
+
+### 2026-05-15 — Target architecture brief drafted after first fix
+
+**Decision:** Przygotowano `Target Architecture Brief` dla hook policy layer po
+Milestone 0.2. Kierunek pozostaje minimalny: outcome classes
+`block/allow/capture/recover/audit`, bez pełnego rewrite hooków na tym etapie.
+
+**Next:** Najbardziej naturalny kolejny mini-milestone to `0.3 Audit Noise
+Calibration` dla `claim_no_op` na ignored local-only artifacts. Alternatywnie
+można zamknąć i commitować pierwszy fix przed kolejną zmianą.
+
 ### 2026-05-15 — Discovery Spike needs a small RealHarness patch first
 
 **Decision:** Przed uruchomieniem porównania hooków nie przebudowujemy jeszcze
@@ -637,68 +777,3 @@ przyszłych root-cause/plan checkpoints oraz stop condition o rozjeździe docs v
 runtime warning. Inicjatywa zostaje zawężona do bieżącego Codex runtime/config:
 effective config check, stabilne hook command paths i sync/check aktywnego
 `.codex/hooks.json`.
-
-### 2026-05-14 — Batch 6 implementation verified
-
-**Decision:** Batch 6 implementation is ready for completion checkpoint.
-Workflow `[A] Subagent review` wording now returns findings to the user instead
-of approving the next phase, auto-review prompts include targeted self-learning
-recall, and generated Codex `AGENTS.md` uses targeted recall rather than broad
-session-start memory preload.
-
-**Verification:** `bats runtime/platforms/codex/setup/tests/subagent-review-policy.bats
-runtime/platforms/codex/setup/tests/stage3-agents-md.bats
-runtime/platforms/codex/setup/tests/alex-native-core-text.bats` passed 58/58.
-`bash -n runtime/platforms/codex/setup/lib/agents-md.sh` and `git diff --check`
-passed. `validate-workflows.sh` exited 0 but reported 0 workflows discovered.
-
-### 2026-05-14 — Codex runtime alignment fix captured
-
-**Decision:** Alex zdecydował, że worktree cleanup zostaje w osobnym wątku, a
-pozostałe problemy alignmentu Codex runtime/config mają wejść do jednej
-inicjatywy fix.
-
-**Created:** `.sage/work/20260514-codex-runtime-alignment-fix/manifest.md`.
-
-**Scope intent:** Fix ma objąć effective config check, stabilne repo-local hook
-command paths, sync/check aktywnego `.codex/hooks.json` względem generatora
-oraz zasadę, że przy konflikcie stale OpenAI docs z aktualnym Codex
-Desktop/CLI warning lokalny runtime warning wygrywa dla kompatybilności.
-
-**Boundary:** Worktree cleanup i stare worktree configi są poza tym zakresem.
-Implementacja nie została rozpoczęta.
-
-### 2026-05-14 — Batch 6 semantic reclassification accepted
-
-**Decision:** Batch 6 mutuje workflow docs, auto-review capability, generated
-Codex instruction renderer and tests. Po zatwierdzonym Systemic fix scope
-dodano `semantic_reclassification: accepted` do manifestu, żeby runtime hooki
-legalnie dopuściły test/runtime/instruction surface mutations.
-
-**Boundary:** To nie rozszerza scope poza zatwierdzony plan; odblokowuje tylko
-mutacje już wymienione w manifest scope i planie.
-
-### 2026-05-14 — Batch 6 fix scope approved for implementation
-
-**Decision:** Alex wybrał `[S] Skip review` po rewizji planu Batcha 6. Plan
-jest zatwierdzony do implementacji bez kolejnego auto-review.
-
-**Boundary:** Implementacja ma trzymać się zatwierdzonego scope: workflow
-approval wording, auto-review prompt policy, generated Codex `AGENTS.md`
-guidance, source-level regression test, stage3 regression tests i artefakty
-cyklu. Manifest przeszedł do `phase: deliver`.
-
-### 2026-05-14 — Batch 6 fix plan revised after auto-review
-
-**Decision:** Plan Batcha 6 został zrewidowany po verdict Hooke’a `NEEDS
-REVISION`. Rewizja adresuje MAJOR findings: testy nie mogą opierać się głównie
-na generated `AGENTS.md`, muszą też pilnować canonical source surfaces.
-
-**Plan impact:** Plan dodaje konkretny source-level regression test
-`runtime/platforms/codex/setup/tests/subagent-review-policy.bats`, który ma
-sprawdzać `core/workflows/{fix,build,architect}.workflow.md` oraz
-`core/capabilities/review/auto-review/SKILL.md`. Test ma łapać stare `[A]`
-wording (`then implement`, `then start building`, `then continue to plan`,
-`then proceed`), zachowanie osobnych ścieżek `[S]`, `[C]`, `[F]`, oraz targeted
-recall contract (`sage_memory_set_project`, `filter_tags: ["self-learning"]`,
-`.sage-memory/self-learning.md`, `prevention rules`).

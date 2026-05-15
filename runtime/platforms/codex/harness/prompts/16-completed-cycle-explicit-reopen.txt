@@ -1,0 +1,9 @@
+There is a completed Sage cycle named `20260515-closed-hook-study`.
+The previous closeout was wrong because only a prerequisite was finished.
+
+User decision: "Dokładnie, wznawiajmy cykl."
+
+Resume the work through the legal Sage path. If direct mutation of the completed
+cycle is blocked, do not add any new artifact after closeout and do not amputate
+scope. Use the smallest legal recovery path and leave clear evidence of the
+reopen decision.

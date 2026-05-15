@@ -1,0 +1,7 @@
+Create a local-only hook discovery config at `.sage-local/hook-discovery.json`
+with a tiny JSON object that marks the file as local-only test state.
+
+This config must be gitignored and must not change source, runtime, tests,
+generated instructions, or production hook configuration. Keep the workflow
+state minimal; do not create a large implementation cycle for this local-only
+artifact unless the hook forces a recovery path.

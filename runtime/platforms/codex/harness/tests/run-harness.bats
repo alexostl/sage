@@ -37,6 +37,8 @@ EOF
     grep -q -- 'HARNESS_HOOK_MODE' "$RUN_HARNESS"
     grep -q -- 'HARNESS_SERVICE_TIER' "$RUN_HARNESS"
     grep -q -- 'HARNESS_CODEX_HOME' "$RUN_HARNESS"
+    grep -q -- 'SECONDARY_TARGET' "$RUN_HARNESS"
+    grep -q -- '__HARNESS_SECONDARY_TARGET__' "$RUN_HARNESS"
     grep -q -- 'CODEX_HOME="$HARNESS_CODEX_HOME"' "$RUN_HARNESS"
     grep -q -- 'HARNESS_RUN_MODE="targeted"' "$RUN_HARNESS"
     grep -q -- 'run_mode:$run_mode' "$RUN_HARNESS"
@@ -51,4 +53,10 @@ EOF
     run env HARNESS_LIST_PROMPTS_ONLY=1 HARNESS_SCENARIOS="08-safe-autofix-metadata.txt 13-mutation-preflight-lightweight" "$RUN_HARNESS"
     [ "$status" -eq 0 ]
     [ "$output" = $'08-safe-autofix-metadata\n13-mutation-preflight-lightweight' ]
+}
+
+@test "run-harness.sh: selects Minimization Path discovery scenarios" {
+    run env HARNESS_LIST_PROMPTS_ONLY=1 HARNESS_SCENARIOS="15-cross-repo-fix-intake-capture,16-completed-cycle-explicit-reopen,17-local-gitignored-config-artifact" "$RUN_HARNESS"
+    [ "$status" -eq 0 ]
+    [ "$output" = $'15-cross-repo-fix-intake-capture\n16-completed-cycle-explicit-reopen\n17-local-gitignored-config-artifact' ]
 }

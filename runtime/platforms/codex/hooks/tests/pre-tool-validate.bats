@@ -715,6 +715,71 @@ semantic_reclassification: accepted
     tail -n1 "$log" | jq -e '.cycle_id == ""' >/dev/null
 }
 
+@test "pre-tool-validate.sh: local ignored artifact allowed without active cycle" {
+    (
+        cd "$PROJECT_ROOT" || exit 1
+        git init -q
+        printf '.sage-local/\n' > .gitignore
+    )
+    cmd="$(make_patch_cmd Add .sage-local/hook-discovery.json)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    grep -q '".sage-local/hook-discovery.json"' "$log"
+    tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "local_ignored_artifact"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: local artifact is blocked when not gitignored" {
+    (cd "$PROJECT_ROOT" && git init -q)
+    cmd="$(make_patch_cmd Add .sage-local/hook-discovery.json)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: local ignored artifact rejects mixed managed path" {
+    (
+        cd "$PROJECT_ROOT" || exit 1
+        git init -q
+        printf '.sage-local/\n' > .gitignore
+    )
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage-local/hook-discovery.json\n+{}\n*** Add File: src/leak.js\n+bad\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: local ignored artifact rejects secret-like files" {
+    (
+        cd "$PROJECT_ROOT" || exit 1
+        git init -q
+        printf '.sage-local/\n' > .gitignore
+    )
+    cmd="$(make_patch_cmd Add .sage-local/api-token.json)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
+@test "pre-tool-validate.sh: local ignored artifact is independent of unrelated active cycle" {
+    (
+        cd "$PROJECT_ROOT" || exit 1
+        git init -q
+        printf '.sage-local/\n' > .gitignore
+    )
+    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    cmd="$(make_patch_cmd Add .sage-local/hook-discovery.json)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    tail -n1 "$PROJECT_ROOT/.sage/.session-mutations.log" | jq -e '.cycle_id == "" and .mutation_kind == "local_ignored_artifact"' >/dev/null
+}
+
 @test "pre-tool-validate.sh: decisions-only repo hygiene allows .gitignore plus decisions" {
     cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+harness-run-*\n*** Update File: .sage/decisions.md\n@@\n+repo hygiene decision\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"

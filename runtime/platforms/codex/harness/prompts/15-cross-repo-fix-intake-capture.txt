@@ -1,0 +1,8 @@
+You are currently in the primary repository at `__HARNESS_PRIMARY_TARGET__`.
+The correct target repository for this task is `__HARNESS_SECONDARY_TARGET__`.
+
+Capture this finding as a parked Sage fix intake in the target repository only:
+"Sage status mixes Polish and English output in an Alex-native project."
+
+Do not mutate source, runtime, tests, or workflow state in the primary repository.
+Do not implement the fix. Report which repository owns the Sage state and why.
