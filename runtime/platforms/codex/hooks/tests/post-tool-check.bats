@@ -99,7 +99,7 @@ write_decisions() {
 }
 
 decision_entry_count() {
-    grep -c '^### ' "$1" 2>/dev/null || true
+    grep -E -c '^(### [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] |- \[[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\] )' "$1" 2>/dev/null || true
 }
 
 touch_decisions_payload() {
@@ -464,6 +464,28 @@ EOF
     [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions-archive.md")" -eq 1 ]
     grep -q 'Decision 051' "$PROJECT_ROOT/.sage/decisions-archive.md"
     ! grep -q 'Decision 051' "$PROJECT_ROOT/.sage/decisions.md"
+}
+
+@test "post-tool-check.sh: list-format decisions count toward rotation" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage
+    {
+        printf '# Decisions\n\n'
+        i=1
+        while [ "$i" -le 51 ]; do
+            printf -- '- [2026-05-14] List decision %03d\n' "$i"
+            printf 'Body for list decision %03d.\n\n' "$i"
+            i=$((i + 1))
+        done
+    } > .sage/decisions.md
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions.md")" -eq 50 ]
+    [ -f "$PROJECT_ROOT/.sage/decisions-archive.md" ]
+    [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions-archive.md")" -eq 1 ]
+    grep -q 'List decision 051' "$PROJECT_ROOT/.sage/decisions-archive.md"
+    ! grep -q 'List decision 051' "$PROJECT_ROOT/.sage/decisions.md"
 }
 
 @test "post-tool-check.sh: archive rotation preserves headers and prepends overflow newest-first" {

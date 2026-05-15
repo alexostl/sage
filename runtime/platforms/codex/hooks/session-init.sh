@@ -21,6 +21,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/json_log.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/dirty_state.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/decisions_log.sh"
 
 # Read stdin payload (best-effort; never crash session on bad JSON).
 payload=""
@@ -86,10 +88,10 @@ fi
 # Step 4 — last 3 decisions.
 decisions="$project_dir/.sage/decisions.md"
 if [ -f "$decisions" ]; then
-    headers=$(grep -E '^### ' "$decisions" 2>/dev/null | head -3 || true)
-    if [ -n "$headers" ]; then
+    recent_decisions="$(decisions_recent_labels "$decisions" 3)"
+    if [ -n "$recent_decisions" ]; then
         printf '\nRecent decisions:\n'
-        printf '%s\n' "$headers" | sed 's/^### /  - /'
+        printf '%s\n' "$recent_decisions"
     fi
 fi
 

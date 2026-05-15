@@ -155,6 +155,12 @@ resolve_framework() {
 
 resolve_framework
 
+DECISIONS_LOG_LIB="$SAGE_FRAMEWORK/runtime/platforms/codex/hooks/lib/decisions_log.sh"
+if [ -f "$DECISIONS_LOG_LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$DECISIONS_LOG_LIB"
+fi
+
 canonical_dir() {
   local dir="$1"
   [ -d "$dir" ] || return 1
@@ -1613,46 +1619,11 @@ sage_status() {
   local gates_json=""
 
   # ── Last 3 decisions from .sage/decisions.md ──
-  local decisions_json=""
+  local decisions_json="[]"
   if [ -f "$target/.sage/decisions.md" ]; then
-    # Each entry starts with `### YYYY-MM-DD — Title` and ends at the next `### ` or EOF.
-    local tmp
-    tmp="$(mktemp)"
-    awk '
-      /^### / { count++; if (count > 3) exit; print "---ENTRY---"; print; next }
-      count > 0 && count <= 3 { print }
-    ' "$target/.sage/decisions.md" > "$tmp"
-    local block date_str title_str body
-    block=""
-    while IFS= read -r line; do
-      if [ "$line" = "---ENTRY---" ]; then
-        if [ -n "$block" ]; then
-          # Parse first line of block: "### YYYY-MM-DD — Title"
-          date_str="$(echo "$block" | head -1 | awk '{print $2}')"
-          title_str="$(echo "$block" | head -1 | sed 's/^### [0-9-]* — *//')"
-          body="$(echo "$block" | tail -n +2 | sed '/^[[:space:]]*$/d' | head -3)"
-          local entry
-          entry="$(jq -n --arg date "$date_str" --arg title "$title_str" --arg body "$body" \
-            '{date: $date, title: $title, body: $body}')"
-          [ -z "$decisions_json" ] && decisions_json="$entry" || decisions_json="${decisions_json},${entry}"
-        fi
-        block=""
-      else
-        if [ -z "$block" ]; then block="$line"; else block="$block
-$line"; fi
-      fi
-    done < "$tmp"
-    # Last block.
-    if [ -n "$block" ]; then
-      date_str="$(echo "$block" | head -1 | awk '{print $2}')"
-      title_str="$(echo "$block" | head -1 | sed 's/^### [0-9-]* — *//')"
-      body="$(echo "$block" | tail -n +2 | sed '/^[[:space:]]*$/d' | head -3)"
-      local entry
-      entry="$(jq -n --arg date "$date_str" --arg title "$title_str" --arg body "$body" \
-        '{date: $date, title: $title, body: $body}')"
-      [ -z "$decisions_json" ] && decisions_json="$entry" || decisions_json="${decisions_json},${entry}"
+    if command -v decisions_recent_json >/dev/null 2>&1; then
+      decisions_json="$(decisions_recent_json "$target/.sage/decisions.md" 3)"
     fi
-    rm -f "$tmp"
   fi
 
   # ── Health summary: short doctor (just counts) ──
@@ -1682,7 +1653,7 @@ $line"; fi
       --argjson counts_by_status "$counts_by_status" \
       --argjson counts_by_resolution "$counts_by_resolution" \
       --argjson gates "[${gates_json}]" \
-      --argjson decisions "[${decisions_json}]" \
+      --argjson decisions "$decisions_json" \
       --argjson health "{\"pass\":$h_pass,\"warn\":$h_warn,\"fail\":$h_fail}" \
       '{work_index: {cycles: $cycles, counts: {by_status: $counts_by_status, by_resolution: $counts_by_resolution}}, cycles: $cycles, gates: $gates, recent_decisions: $decisions, decisions: $decisions, health: $health}'
     return 0
@@ -1714,10 +1685,10 @@ $line"; fi
   echo ""
 
   echo -e "  ${BOLD}Ostatnie decyzje${RESET}"
-  if [ -z "$decisions_json" ]; then
+  if [ "$decisions_json" = "[]" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${decisions_json}]" | jq -r '.[] | "    • \(.date) — \(.title)"'
+    echo "$decisions_json" | jq -r '.[] | "    • \(.date) — \(.title)"'
   fi
   echo ""
 

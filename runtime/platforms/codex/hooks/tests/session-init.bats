@@ -175,6 +175,31 @@ EOF
     ! echo "$output" | grep -q "Decision A"
 }
 
+@test "session-init.sh: emits list-format decisions.md entries" {
+    cat > "$PROJECT_ROOT/.sage/decisions.md" <<'EOF'
+# Decisions
+
+- [2026-05-15] List Decision C
+Reason C.
+
+- [2026-05-14] List Decision B
+Reason B.
+
+### 2026-05-13 — Heading Decision A
+Reason A.
+
+- [2026-05-12] Hidden List Decision
+Reason hidden.
+EOF
+    payload="$(make_payload "$PROJECT_ROOT")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "List Decision C"
+    echo "$output" | grep -q "List Decision B"
+    echo "$output" | grep -q "Heading Decision A"
+    ! echo "$output" | grep -q "Hidden List Decision"
+}
+
 @test "session-init.sh: missing decisions.md → no crash, exit 0" {
     payload="$(make_payload "$PROJECT_ROOT")"
     run bash -c "echo '$payload' | '$HOOK'"

@@ -285,6 +285,30 @@ EOF
     ! echo "$output" | grep -q 'Decision D'
 }
 
+@test "status: prints list-format recent decisions block" {
+    cat > "$TARGET/.sage/decisions.md" <<'EOF'
+# Decisions
+
+- [2026-05-15] List Decision A
+  First list decision body.
+
+- [2026-05-14] List Decision B
+  Second list decision body.
+
+### 2026-05-13 — Heading Decision C
+Third decision body.
+
+- [2026-05-12] List Decision D
+  Fourth decision body.
+EOF
+    run run_status
+    echo "$output" | grep -qi 'Ostatnie decyzje'
+    echo "$output" | grep -q 'List Decision A'
+    echo "$output" | grep -q 'List Decision B'
+    echo "$output" | grep -q 'Heading Decision C'
+    ! echo "$output" | grep -q 'List Decision D'
+}
+
 @test "status: prints Polish health summary block" {
     seed_cycles
     run run_status
@@ -388,6 +412,32 @@ EOF
     echo "$output" | grep -q 'Current Decision'
     ! echo "$output" | grep -q 'ARCHIVE_SHOULD_NOT_APPEAR'
     ! echo "$output" | grep -q 'RAW_EVIDENCE_SHOULD_NOT_APPEAR'
+}
+
+@test "status --json: includes list-format recent decisions" {
+    seed_status_index_cycles
+    cat > "$TARGET/.sage/decisions.md" <<'EOF'
+# Decisions
+
+- [2026-05-15] JSON List Decision A
+  First list decision body.
+
+- [2026-05-14] JSON List Decision B
+  Second list decision body.
+
+### 2026-05-13 — JSON Heading Decision C
+Third decision body.
+
+- [2026-05-12] JSON List Decision D
+  Fourth decision body.
+EOF
+    run run_status --json
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.decisions | length == 3' >/dev/null
+    echo "$output" | jq -e '.decisions[] | select(.date == "2026-05-15" and .title == "JSON List Decision A")' >/dev/null
+    echo "$output" | jq -e '.decisions[] | select(.date == "2026-05-14" and .title == "JSON List Decision B")' >/dev/null
+    echo "$output" | jq -e '.decisions[] | select(.date == "2026-05-13" and .title == "JSON Heading Decision C")' >/dev/null
+    ! echo "$output" | grep -q 'JSON List Decision D'
 }
 
 # ─── Help mentions status ────────────────────────────────────────────

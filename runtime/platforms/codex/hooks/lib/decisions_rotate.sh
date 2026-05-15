@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # decisions_rotate.sh — bounded `.sage/decisions.md` retention for Codex hooks.
 
+DECISIONS_ROTATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$DECISIONS_ROTATE_DIR/decisions_log.sh"
+
 is_primary_git_checkout() {
     local cwd="$1"
     command -v git >/dev/null 2>&1 || return 1
@@ -20,11 +24,11 @@ decisions_rotate_if_needed() {
     [ "$(sed -n '1p' "$decisions" 2>/dev/null || true)" = "# Decisions" ] || return 0
 
     local count overflow_start
-    count="$(grep -c '^### ' "$decisions" 2>/dev/null || true)"
+    count="$(decisions_entry_count "$decisions")"
     case "$count" in ''|*[!0-9]*) return 0 ;; esac
     [ "$count" -gt 50 ] || return 0
 
-    overflow_start="$(grep -n '^### ' "$decisions" 2>/dev/null | sed -n '51p' | cut -d: -f1)"
+    overflow_start="$(decisions_entry_line_at "$decisions" 51)"
     case "$overflow_start" in ''|*[!0-9]*) return 0 ;; esac
 
     local dir current_tmp overflow_tmp archive_tmp archive_head_tmp archive_body_tmp
@@ -58,7 +62,7 @@ decisions_rotate_if_needed() {
 
     if [ -f "$archive" ]; then
         local first_archive_entry
-        first_archive_entry="$(grep -n '^### ' "$archive" 2>/dev/null | sed -n '1p' | cut -d: -f1)"
+        first_archive_entry="$(decisions_entry_line_at "$archive" 1)"
         if [ -n "$first_archive_entry" ]; then
             sed -n "1,$((first_archive_entry - 1))p" "$archive" > "$archive_head_tmp" || true
             sed -n "${first_archive_entry},\$p" "$archive" > "$archive_body_tmp" || true
