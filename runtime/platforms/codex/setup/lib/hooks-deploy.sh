@@ -27,7 +27,7 @@ _build_hooks_json() {
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": ".codex/hooks/session-init.sh" }
+          { "type": "command", "command": "bash -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); exec \"$root/.codex/hooks/session-init.sh\"'" }
         ]
       }
     ],
@@ -35,7 +35,7 @@ _build_hooks_json() {
       {
         "matcher": "Bash|apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": ".codex/hooks/pre-tool-validate.sh" }
+          { "type": "command", "command": "bash -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); exec \"$root/.codex/hooks/pre-tool-validate.sh\"'" }
         ]
       }
     ],
@@ -43,14 +43,14 @@ _build_hooks_json() {
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": ".codex/hooks/post-tool-check.sh" }
+          { "type": "command", "command": "bash -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); exec \"$root/.codex/hooks/post-tool-check.sh\"'" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": ".codex/hooks/turn-audit.sh" }
+          { "type": "command", "command": "bash -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); exec \"$root/.codex/hooks/turn-audit.sh\"'" }
         ]
       }
     ]

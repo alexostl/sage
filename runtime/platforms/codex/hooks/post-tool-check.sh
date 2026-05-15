@@ -245,8 +245,9 @@ if command -v yq >/dev/null 2>&1; then
 else
     # Note skip per §6.4 step 3 fallback.
     skip_log="$cwd/.sage/.skipped-checks.log"
-    mkdir -p "$(dirname "$skip_log")" 2>/dev/null
-    printf '%s post-tool-check: yq missing, Check C skipped\n' "$ts" >> "$skip_log"
+    line="$(jq -nc --arg ts "$ts" --arg sid "$session_id" \
+        '{kind:"skipped_check", ts:$ts, source:"post-tool-check", cause:"yq_missing", selected_cycle:"", candidate_cycles:[], session_id:$sid, degraded:true}')"
+    json_log_append "$skip_log" "$line"
 fi
 
 exit 0

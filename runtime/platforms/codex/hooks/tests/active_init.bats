@@ -117,7 +117,7 @@ EOF
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260103-newest" ]
     skip_log="$PROJECT_ROOT/.sage/.skipped-checks.log"
     [ -f "$skip_log" ]
-    grep -q "multiple in-progress cycles" "$skip_log"
+    jq -e 'select(.kind == "skipped_check" and .source == "active_init" and .cause == "multiple_in_progress_cycles" and .selected_cycle == "20260103-newest" and .degraded == true)' "$skip_log" >/dev/null
 }
 
 @test "active_init_path: manifest with no status field → skipped silently" {

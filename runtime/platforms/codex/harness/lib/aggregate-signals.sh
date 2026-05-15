@@ -24,6 +24,12 @@ FRAMEWORK_ROOT="${3:?framework root required}"
 incidents_log="$TARGET/.sage/.mcp-incidents.log"
 session_mut_log="$TARGET/.sage/.session-mutations.log"
 scenario_manifest="$FRAMEWORK_ROOT/runtime/platforms/codex/harness/v11-scenarios.json"
+scenario_registry_hash="missing"
+scenario_registry_release_blockers=0
+if [ -f "$scenario_manifest" ]; then
+    scenario_registry_release_blockers="$(jq '[.scenarios[]? | select(.release_blocker == true)] | length' "$scenario_manifest" 2>/dev/null || echo 0)"
+    scenario_registry_hash="$(shasum -a 256 "$scenario_manifest" 2>/dev/null | awk '{print $1}' || echo unknown)"
+fi
 first_state="$(find "$TRANSCRIPTS" -maxdepth 1 -type f -name '*.state.json' | sort | head -1)"
 report_model="unknown"
 report_reasoning="unknown"
@@ -411,6 +417,27 @@ if [ -f "$scenario_manifest" ]; then
     done < <(jq -c '.scenarios[]' "$scenario_manifest")
 fi
 
+global_blockers_json='[]'
+release_debt_json='[]'
+if [ "${signal3_count:-0}" -gt 0 ]; then
+    global_blockers_json="$(jq -c --argjson count "$signal3_count" '. + [{signal:"3_bypass_mutation", count:$count, severity:"critical"}]' <<< "$global_blockers_json")"
+fi
+if [ "${signal7_count:-0}" -gt 0 ]; then
+    global_blockers_json="$(jq -c --argjson count "$signal7_count" '. + [{signal:"7_l1_bypass", count:$count, severity:"critical"}]' <<< "$global_blockers_json")"
+fi
+if [ "${signal4_count:-0}" -gt 0 ]; then
+    global_blockers_json="$(jq -c --argjson count "$signal4_count" '. + [{signal:"4_doctor_s1", count:$count, severity:"warn"}]' <<< "$global_blockers_json")"
+fi
+if [ "$signal5_status" = "TODO" ]; then
+    release_debt_json="$(jq -c --arg note "$signal5_note" '. + [{signal:"5_bash_mutation_leaks", status:"TODO", note:$note}]' <<< "$release_debt_json")"
+fi
+if [ "$signal6b_status" = "TODO" ]; then
+    release_debt_json="$(jq -c --arg note "$signal6b_note" '. + [{signal:"6b_predicate_p95_latency_ms", status:"TODO", note:$note}]' <<< "$release_debt_json")"
+fi
+if [ "${signal6a_loc:-0}" -gt "${signal6a_ceiling:-0}" ]; then
+    release_debt_json="$(jq -c --argjson loc "$signal6a_loc" --argjson ceiling "$signal6a_ceiling" '. + [{signal:"6a_predicate_loc", loc:$loc, ceiling:$ceiling, status:"over_ceiling"}]' <<< "$release_debt_json")"
+fi
+
 # --- Emit aggregate JSON --------------------------------------------
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 codex_version="$(codex --version 2>/dev/null | head -1 || echo unknown)"
@@ -426,6 +453,9 @@ jq -n \
     --arg hook_mode "$report_hook_mode" \
     --arg service_tier "$report_service_tier" \
     --argjson prompts "$report_prompts_json" \
+    --arg scenario_manifest "$scenario_manifest" \
+    --arg scenario_registry_hash "$scenario_registry_hash" \
+    --argjson scenario_registry_release_blockers "$scenario_registry_release_blockers" \
     --argjson s1_count "$signal1_count" \
     --argjson s1_total "$signal1_total_prompts" \
     --argjson s2_count "$signal2_count" \
@@ -446,10 +476,17 @@ jq -n \
     --argjson v11_missing "$v11_missing_release_blockers_json" \
     --argjson v11_scenarios "$v11_scenarios_json" \
     --arg v11_release_rule "$v11_release_rule" \
+    --argjson global_blockers "$global_blockers_json" \
+    --argjson release_debt "$release_debt_json" \
     '{
         ts: $ts,
         codex_version: $codex_version,
         target: $target,
+        scenario_registry: {
+            path: $scenario_manifest,
+            sha256: $scenario_registry_hash,
+            release_blocker_count: $scenario_registry_release_blockers
+        },
         model_profile: {
             model: $model,
             reasoning_effort: $reasoning,
@@ -533,6 +570,19 @@ jq -n \
                 missing: $v11_missing,
                 run_mode: $run_mode,
                 complete: ($run_mode == "full" and $v11_total > 0 and $v11_present == $v11_total),
+                release_confidence: {
+                    complete: (
+                        $run_mode == "full"
+                        and $v11_total > 0
+                        and $v11_present == $v11_total
+                        and ($v11_total == $scenario_registry_release_blockers)
+                        and (($global_blockers | length) == 0)
+                        and (($release_debt | length) == 0)
+                    ),
+                    blockers: $global_blockers,
+                    debt: $release_debt,
+                    rule: "Full release confidence requires a full run against the current scenario registry, all release-blocker transcripts present, zero global safety blockers, and no undeclared TODO/debt signals."
+                },
                 release_rule: $v11_release_rule,
                 scenarios: $v11_scenarios
             }

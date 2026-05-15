@@ -290,7 +290,7 @@ stage_10_sanity_sweep() {
         fi
     fi
 
-    # Check 5: 4 hook scripts executable.
+    # Check 5: 4 hook scripts executable and byte-identical to source.
     local hook
     for hook in session-init pre-tool-validate post-tool-check turn-audit; do
         local p="$TARGET/.codex/hooks/$hook.sh"
@@ -299,7 +299,31 @@ stage_10_sanity_sweep() {
   - hook not executable: .codex/hooks/$hook.sh"
             fail=1
         fi
+        if [ -n "${SAGE_FRAMEWORK:-}" ] && [ -f "$SAGE_FRAMEWORK/runtime/platforms/codex/hooks/$hook.sh" ] && [ -f "$p" ]; then
+            if ! cmp -s "$SAGE_FRAMEWORK/runtime/platforms/codex/hooks/$hook.sh" "$p"; then
+                msg+="
+  - hook drift: .codex/hooks/$hook.sh differs from runtime source"
+                fail=1
+            fi
+        fi
     done
+    if [ -n "${SAGE_FRAMEWORK:-}" ] && [ -d "$SAGE_FRAMEWORK/runtime/platforms/codex/hooks/lib" ]; then
+        local libfile base target_lib
+        for libfile in "$SAGE_FRAMEWORK/runtime/platforms/codex/hooks/lib"/*.sh; do
+            [ -f "$libfile" ] || continue
+            base="$(basename "$libfile")"
+            target_lib="$TARGET/.codex/hooks/lib/$base"
+            if [ ! -f "$target_lib" ]; then
+                msg+="
+  - hook lib missing: .codex/hooks/lib/$base"
+                fail=1
+            elif ! cmp -s "$libfile" "$target_lib"; then
+                msg+="
+  - hook lib drift: .codex/hooks/lib/$base differs from runtime source"
+                fail=1
+            fi
+        done
+    fi
 
     # Check 6 (closes B2): gates scripts executable + count matches preset.
     # Tightened in T1.16: when source preset has gate scripts, target
@@ -369,7 +393,7 @@ stage_10_sanity_sweep() {
     AGENTS.md           ✓ (Rule 1A v1 filesystem variant)
     .codex/config.toml  ✓ (managed block, hooks=true)
     .codex/hooks.json   ✓ (4 events: SessionStart, PreToolUse, PostToolUse, Stop)
-    .codex/hooks/       ✓ (4 hook scripts, mode 0755)
+    .codex/hooks/       ✓ (4 hook scripts + libs, byte-identical to source)
     .agents/skills/     ✓ (${_skill_count} skill loaders)
     .sage/gates/scripts ✓ (${_tgt_gate_count}/${_src_gate_count} gates)
     .sage/constitution  ✓ (preset=${PRESET})

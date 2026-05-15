@@ -44,13 +44,27 @@ fi
 baseline_log="$project_dir/.sage/.session-baseline.log"
 if [ -d "$project_dir/.sage" ]; then
     baseline_files='[]'
+    baseline_cycle_id=""
+    baseline_cycle_candidates='[]'
+    if [ -d "$project_dir/.sage/work" ] && command -v yq >/dev/null 2>&1; then
+        while IFS= read -r manifest; do
+            [ -f "$manifest" ] || continue
+            status="$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null || true)"
+            [ "$status" = "in-progress" ] || continue
+            cycle="$(basename "$(dirname "$manifest")")"
+            baseline_cycle_candidates="$(jq -c --arg cycle "$cycle" '. + [$cycle]' <<< "$baseline_cycle_candidates")"
+        done < <(find "$project_dir/.sage/work" -mindepth 2 -maxdepth 2 -name manifest.md 2>/dev/null | sort)
+        if [ "$(jq 'length' <<< "$baseline_cycle_candidates")" -eq 1 ]; then
+            baseline_cycle_id="$(jq -r '.[0]' <<< "$baseline_cycle_candidates")"
+        fi
+    fi
     while IFS= read -r path; do
         [ -n "$path" ] || continue
         fp="$(dirty_fingerprint "$project_dir" "$path")"
         baseline_files="$(jq -c --arg p "$path" --arg fp "$fp" '. + [{path:$p, fingerprint:$fp}]' <<< "$baseline_files")"
     done < <(dirty_paths "$project_dir")
-    baseline_line="$(jq -nc --arg sid "$session_id" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson files "$baseline_files" \
-        '{kind:"session_baseline", session_id:$sid, ts:$ts, files:$files}')"
+    baseline_line="$(jq -nc --arg sid "$session_id" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg cycle "$baseline_cycle_id" --argjson candidates "$baseline_cycle_candidates" --argjson files "$baseline_files" \
+        '{kind:"session_baseline", session_id:$sid, ts:$ts, cycle_id:$cycle, cycle_candidates:$candidates, files:$files}')"
     json_log_append "$baseline_log" "$baseline_line" 2>/dev/null || true
 fi
 

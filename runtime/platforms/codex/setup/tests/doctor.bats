@@ -62,6 +62,13 @@ run_doctor() {
     [ -f "$TARGET/.sage/.doctor-cursor" ]
 }
 
+@test "doctor: cursor file is JSON with source metadata" {
+    run_doctor >/dev/null 2>&1 || true
+    jq -e '.kind == "doctor_cursor"' "$TARGET/.sage/.doctor-cursor" >/dev/null
+    jq -e '.source == ".sage/.mcp-incidents.log"' "$TARGET/.sage/.doctor-cursor" >/dev/null
+    jq -e '.last_checked_epoch | type == "number"' "$TARGET/.sage/.doctor-cursor" >/dev/null
+}
+
 # ─── E2 — config.toml managed block ──────────────────────────────────
 
 @test "E2 pass: config.toml has SAGE MANAGED BLOCK marker" {
@@ -127,6 +134,18 @@ run_doctor() {
 EOF
     run run_doctor
     echo "$output" | grep -qi 'S1\|incident\|unread'
+}
+
+@test "S1 pass: legacy epoch cursor is still parsed" {
+    mkdir -p "$TARGET/.sage"
+    cat > "$TARGET/.sage/.mcp-incidents.log" <<EOF
+{"ts":"2026-04-30T10:00:00Z","severity":"warn","type":"hook"}
+EOF
+    now="$(date +%s)"
+    echo "$((now + 3600))" > "$TARGET/.sage/.doctor-cursor"
+    run run_doctor
+    echo "$output" | grep -qi 'S1'
+    ! echo "$output" | grep -qi 'incident(s).*since last doctor run'
 }
 
 # ─── S3 — stale active cycles ────────────────────────────────────────

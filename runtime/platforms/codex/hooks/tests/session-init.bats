@@ -260,6 +260,8 @@ EOF
     log="$PROJECT_ROOT/.sage/.session-baseline.log"
     [ -f "$log" ]
     jq -e 'select(.kind == "session_baseline" and .session_id == "test-uuid")' "$log" >/dev/null
+    jq -e 'select(.kind == "session_baseline") | .cycle_id' "$log" >/dev/null
+    jq -e 'select(.kind == "session_baseline") | .cycle_candidates | type == "array"' "$log" >/dev/null
     jq -e 'select(.kind == "session_baseline") | .files[] | select(.path == "tracked.txt" and (.fingerprint | length > 0))' "$log" >/dev/null
     jq -e 'select(.kind == "session_baseline") | .files[] | select(.path == "notes/new.txt" and (.fingerprint | length > 0))' "$log" >/dev/null
 }

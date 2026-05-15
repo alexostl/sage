@@ -56,8 +56,18 @@ active_init_path() {
         mkdir -p "$(dirname "$skip_log")" 2>/dev/null
         local ts
         ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
-        printf '%s active_init: multiple in-progress cycles found, picked newest=%s; all=%s\n' \
-            "$ts" "$newest_path" "$matched_list" >> "$skip_log"
+        if command -v jq >/dev/null 2>&1; then
+            local candidates_json selected_cycle
+            candidates_json="$(printf '%s\n' $matched_list | jq -R 'select(length > 0)' | jq -sc .)"
+            selected_cycle="$(basename "$newest_path")"
+            jq -nc --arg ts "$ts" --arg selected "$selected_cycle" --arg selected_path "$newest_path" \
+                --argjson candidates "$candidates_json" \
+                '{kind:"skipped_check", ts:$ts, source:"active_init", cause:"multiple_in_progress_cycles", selected_cycle:$selected, selected_path:$selected_path, candidate_cycles:$candidates, session_id:"unknown", degraded:true}' \
+                >> "$skip_log"
+        else
+            printf '%s active_init: multiple in-progress cycles found, picked newest=%s; all=%s\n' \
+                "$ts" "$newest_path" "$matched_list" >> "$skip_log"
+        fi
     fi
 
     [ -n "$newest_path" ] && printf '%s\n' "$newest_path"

@@ -114,6 +114,22 @@ run_stage_10() {
     echo "$output" | grep -qi 'hook'
 }
 
+@test "stage10: fails when deployed hook script drifts from source" {
+    build_complete_target
+    echo "# drift" >> "$TARGET/.codex/hooks/pre-tool-validate.sh"
+    run run_stage_10
+    [ "$status" -ne 0 ]
+    echo "$output" | grep -qi 'hook drift'
+}
+
+@test "stage10: fails when deployed hook lib drifts from source" {
+    build_complete_target
+    echo "# drift" >> "$TARGET/.codex/hooks/lib/json_log.sh"
+    run run_stage_10
+    [ "$status" -ne 0 ]
+    echo "$output" | grep -qi 'hook lib drift'
+}
+
 @test "stage10: summary reports hooks=true and not codex_hooks=true" {
     build_complete_target
     run run_stage_10

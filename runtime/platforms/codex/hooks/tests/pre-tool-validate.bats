@@ -1117,6 +1117,7 @@ EOF
     log="$PROJECT_ROOT/.sage/.session-mutations.log"
     line="$(tail -n1 "$log")"
     echo "$line" | jq -e '.' >/dev/null
+    echo "$line" | jq -e '.kind == "session_mutation"' >/dev/null
     echo "$line" | jq -e '.session_id' >/dev/null
     echo "$line" | jq -e '.files | length' >/dev/null
     echo "$line" | jq -e '.ts' >/dev/null
@@ -1133,7 +1134,7 @@ EOF
     [ "$status" -eq 0 ]
     skip_log="$PROJECT_ROOT/.sage/.skipped-checks.log"
     [ -f "$skip_log" ]
-    grep -qi "multiple" "$skip_log"
+    jq -e 'select(.kind == "skipped_check" and .cause == "multiple_in_progress_cycles")' "$skip_log" >/dev/null
 }
 
 @test "pre-tool-validate.sh: jq missing on PATH → exit 2 with install hint" {

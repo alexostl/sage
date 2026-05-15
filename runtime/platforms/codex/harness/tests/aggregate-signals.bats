@@ -246,8 +246,12 @@ write_release_blocker_states() {
     run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
     [ "$status" -eq 0 ]
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == true' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_confidence.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_confidence.debt[] | select(.signal == "5_bash_mutation_leaks")' >/dev/null
     expected="$(release_blocker_count)"
     echo "$output" | jq -e --argjson expected "$expected" '.signals.v11_release_blocker_harness.present == $expected' >/dev/null
+    echo "$output" | jq -e --argjson expected "$expected" '.scenario_registry.release_blocker_count == $expected' >/dev/null
+    echo "$output" | jq -e '.scenario_registry.sha256 | test("^[0-9a-f]{64}$")' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 0' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.real_harness_required_for | index("memory reuse across sessions")' >/dev/null
     echo "$output" | jq -e '.model_profile.model == "gpt-5.4"' >/dev/null
@@ -271,10 +275,29 @@ write_release_blocker_states() {
     expected="$(release_blocker_count)"
     echo "$output" | jq -e --argjson expected "$expected" '.signals.v11_release_blocker_harness.present == $expected' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_confidence.complete == false' >/dev/null
     echo "$output" | jq -e '.signals.v11_release_blocker_harness.run_mode == "targeted"' >/dev/null
     echo "$output" | jq -e '.harness_run.run_mode == "targeted"' >/dev/null
     echo "$output" | jq -e '.harness_run.hook_mode == "off"' >/dev/null
     echo "$output" | jq -e '.harness_run.prompts | length > 0' >/dev/null
+}
+
+@test "aggregate-signals: global safety blocker prevents release confidence" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    for f in "$TRANSCRIPTS"/*.jsonl; do
+        printf '0\n' > "$f.exit"
+    done
+    printf '{"kind":"bypass_mutation","file":"src/unsafe.txt"}\n' > "$TARGET/.sage/.mcp-incidents.log"
+    jq '.incidents = [{"kind":"bypass_mutation","file":"src/unsafe.txt"}]' "$TRANSCRIPTS/03-build-out-of-scope.jsonl.state.json" \
+        > "$TRANSCRIPTS/state.tmp"
+    mv "$TRANSCRIPTS/state.tmp" "$TRANSCRIPTS/03-build-out-of-scope.jsonl.state.json"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_confidence.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.release_confidence.blockers[] | select(.signal == "3_bypass_mutation")' >/dev/null
 }
 
 @test "aggregate-signals: state rubric failures block release blocker completion" {

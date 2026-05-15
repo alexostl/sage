@@ -1231,6 +1231,30 @@ sage_doctor() {
   _doctor_info() {
     echo -e "    ${CYAN}↻${RESET}  $1  $2"
   }
+  _doctor_cursor_epoch() {
+    local cursor_file="$1"
+    local raw
+    [ -f "$cursor_file" ] || { echo 0; return; }
+    raw="$(cat "$cursor_file" 2>/dev/null || true)"
+    if printf '%s' "$raw" | grep -q '^[[:space:]]*{'; then
+      if command -v jq >/dev/null 2>&1; then
+        local epoch
+        epoch="$(printf '%s' "$raw" | jq -r '.last_checked_epoch // empty' 2>/dev/null || true)"
+        case "$epoch" in
+          ''|*[!0-9]*) echo 0 ;;
+          *) echo "$epoch" ;;
+        esac
+        return
+      fi
+      echo 0
+      return
+    fi
+    raw="$(printf '%s' "$raw" | tr -d '[:space:]')"
+    case "$raw" in
+      ''|*[!0-9]*) echo 0 ;;
+      *) echo "$raw" ;;
+    esac
+  }
 
   # ── E1 — Codex CLI present + version ──
   local codex_ver=""
@@ -1335,10 +1359,7 @@ sage_doctor() {
   local cursor_file="$target/.sage/.doctor-cursor"
   if [ -f "$incidents_log" ]; then
     local cursor_ts=0
-    if [ -f "$cursor_file" ]; then
-      cursor_ts="$(cat "$cursor_file" 2>/dev/null | tr -d '[:space:]')"
-      [ -z "$cursor_ts" ] && cursor_ts=0
-    fi
+    cursor_ts="$(_doctor_cursor_epoch "$cursor_file")"
     local log_mtime
     log_mtime="$(stat -c '%Y' "$incidents_log" 2>/dev/null || stat -f '%m' "$incidents_log" 2>/dev/null || echo 0)"
     if [ "$log_mtime" -gt "$cursor_ts" ]; then
@@ -1496,7 +1517,16 @@ sage_doctor() {
 
   # Update doctor cursor (the only file doctor writes).
   mkdir -p "$target/.sage"
-  date +%s > "$target/.sage/.doctor-cursor"
+  cursor_epoch="$(date +%s)"
+  cursor_iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  if command -v jq >/dev/null 2>&1; then
+    jq -nc --arg ts "$cursor_iso" --arg source ".sage/.mcp-incidents.log" --argjson epoch "$cursor_epoch" \
+      '{kind:"doctor_cursor", last_checked_at:$ts, last_checked_epoch:$epoch, source:$source}' \
+      > "$target/.sage/.doctor-cursor"
+  else
+    printf '{"kind":"doctor_cursor","last_checked_at":"%s","last_checked_epoch":%s,"source":".sage/.mcp-incidents.log"}\n' \
+      "$cursor_iso" "$cursor_epoch" > "$target/.sage/.doctor-cursor"
+  fi
 
   [ "$fail_n" -eq 0 ]
 }

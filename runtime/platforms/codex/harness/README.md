@@ -121,6 +121,13 @@ marked complete unless deterministic tests pass and every release-blocker
 scenario has a real Codex transcript from the current harness run with
 `codex exec` exit code `0`.
 
+`complete` means the current release-blocker transcript set is present for the
+selected run. Full release confidence is stricter and lives at
+`signals.v11_release_blocker_harness.release_confidence`: it requires a full
+run against the current scenario registry hash, zero global safety blockers, and
+no undeclared TODO/debt signals. Targeted runs are diagnostic and never satisfy
+full release confidence.
+
 ## Pre-flight
 
 - `codex` ≥ 0.126.0-alpha.15 on PATH
@@ -140,6 +147,11 @@ scenario has a real Codex transcript from the current harness run with
   "ts": "2026-04-30T...",
   "codex_version": "...",
   "target": "/tmp/codex-harness.X/target",
+  "scenario_registry": {
+    "path": ".../v11-scenarios.json",
+    "sha256": "...",
+    "release_blocker_count": 20
+  },
   "model_profile": {
     "model": "gpt-5.4",
     "reasoning_effort": "medium",
@@ -160,7 +172,12 @@ scenario has a real Codex transcript from the current harness run with
       "total": 9,
       "present": 9,
       "missing": [],
-      "complete": true
+      "complete": true,
+      "release_confidence": {
+        "complete": false,
+        "blockers": [],
+        "debt": []
+      }
     }
   }
 }

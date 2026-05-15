@@ -39,6 +39,11 @@ setup() {
     [ "$result" = "session-init.sh" ]
 }
 
+@test "sage-writers.yaml: .skipped-checks.log writers = [active_init, post-tool-check]" {
+    result=$(yq eval '.[".sage/.skipped-checks.log"].writers | join(",")' "$MANIFEST")
+    [ "$result" = "active_init.sh,post-tool-check.sh" ]
+}
+
 @test "sage-writers.yaml: .auto-fixes.log writers = [pre-tool-validate]" {
     result=$(yq eval '.[".sage/.auto-fixes.log"].writers | join(",")' "$MANIFEST")
     [ "$result" = "pre-tool-validate.sh" ]
@@ -56,7 +61,7 @@ setup() {
     [ "$docs" = "agent_via_apply_patch_when_P2_2" ]
 }
 
-@test "sage-writers.yaml: total entries = 9 (v1 contract)" {
+@test "sage-writers.yaml: total entries = 10 (v1 contract)" {
     result=$(yq eval 'keys | length' "$MANIFEST")
-    [ "$result" = "9" ]
+    [ "$result" = "10" ]
 }

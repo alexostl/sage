@@ -45,7 +45,8 @@ run_stage() {
 @test "stage5: SessionStart → session-init.sh" {
     run_stage 5
     cmd="$(jq -r '.hooks.SessionStart[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
-    [ "$cmd" = ".codex/hooks/session-init.sh" ]
+    echo "$cmd" | grep -q 'git rev-parse --show-toplevel'
+    echo "$cmd" | grep -q '.codex/hooks/session-init.sh'
 }
 
 @test "stage5: PreToolUse uses single matcher group for Bash and file edits" {
@@ -54,7 +55,8 @@ run_stage() {
     cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
     count="$(jq '.hooks.PreToolUse | length' "$TARGET/.codex/hooks.json")"
     [ "$matcher" = "Bash|apply_patch|Edit|Write" ]
-    [ "$cmd" = ".codex/hooks/pre-tool-validate.sh" ]
+    echo "$cmd" | grep -q 'git rev-parse --show-toplevel'
+    echo "$cmd" | grep -q '.codex/hooks/pre-tool-validate.sh'
     [ "$count" -eq 1 ]
 }
 
@@ -63,13 +65,15 @@ run_stage() {
     matcher="$(jq -r '.hooks.PostToolUse[0].matcher' "$TARGET/.codex/hooks.json")"
     cmd="$(jq -r '.hooks.PostToolUse[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
     [ "$matcher" = "apply_patch|Edit|Write" ]
-    [ "$cmd" = ".codex/hooks/post-tool-check.sh" ]
+    echo "$cmd" | grep -q 'git rev-parse --show-toplevel'
+    echo "$cmd" | grep -q '.codex/hooks/post-tool-check.sh'
 }
 
 @test "stage5: Stop → turn-audit.sh" {
     run_stage 5
     cmd="$(jq -r '.hooks.Stop[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
-    [ "$cmd" = ".codex/hooks/turn-audit.sh" ]
+    echo "$cmd" | grep -q 'git rev-parse --show-toplevel'
+    echo "$cmd" | grep -q '.codex/hooks/turn-audit.sh'
 }
 
 @test "stage5: re-run with user-edited file → backup written" {
@@ -115,6 +119,17 @@ run_stage() {
         cmp -s "$REPO_ROOT/runtime/platforms/codex/hooks/$h.sh" \
                "$TARGET/.codex/hooks/$h.sh" || {
             echo "MISMATCH: $h.sh"
+            return 1
+        }
+    done
+}
+
+@test "stage6: deployed lib helpers are byte-identical to source" {
+    run_stage 6
+    for src in "$REPO_ROOT/runtime/platforms/codex/hooks/lib"/*.sh; do
+        base="$(basename "$src")"
+        cmp -s "$src" "$TARGET/.codex/hooks/lib/$base" || {
+            echo "MISMATCH: lib/$base"
             return 1
         }
     done

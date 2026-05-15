@@ -215,7 +215,7 @@ if [ "$tool_name" = "Bash" ]; then
         ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         files_json="$(printf '%s\n' "$claimed_path" | jq -R . | jq -sc .)"
         log_line="$(jq -nc --arg sid "$session_id" --arg turn "$turn_id" --arg ts "$ts" --arg cycle "$cycle_id" --argjson files "$files_json" \
-            '{session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files, mutation_kind:"binary_asset"}')"
+            '{kind:"session_mutation", session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files, mutation_kind:"binary_asset"}')"
         json_log_append "$cwd/.sage/.session-mutations.log" "$log_line"
         exit 0
     fi
@@ -818,7 +818,7 @@ fi
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 files_json="$(printf '%s\n' "${claimed_paths[@]}" | jq -R . | jq -sc .)"
 log_line="$(jq -nc --arg sid "$session_id" --arg turn "$turn_id" --arg ts "$ts" --arg cycle "$cycle_id" --arg mutation_kind "$mutation_kind" --argjson files "$files_json" \
-    '{session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files} + (if $mutation_kind == "" then {} else {mutation_kind:$mutation_kind} end)')"
+    '{kind:"session_mutation", session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:$cycle, files:$files} + (if $mutation_kind == "" then {} else {mutation_kind:$mutation_kind} end)')"
 json_log_append "$cwd/.sage/.session-mutations.log" "$log_line"
 
 exit 0

@@ -34,6 +34,11 @@
   writers:
     - session-init.sh
 
+.sage/.skipped-checks.log:
+  writers:
+    - active_init.sh
+    - post-tool-check.sh
+
 .sage/.auto-fixes.log:
   # v1 recovery-first audit: every safe hook auto-fix records the detected
   # state, safety rationale, resulting state, and next legal move.
