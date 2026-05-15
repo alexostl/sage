@@ -158,6 +158,13 @@ Never skip human approval on:
 
 Show the work. Wait for explicit approval. Proceed only when confirmed.
 
+A completion checkpoint is not approval. At completion checkpoint, keep the
+cycle active, for example `status: in-progress` and
+`phase: completion-checkpoint`, while showing verification evidence and asking
+for closeout approval. Only explicit user approval may move the cycle to
+`manifest.status: completed`, and that completed-status update must be the last
+Sage artifact mutation for the closeout.
+
 **Never change scope unilaterally.** The agent MUST NOT:
 - Defer, skip, or deprioritize planned work without asking
 - Mark an initiative as complete when tasks remain unfinished

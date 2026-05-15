@@ -448,12 +448,15 @@ as part of the gate sequence when Task tool is available. See
 
 Review against spec. Check for missed edge cases.
 
-**Closeout order:** Before changing any artifact to `status: completed`, do a
-final self-review and finish required plan, decisions, verification, and handoff
-updates. Treat `manifest.status: completed` as the last Sage artifact mutation
-for the cycle. After closeout, report stage/commit status and ask whether to
-perform local handoff for this cycle's changes; do not ask for `push` by
-default and do not add a post-closeout `.sage` epilogue.
+**Closeout order:** The completion checkpoint is not approval. Before presenting
+it, do a final self-review and finish required verification evidence, plan
+bookkeeping, decisions, and handoff context while keeping the manifest active,
+for example `status: in-progress`, `phase: completion-checkpoint`. Only after
+explicit user closeout approval may the agent mark closeout artifacts complete.
+Treat `manifest.status: completed` as the last Sage artifact mutation for the
+cycle. After closeout, report stage/commit status and ask whether to perform
+local handoff for this cycle's changes; do not ask for `push` by default and do
+not add a post-closeout `.sage` epilogue.
 
 After closeout, use completed manifest-only reconciliation only for obvious
 bookkeeping in that cycle's `manifest.md` while preserving
@@ -471,10 +474,10 @@ defer planned work without the user's explicit decision.
 
 🔒 **CHECKPOINT:**
 
-Sage: Build complete. [summary of what was built]
+Sage: Build ready for completion approval. [summary of what was built]
 Decision: [decision-worthy implementation choices, if any]. (prepend to .sage/decisions.md)
 
-[A] Approve — merge/ship
+[A] Approve closeout — close the Sage cycle locally
 [R] Revise — here's what needs fixing
 [V] Verify — type /review for independent verification
 
@@ -495,6 +498,9 @@ Pick A/R/V, or tell me what to change.
    ontology entities and link them to existing graph. Skip for small
    changes within existing modules — only update when the codebase's
    *navigable structure* changed. Search ontology first to avoid dupes.
+8. Set `manifest.status: completed` as the last Sage artifact mutation.
+9. Report stage/commit status and ask about local git handoff. Do not push
+   unless the user explicitly asks for push.
 
 **Next steps (Zone 3):**
 

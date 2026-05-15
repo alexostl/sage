@@ -393,11 +393,14 @@ advisory but surfaced to the user.
 - [ ] Fix is contained to planned files (no scope creep)
 If ANY fails → go back. Do NOT present the checkpoint.
 
-**Closeout order:** Before marking the cycle completed, finish final self-review,
-decisions, verification notes, plan/manifest bookkeeping, and handoff context.
-Treat `manifest.status: completed` as the last Sage artifact mutation. After
-closeout, report stage/commit status and ask whether to perform local handoff
-for this cycle's changes; do not ask for `push` by default and do not add a
+**Closeout order:** The completion checkpoint is not approval. Before presenting
+it, finish final self-review, decisions, verification notes, plan/manifest
+bookkeeping, and handoff context while keeping the manifest active, for example
+`status: in-progress`, `phase: completion-checkpoint`. Only after explicit user
+closeout approval may the agent mark the cycle completed. Treat
+`manifest.status: completed` as the last Sage artifact mutation. After closeout,
+report stage/commit status and ask whether to perform local handoff for this
+cycle's changes; do not ask for `push` by default and do not add a
 post-closeout `.sage` epilogue.
 
 After closeout, use completed manifest-only reconciliation only for obvious
@@ -405,14 +408,14 @@ bookkeeping in that cycle's `manifest.md` while preserving
 `manifest.status: completed`. A substantive issue found later needs a follow-up
 cycle. Reopen is only for an immediate correction in the same active conversation before handoff.
 
-Sage: Fix verified.
+Sage: Fix ready for completion approval.
 - Root cause: [what was wrong]
 - Scope: [Surgical/Moderate/Systemic]
 - Change: [what was changed, in which files]
 - Tests: [X passed, 0 failed — from actual output]
 Decision: [decision-worthy root cause + fix approach, if any]. (prepend to .sage/decisions.md)
 
-[A] Approve — commit and close
+[A] Approve closeout — close the Sage cycle locally
 [R] Revise — something's not right
 [V] Verify — type /review for independent check
 
@@ -428,12 +431,15 @@ Pick A/R/V, or tell me what to change.
    an interface, check all callers. If you added error handling, verify
    the error path is wired end-to-end. Incomplete wiring is the #1
    cause of fixes that need re-fixing.
-5. **Ontology update (if sage-memory available):** If the fix changed
+5. Set `manifest.status: completed` as the last Sage artifact mutation.
+6. Report stage/commit status and ask about local git handoff. Do not push
+   unless the user explicitly asks for push.
+7. **Ontology update (if sage-memory available):** If the fix changed
    module dependencies or interfaces (e.g., a service now calls a
    different service, a dependency was added/removed), update ontology
    relations. Most Surgical fixes won't need this — only update when
    the codebase's structural relationships changed.
-4. **Next steps (Zone 3):**
+8. **Next steps (Zone 3):**
 
 Next steps:
   /reflect — review what went wrong, prevent recurrence

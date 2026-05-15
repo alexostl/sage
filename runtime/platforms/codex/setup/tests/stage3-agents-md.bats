@@ -283,6 +283,8 @@ EOF
 @test "stage3: generated AGENTS.md contains laconic closeout handoff contract" {
     PRESET=base run_stage3
     grep -q 'Closeout order' "$TARGET/AGENTS.md"
+    grep -q 'completion checkpoint is not approval' "$TARGET/AGENTS.md"
+    grep -q 'keep manifest active until user approves closeout' "$TARGET/AGENTS.md"
     grep -q 'manifest.status completed last' "$TARGET/AGENTS.md"
     grep -q 'stage/commit' "$TARGET/AGENTS.md"
     grep -q 'no default push' "$TARGET/AGENTS.md"
