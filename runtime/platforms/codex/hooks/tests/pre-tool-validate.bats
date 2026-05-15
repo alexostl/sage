@@ -127,6 +127,7 @@ make_cycle_with_scope() {
         printf 'cycle_id: "%s"\n' "$cycle"
         printf 'status: %s\n' "$status"
         printf 'phase: implement\n'
+        [ "$status" = "in-progress" ] && printf 'active_session_id: test-uuid\n'
         printf 'scope:\n'
         local g
         for g in "$@"; do
@@ -148,6 +149,7 @@ make_cycle_with_writable_scope() {
         printf 'cycle_id: "%s"\n' "$cycle"
         printf 'status: %s\n' "$status"
         printf 'phase: implement\n'
+        [ "$status" = "in-progress" ] && printf 'active_session_id: test-uuid\n'
         printf 'scope:\n'
         printf '  writable: ['
         local first=1
@@ -306,7 +308,27 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: placeholder active_session_id current does not lock cycle" {
+@test "pre-tool-validate.sh: active cycle without active_session_id blocks scoped mutation" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+scope:
+  - "src/**"
+---
+EOF
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "unbound active cycle"
+    echo "$output" | grep -q "manifest-only claim/handoff"
+}
+
+@test "pre-tool-validate.sh: placeholder active_session_id current blocks non-claim mutation" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<'EOF'
@@ -322,7 +344,64 @@ EOF
     cmd="$(make_patch_cmd Update AGENTS.md)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "unbound active cycle"
+}
+
+@test "pre-tool-validate.sh: unbound active cycle allows single-file manifest claim" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+scope:
+  - "src/**"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n status: in-progress\n+active_session_id: test-uuid\n phase: implement\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
+    grep -q '"active_cycle_claim_or_handoff"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: unbound active cycle allows single-file manifest handoff parking" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+scope:
+  - "src/**"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: paused\n phase: implement\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: unbound active cycle blocks manifest-only completed closeout" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+scope:
+  - "src/**"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: completed\n phase: implement\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "unbound active cycle"
 }
 
 @test "pre-tool-validate.sh: blocks Moderate+ implementation before plan.md exists" {
@@ -986,6 +1065,7 @@ cycle_id: "20260101-alpha"
 status: in-progress
 phase: implement
 semantic_reclassification: accepted
+active_session_id: test-uuid
 scope:
   - ".gitignore"
   - "tests/**"
@@ -1017,6 +1097,7 @@ EOF
 cycle_id: "20260101-alpha"
 status: in-progress
 phase: design
+active_session_id: test-uuid
 scope:
   - "src/**"
 ---
@@ -1172,6 +1253,7 @@ EOF
 cycle_id: "20260101-alpha"
 status: in-progress
 phase: implement
+active_session_id: test-uuid
 scope:
   - "$PROJECT_ROOT/.sage/work/20260101-alpha/*"
   - "$PROJECT_ROOT/scripts/health-check.sh"
@@ -1193,6 +1275,7 @@ EOF
 cycle_id: "20260101-alpha"
 status: in-progress
 phase: implement
+active_session_id: test-uuid
 scope:
   - "$PROJECT_ROOT/scripts/*"
 ---
@@ -1215,6 +1298,7 @@ EOF
 ---
 cycle_id: "20260101-alpha"
 status: in-progress
+active_session_id: test-uuid
 ---
 EOF
     cmd="$(make_patch_cmd Update "$cycle_dir/spec.md")"
@@ -1232,6 +1316,7 @@ EOF
 ---
 cycle_id: "20260101-alpha"
 status: in-progress
+active_session_id: test-uuid
 scope:
   - "scripts/health-check.sh"
 ---
@@ -1252,6 +1337,7 @@ EOF
 ---
 cycle_id: "20260101-alpha"
 status: in-progress
+active_session_id: test-uuid
 scope:
   - "scripts/health-check.sh"
 ---
@@ -1271,6 +1357,7 @@ EOF
 ---
 cycle_id: "20260101-alpha"
 status: in-progress
+active_session_id: test-uuid
 scope:
   - "scripts/*"
 ---
@@ -1309,6 +1396,7 @@ cycle_id: "20260101-architect"
 workflow: architect
 status: in-progress
 phase: design
+active_session_id: test-uuid
 scope:
   - ".sage/work/20260101-architect/*"
   - ".sage/docs/decision-codex-*.md"
@@ -1340,6 +1428,7 @@ cycle_id: "20260101-architect"
 workflow: architect
 status: in-progress
 phase: design
+active_session_id: test-uuid
 scope:
   - ".sage/work/20260101-architect/*"
 ---
@@ -1366,6 +1455,7 @@ cycle_id: "20260101-architect"
 workflow: architect
 status: in-progress
 phase: design
+active_session_id: test-uuid
 ---
 EOF
     cmd="$(make_patch_cmd Add ".sage/docs/analysis-codex-v11-example.md")"
@@ -1385,6 +1475,7 @@ cycle_id: "20260101-architect"
 workflow: architect
 status: in-progress
 phase: design
+active_session_id: test-uuid
 scope:
   - ".sage/work/20260101-architect/*"
 ---

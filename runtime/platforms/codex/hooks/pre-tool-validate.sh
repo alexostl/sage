@@ -392,7 +392,7 @@ is_placeholder_secret_patch() {
 }
 
 is_surgical_patch() {
-    local path
+    local path resolution resolution_kind
 
     [ "$tool_name" = "apply_patch" ] || return 1
     [ "${#claimed_paths[@]}" -eq 1 ] || return 1
@@ -408,6 +408,9 @@ is_surgical_patch() {
             return 1 ;;
     esac
     is_secret_like_path "$path" && return 1
+    resolution="$(resolve_cycle_for_patch "$cwd" "$path")"
+    resolution_kind="${resolution%%:*}"
+    [ "$resolution_kind" = "active" ] && return 1
     [ "$(patch_changed_line_count)" -le 2 ] || return 1
     patch_contains_real_secret_value && return 1
 
@@ -546,6 +549,33 @@ is_completed_manifest_reconciliation_patch() {
     return 0
 }
 
+is_unbound_active_cycle_claim_patch() {
+    local cycle_id="$1"
+    local current_session_id="$2"
+    local escaped_session_id
+
+    [ "$tool_name" = "apply_patch" ] || return 1
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    [ "${claimed_ops[0]}" = "Update" ] || return 1
+    [ "${claimed_paths[0]}" = ".sage/work/$cycle_id/manifest.md" ] || return 1
+    printf '%s\n' "$cmd" | grep -Fq "*** Update File: .sage/work/$cycle_id/manifest.md" || return 1
+
+    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*completed[[:space:]]*$' >/dev/null; then
+        return 1
+    fi
+
+    escaped_session_id="$(printf '%s' "$current_session_id" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
+    if printf '%s\n' "$cmd" | grep -E "^\+active_session_id:[[:space:]]*\"?$escaped_session_id\"?[[:space:]]*$" >/dev/null; then
+        return 0
+    fi
+    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*paused[[:space:]]*$' >/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
 same_turn_bootstrapped_cycle() {
     local cwd="$1"
     local session_id="$2"
@@ -675,6 +705,15 @@ else
             printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.\n' \
                 "$cycle_id" "$active_session_id" "$session_id" >&2
             exit 2
+        fi
+        if [ -z "$active_session_id" ]; then
+            if is_unbound_active_cycle_claim_patch "$cycle_id" "$session_id"; then
+                mutation_kind="active_cycle_claim_or_handoff"
+            else
+                printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has status in-progress but no real active_session_id. Next legal move: first make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session or parks the cycle as paused; otherwise create a separate follow-up cycle.\n' \
+                    "$cycle_id" >&2
+                exit 2
+            fi
         fi
     fi
     if [ "$resolution_kind" = "parked-capture" ]; then
