@@ -44,6 +44,11 @@ assert_between_contains() {
     assert_contains "core/constitution/sage-process.constitution.md" "Full autonomous implementation"
     assert_contains "core/constitution/sage-process.constitution.md" "jedno pytanie naraz"
     assert_contains "core/constitution/sage-process.constitution.md" "1-3 klikalne linki"
+    assert_contains "core/constitution/sage-process.constitution.md" "(Recommended)"
+    assert_contains "core/constitution/sage-process.constitution.md" "Rekomenduję \\[A\\], bo"
+    assert_contains "core/constitution/sage-process.constitution.md" "maksymalnie trzy zdania"
+    assert_contains "core/constitution/sage-process.constitution.md" "rekomendacja nie jest approvalem"
+    assert_contains "core/constitution/sage-process.constitution.md" "mandatory steps"
 
     assert_contains "core/capabilities/orchestration/sage-navigator/SKILL.md" "Alex-native operating contract"
     assert_contains "core/capabilities/orchestration/sage-navigator/SKILL.md" "jedno pytanie naraz"

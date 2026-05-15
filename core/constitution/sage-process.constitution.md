@@ -26,6 +26,10 @@ This is a conversation contract, not a framework rename.
   inferred.
 - At checkpoints, give a short context sketch plus 1-3 klikalne linki to the
   exact artifact sections that contain the important decisions.
+- At real option gates, mark one recommended option with `(Recommended)` and
+  add a short recommendation after the options, for example
+  `Rekomenduję [A], bo ...`, maksymalnie trzy zdania. Ta rekomendacja nie jest approvalem ani wyborem opcji; mandatory steps zostaja mandatory steps, nie
+  rekomendowanymi wyborami.
 - After an approved plan, offer both `[C] Checkpointed implementation` and
   `[F] Full autonomous implementation`. Full autonomous implementation runs the
   approved scope until verification/close without intermediate checkpoints, but

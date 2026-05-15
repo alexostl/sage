@@ -350,6 +350,13 @@ EOF
     grep -q 'material risk changes the plan' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md carries compact option recommendation reminder" {
+    PRESET=base run_stage3
+    grep -q '(Recommended)' "$TARGET/AGENTS.md"
+    grep -q 'Rekomenduję \[A\], bo' "$TARGET/AGENTS.md"
+    grep -q 'not approval' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md defines decision log policy and archive read policy" {
     PRESET=base run_stage3
     grep -q 'decision log, not a process log' "$TARGET/AGENTS.md"
