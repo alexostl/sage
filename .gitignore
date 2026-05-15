@@ -36,6 +36,7 @@ dist/
 /AGENTS.md
 
 # Sage local/runtime state
+.sage/
 .sage/*.log
 .sage/.auto-fixes.log
 .sage/.mcp-incidents.log

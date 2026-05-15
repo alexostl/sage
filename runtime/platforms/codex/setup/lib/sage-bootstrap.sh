@@ -50,7 +50,8 @@ _HOOK_GITIGNORE_ENTRIES='.sage/.mcp-incidents.log
 .sage/.session-mutations.log
 .sage/.skipped-checks.log
 .sage/.approval-pending
-.sage/.codex-validated-version'
+.sage/.codex-validated-version
+.sage/'
 
 ensure_hook_gitignore() {
     local target="$1"

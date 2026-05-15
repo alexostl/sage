@@ -114,6 +114,7 @@ EOF
     grep -q '^\.sage/\.mcp-incidents\.log$' "$TARGET/.gitignore"
     grep -q '^\.sage/\.session-mutations\.log$' "$TARGET/.gitignore"
     grep -q '^\.sage/\.skipped-checks\.log$' "$TARGET/.gitignore"
+    grep -q '^\.sage/$' "$TARGET/.gitignore"
 }
 
 @test "stage9: BUG-F1-4 — existing .gitignore gets sentinel block appended; user lines preserved" {
@@ -137,6 +138,8 @@ EOF
     count="$(grep -c '^# Sage hook artifacts' "$TARGET/.gitignore" || true)"
     [ "$count" = "1" ]
     count="$(grep -c '^\.sage/\.mcp-incidents\.log$' "$TARGET/.gitignore" || true)"
+    [ "$count" = "1" ]
+    count="$(grep -c '^\.sage/$' "$TARGET/.gitignore" || true)"
     [ "$count" = "1" ]
 }
 
