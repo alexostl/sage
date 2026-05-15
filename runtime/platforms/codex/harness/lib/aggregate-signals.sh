@@ -28,11 +28,27 @@ first_state="$(find "$TRANSCRIPTS" -maxdepth 1 -type f -name '*.state.json' | so
 report_model="unknown"
 report_reasoning="unknown"
 report_target_mode="unknown"
+report_run_mode="full"
+report_hook_mode="unknown"
+report_service_tier="default"
 if [ -n "$first_state" ] && [ -f "$first_state" ]; then
     report_model="$(jq -r '.model // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
     report_reasoning="$(jq -r '.reasoning_effort // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
     report_target_mode="$(jq -r '.target_mode // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
+    report_run_mode="$(jq -r '.run_mode // "full"' "$first_state" 2>/dev/null || echo full)"
+    report_hook_mode="$(jq -r '.hook_mode // "unknown"' "$first_state" 2>/dev/null || echo unknown)"
+    report_service_tier="$(jq -r '.service_tier // "default"' "$first_state" 2>/dev/null || echo default)"
 fi
+if [ -n "${HARNESS_SCENARIOS:-}" ]; then
+    report_run_mode="targeted"
+fi
+report_prompts_json="$(
+    while IFS= read -r state_file; do
+        [ -n "$state_file" ] || continue
+        jq -r '.prompt // empty' "$state_file" 2>/dev/null || true
+    done < <(find "$TRANSCRIPTS" -maxdepth 1 -type f -name '*.state.json' | sort) |
+        jq -R . | jq -sc .
+)"
 
 regex_escape() {
     sed 's/[][(){}.^$*+?|\\]/\\&/g'
@@ -43,6 +59,22 @@ expand_rubric_pattern() {
     local escaped_framework
     escaped_framework="$(printf '%s' "$FRAMEWORK_ROOT" | regex_escape)"
     printf '%s' "${pattern//__FRAMEWORK_ROOT__/$escaped_framework}"
+}
+
+matches_scenario_filter() {
+    local id="${1:?scenario id required}"
+    local prompt="${2:?scenario prompt required}"
+    local base="${prompt%.txt}"
+    local token
+
+    [ -n "${HARNESS_SCENARIOS:-}" ] || return 0
+    while IFS= read -r token; do
+        [ -n "$token" ] || continue
+        if [ "$token" = "$id" ] || [ "$token" = "$prompt" ] || [ "$token" = "$base" ]; then
+            return 0
+        fi
+    done < <(printf '%s\n' "$HARNESS_SCENARIOS" | tr ',' '\n' | tr '[:space:]' '\n')
+    return 1
 }
 
 # --- Signal 1: workflow-entry rate ----------------------------------
@@ -163,28 +195,28 @@ elif [ -d "$TARGET/.git" ]; then
     cd - >/dev/null
 fi
 
-# --- Signal 8: decisions-missing-after-commit -----------------------
-# For each commit that touched .sage/work/*/{spec,plan,manifest}.md
-# (i.e. cycle frontmatter flip), was decisions.md also modified in
-# the same commit OR within 1 commit before/after?
+# --- Signal 8: decisions-missing-after-required-scenario -------------
+# Signal 8 is metadata-driven, not a natural-language classifier. A scenario
+# counts only when v11-scenarios.json explicitly sets
+# `requires_decision_entry: true`. Missing/false means process-only,
+# frontmatter-only, or bookkeeping and is not penalized for omitting a global
+# decisions entry.
 signal8_count=0
 signal8_total_flips=0
-if [ -d "$TARGET/.git" ]; then
-    cd "$TARGET" || exit 0
-    while IFS= read -r commit; do
-        [ -n "$commit" ] || continue
-        # Did this commit touch a cycle frontmatter file?
-        flipped="$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null \
-            | grep -E '^\.sage/work/[^/]+/(spec|plan|manifest)\.md$' || true)"
-        [ -n "$flipped" ] || continue
+if [ -f "$scenario_manifest" ]; then
+    while IFS= read -r row; do
+        [ -n "$row" ] || continue
+        scenario_id="$(printf '%s' "$row" | jq -r '.id // ""')"
+        prompt="$(printf '%s' "$row" | jq -r '.prompt')"
+        matches_scenario_filter "$scenario_id" "$prompt" || continue
+        requires_decision_entry="$(printf '%s' "$row" | jq -r '.requires_decision_entry // false')"
+        [ "$requires_decision_entry" = "true" ] || continue
         signal8_total_flips=$((signal8_total_flips + 1))
-        # Was decisions.md touched in same commit?
-        if ! git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null \
-            | grep -F -q '.sage/decisions.md'; then
+        state_file="$TRANSCRIPTS/${prompt%.txt}.jsonl.state.json"
+        if [ ! -f "$state_file" ] || ! jq -e '.changed_files[]? | select(. == ".sage/decisions.md")' "$state_file" >/dev/null; then
             signal8_count=$((signal8_count + 1))
         fi
-    done < <(git log --format='%H' 2>/dev/null || true)
-    cd - >/dev/null
+    done < <(jq -c '.scenarios[]' "$scenario_manifest")
 fi
 
 # --- v1.1 verification contract -------------------------------------
@@ -197,14 +229,27 @@ v11_missing_release_blockers_json='[]'
 v11_scenarios_json='[]'
 v11_release_rule="v1.1 cannot be marked complete unless deterministic tests pass and every release_blocker scenario has a real Codex transcript from the current harness run with codex exec exit code 0."
 if [ -f "$scenario_manifest" ]; then
-    v11_scenarios_json="$(jq -c '.scenarios' "$scenario_manifest")"
+    if [ -n "${HARNESS_SCENARIOS:-}" ]; then
+        v11_scenarios_json="$(jq -c --arg filter "$HARNESS_SCENARIOS" '
+            ($filter | gsub("[,[:space:]]+"; " ") | split(" ") | map(select(length > 0))) as $tokens
+            | [.scenarios[] | . as $scenario | select(
+                ($tokens | index($scenario.id))
+                or ($tokens | index($scenario.prompt))
+                or ($tokens | index($scenario.prompt | sub("\\.txt$"; "")))
+            )]
+        ' "$scenario_manifest")"
+    else
+        v11_scenarios_json="$(jq -c '.scenarios' "$scenario_manifest")"
+    fi
     v11_release_rule="$(jq -r '.policy.release_rule // empty' "$scenario_manifest")"
     while IFS= read -r row; do
         [ -n "$row" ] || continue
+        scenario_id="$(printf '%s' "$row" | jq -r '.id // ""')"
+        prompt="$(printf '%s' "$row" | jq -r '.prompt')"
+        matches_scenario_filter "$scenario_id" "$prompt" || continue
         is_blocker="$(printf '%s' "$row" | jq -r '.release_blocker // false')"
         [ "$is_blocker" = "true" ] || continue
         v11_total_release_blockers=$((v11_total_release_blockers + 1))
-        prompt="$(printf '%s' "$row" | jq -r '.prompt')"
         base="$TRANSCRIPTS/${prompt%.txt}.jsonl"
         transcript="$base"
         exit_file="$base.exit"
@@ -310,6 +355,10 @@ jq -n \
     --arg model "$report_model" \
     --arg reasoning "$report_reasoning" \
     --arg target_mode "$report_target_mode" \
+    --arg run_mode "$report_run_mode" \
+    --arg hook_mode "$report_hook_mode" \
+    --arg service_tier "$report_service_tier" \
+    --argjson prompts "$report_prompts_json" \
     --argjson s1_count "$signal1_count" \
     --argjson s1_total "$signal1_total_prompts" \
     --argjson s2_count "$signal2_count" \
@@ -338,7 +387,16 @@ jq -n \
             model: $model,
             reasoning_effort: $reasoning,
             target_mode: $target_mode,
+            run_mode: $run_mode,
+            hook_mode: $hook_mode,
+            service_tier: $service_tier,
             forbidden_models: ["gpt-5.5"]
+        },
+        harness_run: {
+            run_mode: $run_mode,
+            hook_mode: $hook_mode,
+            service_tier: $service_tier,
+            prompts: $prompts
         },
         signals: {
             "1_workflow_entry": {
@@ -382,7 +440,7 @@ jq -n \
                 rate: (if $s7_total > 0 then ($s7_count / $s7_total) else 0 end)
             },
             "8_decisions_missing": {
-                description: "Cycle frontmatter flips without same-commit decisions.md update",
+                description: "requires_decision_entry scenarios without .sage/decisions.md in changed_files",
                 count: $s8_count,
                 total: $s8_total,
                 rate: (if $s8_total > 0 then ($s8_count / $s8_total) else 0 end)
@@ -406,7 +464,8 @@ jq -n \
                 total: $v11_total,
                 present: $v11_present,
                 missing: $v11_missing,
-                complete: ($v11_total > 0 and $v11_present == $v11_total),
+                run_mode: $run_mode,
+                complete: ($run_mode == "full" and $v11_total > 0 and $v11_present == $v11_total),
                 release_rule: $v11_release_rule,
                 scenarios: $v11_scenarios
             }

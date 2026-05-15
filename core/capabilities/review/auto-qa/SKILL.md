@@ -187,13 +187,19 @@ Max 2 re-checks. This keeps the loop bounded.
 
 ## Decision Logging
 
-After every auto-QA (any verdict), prepend to `.sage/decisions.md`:
+Auto-QA verdicts are process evidence, not mandatory project decisions. Do not create a global `.sage/decisions.md` entry for every verdict.
+
+Keep the verdict in the nearest QA artifact or checkpoint conversation:
 
 ```
 ### YYYY-MM-DD — Auto-QA: implementation
 Verdict: {PASS|NEEDS FIXES|FAIL}. {findings summary if any}.
 User chose: {R|P|D}. (auto-qa sub-agent)
 ```
+
+Create a `.sage/decisions.md` entry only when the user makes a
+decision-worthy choice that changes scope, risk, project policy, or future
+agent behavior.
 
 ## Enforcement
 

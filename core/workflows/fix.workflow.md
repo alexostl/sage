@@ -400,12 +400,17 @@ closeout, report stage/commit status and ask whether to perform local handoff
 for this cycle's changes; do not ask for `push` by default and do not add a
 post-closeout `.sage` epilogue.
 
+After closeout, use completed manifest-only reconciliation only for obvious
+bookkeeping in that cycle's `manifest.md` while preserving
+`manifest.status: completed`. A substantive issue found later needs a follow-up
+cycle. Reopen is only for an immediate correction in the same active conversation before handoff.
+
 Sage: Fix verified.
 - Root cause: [what was wrong]
 - Scope: [Surgical/Moderate/Systemic]
 - Change: [what was changed, in which files]
 - Tests: [X passed, 0 failed — from actual output]
-Decision: [root cause + fix approach]. (prepend to .sage/decisions.md)
+Decision: [decision-worthy root cause + fix approach, if any]. (prepend to .sage/decisions.md)
 
 [A] Approve — commit and close
 [R] Revise — something's not right
@@ -414,7 +419,8 @@ Decision: [root cause + fix approach]. (prepend to .sage/decisions.md)
 Pick A/R/V, or tell me what to change.
 
 **On approval — Post-Flight (Rule 7):**
-1. Prepend root cause and fix to `.sage/decisions.md`
+1. Prepend root cause and fix to `.sage/decisions.md` only when it is
+   decision-worthy under Rule 7
 2. Update artifact frontmatter if relevant
 3. Store root cause and fix in memory (tagged `self-learning`)
    with WHEN/CHECK/BECAUSE prevention rule

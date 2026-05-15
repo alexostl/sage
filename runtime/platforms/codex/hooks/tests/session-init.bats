@@ -109,6 +109,43 @@ EOF
     ! echo "$output" | grep -q "20260101-done"
 }
 
+@test "session-init.sh: does not emit decisions archive or raw evidence" {
+    make_cycle "20260101-active" "in-progress" "Active" "build" "implement"
+    mkdir -p "$PROJECT_ROOT/.sage/work/20260102-done/evidence"
+    cat > "$PROJECT_ROOT/.sage/work/20260102-done/manifest.md" <<'EOF'
+---
+cycle_id: "20260102-done"
+title: Completed item
+workflow: build
+status: completed
+phase: completed
+---
+EOF
+    cat > "$PROJECT_ROOT/.sage/work/20260102-done/evidence/raw.log" <<'EOF'
+RAW_EVIDENCE_SHOULD_NOT_APPEAR
+EOF
+    cat > "$PROJECT_ROOT/.sage/decisions.md" <<'EOF'
+# Decisions
+
+### 2026-05-14 — Current Decision
+Current context.
+EOF
+    cat > "$PROJECT_ROOT/.sage/decisions-archive.md" <<'EOF'
+# Decisions Archive
+
+### 2026-01-01 — Archived Secret
+ARCHIVE_SHOULD_NOT_APPEAR
+EOF
+    payload="$(make_payload "$PROJECT_ROOT")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "20260101-active"
+    echo "$output" | grep -q "Current Decision"
+    ! echo "$output" | grep -q "20260102-done"
+    ! echo "$output" | grep -q "ARCHIVE_SHOULD_NOT_APPEAR"
+    ! echo "$output" | grep -q "RAW_EVIDENCE_SHOULD_NOT_APPEAR"
+}
+
 @test "session-init.sh: emits last 3 decisions.md entries" {
     cat > "$PROJECT_ROOT/.sage/decisions.md" <<'EOF'
 # Decisions

@@ -21,6 +21,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/active_init.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/artifact_order.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/decisions_rotate.sh"
 
 # Pre-flight: jq required to read payload. yq is optional (Check C
 # degrades). If jq missing, log skip + exit 0 — never block.
@@ -65,6 +67,13 @@ done < <(printf '%s' "$payload" | jq -r '
 ' 2>/dev/null || true)
 
 [ "${#claimed_paths[@]}" -eq 0 ] && exit 0
+
+for p in "${claimed_paths[@]}"; do
+    if [ "$p" = ".sage/decisions.md" ]; then
+        decisions_rotate_if_needed "$cwd" || true
+        break
+    fi
+done
 
 incidents_log="$cwd/.sage/.mcp-incidents.log"
 ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -132,7 +141,7 @@ if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; th
         # other libs write .skipped-checks.log). They show up in porcelain
         # but are NOT agent mutations — surfacing them as unclaimed_change
         # creates self-flagging noise on every turn.
-        case "$path" in .sage/.*.log) continue ;; esac
+        case "$path" in .sage/.*.log|.sage/decisions-archive.md) continue ;; esac
         actual_paths+=("$path")
     done < <(git status --porcelain -uall 2>/dev/null || true)
 fi

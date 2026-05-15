@@ -20,7 +20,7 @@ Per spec §13.2 + plan T2.7 done-criteria:
 | 6a | `predicate_loc` | wired | `pre-tool-validate.sh` LOC vs calibrated v1.1 ceiling |
 | 6b | `predicate_p95_latency` | **STUB** | Per-invocation duration_ms (hooks don't yet log timing) |
 | 7 | `l1_bypass` | wired | Harness state snapshots with `bypass_mutation` incidents |
-| 8 | `decisions_missing` | wired | Cycle frontmatter flips without same-commit decisions.md update |
+| 8 | `decisions_missing` | wired | `requires_decision_entry: true` scenarios without `.sage/decisions.md` in `changed_files` |
 
 7-of-8 wired; 5 + 6b explicitly stubbed with TODO markers (plan
 T2.7 anti-gap rule — declared, not silent).
@@ -39,11 +39,28 @@ The real-agent profile defaults to `HARNESS_MODEL=gpt-5.4`,
 `gpt-5.5` is refused because this harness is intentionally extensive and
 cost-sensitive.
 
+Discovery and targeted runs can narrow the prompt set and hook posture:
+
+```bash
+HARNESS_SCENARIOS=03-build-out-of-scope,11-bug-report-no-fix \
+HARNESS_HOOK_MODE=off \
+runtime/platforms/codex/harness/run-harness.sh
+```
+
+- `HARNESS_SCENARIOS` accepts comma/space-separated scenario ids, prompt
+  basenames, or prompt filenames. If unset, the harness runs every prompt.
+- `HARNESS_HOOK_MODE=on|off` defaults to `on`. `off` disables project-local
+  hooks only inside the isolated generated target repo.
+- `HARNESS_SERVICE_TIER` is unset by default. The harness runs `codex exec` with
+  an isolated temp `CODEX_HOME` so local developer config cannot accidentally
+  force an unsupported or cost-sensitive tier. The temp home copies
+  `~/.codex/auth.json` when present, but does not copy `config.toml`.
+
 The harness:
 1. Creates a fresh `git init` target at `$OUT/target/`
 2. Runs `bin/sage init --platform codex --preset base` on it
-3. Executes every prompt in `prompts/` via `codex exec --json` with the
-   CLI compatibility flags needed to load project-local hooks
+3. Executes the selected prompts via `codex exec --json` with the CLI
+   compatibility flags needed to load project-local hooks in `HARNESS_HOOK_MODE=on`
 4. Captures one JSONL transcript per prompt at `$OUT/transcripts/`
 5. Runs `lib/aggregate-signals.sh` to produce `$OUT/report.json`
 
@@ -88,6 +105,11 @@ Transcript rubrics also support `forbidden_transcript_patterns` for cases where
 the dangerous behavior is a transient write attempt outside the target repo,
 even when final target state looks clean.
 
+Signal 8 is metadata-driven: only scenarios that explicitly set
+`requires_decision_entry: true` require a `.sage/decisions.md` change.
+Missing or `false` means process-only/frontmatter-only/bookkeeping and is not
+classified from natural-language `claim` text.
+
 Harness failures block release claims when the changed behavior depends on
 Codex following the operating model. Harness failures are advisory for
 unrelated text-only changes that do not alter agent/runtime behavior, provided
@@ -107,8 +129,9 @@ scenario has a real Codex transcript from the current harness run with
 - Harness currently passes `--enable codex_hooks` because CLI 0.126 still uses
   the legacy feature gate for hook loading. Generated Desktop config remains on
   `[features].hooks = true`; this harness shim is only for real CLI evidence.
-- Harness also pins `service_tier="fast"` and marks the generated target as
-  trusted so local developer config cannot accidentally disable the run.
+- Harness marks the generated target as trusted and runs with an isolated temp
+  `CODEX_HOME` so local developer config cannot accidentally disable or distort
+  the run.
 
 ## Output schema (`report.json`)
 

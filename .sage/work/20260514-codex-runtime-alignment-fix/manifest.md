@@ -14,11 +14,13 @@ suggested_workflow: fix
 related:
   - ".codex/config.toml"
   - ".codex/hooks.json"
+  - ".codex/hooks/**"
   - "runtime/platforms/codex/setup/lib/config-toml.sh"
   - "runtime/platforms/codex/setup/lib/hooks-deploy.sh"
   - "runtime/platforms/codex/setup/tests/stage4-config-toml.bats"
   - "runtime/platforms/codex/setup/tests/stage5-6-hooks.bats"
   - "runtime/platforms/codex/setup/tests/stage10-tighten.bats"
+  - "runtime/platforms/codex/hooks/**"
   - "runtime/platforms/codex/README.md"
   - "runtime/platforms/codex/harness/README.md"
   - "runtime/platforms/codex/harness/run-harness.sh"
@@ -27,11 +29,13 @@ scope:
   - ".sage/decisions.md"
   - ".codex/config.toml"
   - ".codex/hooks.json"
+  - ".codex/hooks/**"
   - "runtime/platforms/codex/setup/lib/config-toml.sh"
   - "runtime/platforms/codex/setup/lib/hooks-deploy.sh"
   - "runtime/platforms/codex/setup/tests/stage4-config-toml.bats"
   - "runtime/platforms/codex/setup/tests/stage5-6-hooks.bats"
   - "runtime/platforms/codex/setup/tests/stage10-tighten.bats"
+  - "runtime/platforms/codex/hooks/**"
   - "runtime/platforms/codex/README.md"
   - "runtime/platforms/codex/harness/README.md"
   - "runtime/platforms/codex/harness/run-harness.sh"
@@ -63,6 +67,12 @@ sie trzy realne problemy do zamkniecia jednym fixem:
 3. **Active hooks registry sync:** aktywny selfhost `.codex/hooks.json` moze
    dryfowac od generatora, szczegolnie dla matcherow `Bash` oraz
    `Edit|Write`. Potrzebny jest jawny check albo regeneracja surface.
+4. **Deployed hook script drift:** audyt logow z 2026-05-14 pokazal, ze
+   zrodlowe hooki w `runtime/platforms/codex/hooks/` zawieraja poprawki Batcha
+   5 (`.sage/decisions.md` nie jest frontmatter artifact, dirty baseline,
+   dedupe `phase_jump_observed`, `capture_documentation_mutation`), ale aktywne
+   `.codex/hooks/*.sh` w selfhost byly starsze. W praktyce runtime dalej
+   emitowal stare false positives mimo naprawionego source.
 
 ## Desired behavior
 
@@ -73,6 +83,8 @@ sie trzy realne problemy do zamkniecia jednym fixem:
   uruchomiony z repo root czy z podkatalogu.
 - `.codex/hooks.json` dla aktywnego selfhost/project surface jest zgodny z
   generatorem albo test jasno wykrywa drift.
+- Aktywne `.codex/hooks/*.sh` sa zsynchronizowane z source hooks albo
+  diagnostyka jasno pokazuje drift przed interpretacja `.sage/.mcp-incidents.log`.
 
 ## Candidate scope
 
@@ -85,6 +97,8 @@ sie trzy realne problemy do zamkniecia jednym fixem:
   cause potwierdzi, ze relatywne command paths sa realnym ryzykiem.
 - Poprawic selfhost `.codex/hooks.json` albo dodac safe sync/check, jesli jest
   to aktywna powierzchnia, ktora powinna byc zgodna z generatorem.
+- Dodac check porownujacy aktywne `.codex/hooks/*.sh` z source hooks albo
+  upewnic sie, ze `bin/sage update` regeneruje je deterministycznie.
 - Zaktualizowac README/harness notes tak, zeby nie odwracaly decyzji:
   Desktop/project config uzywa `hooks = true`; ewentualny legacy
   `--enable codex_hooks` moze zostac tylko jako wyraznie opisany CLI/harness

@@ -317,7 +317,7 @@ ADRs, and briefs go through the Artifact Router:
 - Initiative deliverables → \`.sage/work/<cycle>/\`
 - Initiative-specific research → \`.sage/work/<cycle>/research/\`
 - Actionable TODOs/backlog → current \`manifest.md\`/\`plan.md\` or a minimal intake cycle
-- Checkpoint decisions → \`.sage/decisions.md\`
+- Checkpoint decision-worthy outcomes → \`.sage/decisions.md\`
 - Agent behavior corrections/learnings → \`.sage-memory/\`
 
 Do not ask the user where to store artifacts. If an actionable finding belongs
@@ -392,8 +392,11 @@ actual output, do not summarize), implementation matches the spec.
 When a learning moment occurs, store it via self-learning before
 proceeding. This is automatic, not optional.
 
-At each checkpoint, **prepend** significant decisions to
-\`.sage/decisions.md\`. Newest first.
+Decision logging policy:
+- \`.sage/decisions.md\` is a decision log, not a process log. Only decision-worthy events go there: accepted root cause/plan/scope, scope expansion, closeout, durable project rule, or user direction changing priority/ownership/risk/future behavior.
+- Auto-review and Auto-QA verdicts are process evidence. Process-only frontmatter, intermediate revisions, pure bookkeeping, and completed-cycle reconciliation do not require decision entries.
+- Keep the 50 newest decisions in \`.sage/decisions.md\`; rotate older entries to \`.sage/decisions-archive.md\` newest first from the primary checkout only. Worktrees may exceed 50 and must not touch archive.
+- Archive read is search-first: use \`rg\`, read fragments; full archive read requires a named reason.
 
 ${const_section}
 

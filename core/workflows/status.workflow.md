@@ -24,7 +24,7 @@ Show current Sage project state. Computed from artifacts — always current.
 
 Scan and display:
 
-1. `.sage/work/` — read frontmatter from artifact files for status and phase
+1. `.sage/work/` — read manifest frontmatter for lifecycle state
 2. `.sage/docs/` — list project-level artifacts
 3. `.sage/decisions.md` — last 3-5 entries for recent context
 4. `.sage/gates/gate-modes.yaml` — current gate activation config
@@ -42,8 +42,8 @@ Paused / intake:
   [initiative-name] [paused, phase] — resumable, not mutation-active
   [initiative-name] [intake] — parked actionable work, no implementation started
 
-Completed:
-  [initiative-name] [completed]
+History:
+  completed/folded/rejected counts only; details are search-first when needed
 
 Docs: [N] files in .sage/docs/
 Recent decisions: [last 2-3 decision titles]
@@ -64,6 +64,14 @@ Gates: [mode config summary]
   approved, but the cycle is not parked.
 - `paused` and `intake` are visible and resumable, but not
   implementation-active for hooks.
+- `work_index` is derived from manifest frontmatter only. It is the lightweight
+  lifecycle layer for status JSON; do not read manifest bodies, raw evidence,
+  transcripts, or archive decisions for ordinary status.
+- Completed/folded/rejected history is count-only in default status. When
+  details are needed, search targeted artifacts with `rg` and read only the
+  matching fragment.
+- `recent_decisions` and `health` are context/diagnostic layers. They do not
+  replace manifest frontmatter as lifecycle source-of-truth.
 - `status` surfaces current active/resumable work and brief next actions.
   `doctor` diagnoses structural inconsistencies such as actionable work placed
   in `.sage/docs/`.

@@ -164,7 +164,7 @@ Save the full design to `.sage/work/YYYYMMDD-slug/spec.md` with frontmatter.
 If ANY fails → go back and create the missing artifact.
 
 Sage: Architecture design saved. ADRs in .sage/docs/decision-*.md
-Decision: [key architecture decisions]. (prepend to .sage/decisions.md)
+Decision: [decision-worthy architecture choices]. (prepend to .sage/decisions.md)
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
     to review ADRs/design; findings are shown and the user decides
@@ -185,7 +185,7 @@ handoff: |
   Risks: [cross-cutting concerns, performance, migration]
   Next agent should: [specific guidance for milestone planning]
 ```
-3. Prepend architecture decisions to decisions.md (Rule 7).
+3. Prepend decision-worthy architecture choices to decisions.md (Rule 7).
 4. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + auto_review ≠ false + user chose
@@ -194,7 +194,8 @@ handoff: |
      Spawn sub-agent with the **ADR / Architectural Spec Review** prompt.
      Pass the ADR path(s) and brief path.
      Present findings inline.
-     Prepend review verdict to decisions.md.
+     Treat the review verdict as process evidence; record only the user's
+     subsequent decision-worthy choice, if any.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
 5. Do not proceed to Step 4 until the user chooses an approval path after
@@ -203,7 +204,7 @@ handoff: |
 **On [S] Skip review:**
 1. Update frontmatter, write handoff, append decisions (same as above).
 2. Announce: "Skipping independent review."
-3. Log to decisions.md: "ADRs approved without auto-review (user chose [S])."
+3. Record the skip only if it is decision-worthy under Rule 7.
 4. Proceed to Step 4.
 
 ## Step 4: Milestone Plan
@@ -231,7 +232,7 @@ Sage: Milestone plan saved to .sage/work/YYYYMMDD-slug/plan.md
 Pick A/S/I/R/N, or tell me what to change.
 
 **On [A] Subagent review:**
-1. Prepend plan approach to decisions.md (Rule 7).
+1. Prepend the plan approach only if it is decision-worthy under Rule 7.
 2. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + auto_review ≠ false + user chose
@@ -240,16 +241,17 @@ Pick A/S/I/R/N, or tell me what to change.
      Spawn sub-agent with the **Plan Review** prompt.
      Pass the plan path and spec path.
      Present findings inline.
-     Prepend review verdict to decisions.md.
+     Treat the review verdict as process evidence; record only the user's
+     subsequent decision-worthy choice, if any.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
 3. Do not proceed until the user chooses an approval path after seeing
    findings.
 
 **On [S] Skip review:**
-1. Prepend plan approach to decisions.md.
+1. Prepend the plan approach only if it is decision-worthy under Rule 7.
 2. Announce: "Skipping independent review."
-3. Log to decisions.md: "Plan approved without auto-review (user chose [S])."
+3. Record the skip only if it is decision-worthy under Rule 7.
 4. Proceed.
 
 **On [I] Revise and Implement in the same turn:**
@@ -290,13 +292,18 @@ Autonomy granted for one milestone does not approve the next milestone. If
 implementation reveals a new ADR/design decision or scope expansion, stop for
 the normal checkpoint before editing the expanded scope.
 
+After milestone closeout, completed manifest-only reconciliation is the only
+bookkeeping exception for a closed cycle. Later substantive errors become a
+follow-up cycle; reopen is limited to an immediate correction in the same active
+conversation before handoff.
+
 Quality gates for each milestone include Gate 8 (Auto-QA) which runs
 automatically as part of the gate sequence when Task tool is available.
 See `quality-gates.workflow.md` for the full sequence including Gate 8.
 
 **At each milestone completion checkpoint:**
 Sage: Milestone [N] complete — [summary]
-Decision: [what was learned during implementation]. (prepend to decisions.md)
+Decision: [decision-worthy implementation learning, if any]. (prepend to decisions.md)
 
 [C] Continue to milestone [N+1]
 [R] Revise — adjust before continuing
@@ -304,7 +311,8 @@ Decision: [what was learned during implementation]. (prepend to decisions.md)
 
 **Re-validate after each milestone:** Check architecture assumptions
 against what implementation revealed. If the architecture needs
-adjustment, note it in decisions.md and update ADRs before proceeding.
+adjustment, note the decision-worthy change in decisions.md and update ADRs
+before proceeding.
 
 ## Quality Criteria
 

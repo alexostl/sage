@@ -337,6 +337,32 @@ is_standalone_repo_hygiene_patch() {
     [ "${claimed_paths[0]}" = ".gitignore" ]
 }
 
+is_completed_manifest_reconciliation_patch() {
+    local cycle_id="$1"
+
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    [ "${claimed_ops[0]}" = "Update" ] || return 1
+    [ "${claimed_paths[0]}" = ".sage/work/$cycle_id/manifest.md" ] || return 1
+
+    # Only apply_patch carries enough patch detail for a safe pre-write status
+    # invariant check. File-change shaped payloads stay blocked for completed
+    # cycles because PreToolUse cannot inspect the future manifest contents.
+    printf '%s\n' "$cmd" | grep -Fq "*** Update File: .sage/work/$cycle_id/manifest.md" || return 1
+
+    # Never allow reopening a completed cycle through this narrow bookkeeping
+    # path. Non-status manifest edits are allowed; any added status must remain
+    # completed.
+    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*' >/dev/null; then
+        printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*completed[[:space:]]*$' >/dev/null || return 1
+    fi
+    if printf '%s\n' "$cmd" | grep -E '^-status:[[:space:]]*completed[[:space:]]*$' >/dev/null; then
+        printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*completed[[:space:]]*$' >/dev/null || return 1
+    fi
+
+    return 0
+}
+
 same_turn_bootstrapped_cycle() {
     local cwd="$1"
     local session_id="$2"
@@ -402,8 +428,12 @@ if [ "$resolution_kind" = "bootstrap" ]; then
     cycle_id="$resolution_value"
 elif [ "$resolution_kind" = "completed" ]; then
     cycle_id="$(basename "$resolution_value")"
-    printf 'Sage: BLOCKING completed cycle mutation. Cycle: %s. This cycle may have been closed before closeout artifacts were finished. Next legal move: ask the user for an explicit reopen/scope decision, or continue stage/commit handoff without mutating closed .sage artifacts. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
-    exit 2
+    if is_completed_manifest_reconciliation_patch "$cycle_id"; then
+        mutation_kind="completed_manifest_reconciliation"
+    else
+        printf 'Sage: BLOCKING completed cycle mutation. Cycle: %s. This cycle may have been closed before closeout artifacts were finished. Next legal move: ask the user for an explicit reopen/scope decision, or continue stage/commit handoff without mutating closed .sage artifacts. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
+        exit 2
+    fi
 elif [ "$resolution_kind" = "none" ]; then
     if is_decisions_only_repo_hygiene_patch; then
         cycle_id=""

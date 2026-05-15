@@ -336,8 +336,8 @@ involves multiple components and design decisions. Starting with a spec
 to define the approach before implementing."
 
 If the user explicitly asks to skip the spec, note the risk and
-proceed — but record the skip and rationale in decisions.md. Don't
-offer to skip proactively.
+proceed — but record the skip and rationale in decisions.md only when it is
+decision-worthy under Rule 7. Don't offer to skip proactively.
 
 **Comprehensive scope + gaps:** Start from understanding. "This is
 significant work. Sage recommends starting from understanding:
@@ -383,7 +383,7 @@ When the user reviews a deliverable. Used at checkpoints.
 
 ```
 Sage: [Deliverable] complete.
-Decision: [key decision]. (prepended to decisions.md)
+Decision: [decision-worthy outcome, if any]. (prepended to decisions.md)
 
 [A] Approve  [R] Revise  [N] New session → /[next] to continue
 
@@ -449,7 +449,7 @@ location:
 - Actionable TODO/backlog outside current scope → minimal intake cycle with
   `needs-triage`, source cycle, suggested workflow, and no implementation
   started
-- Checkpoint decision/verdict → `.sage/decisions.md`
+- Checkpoint decision-worthy outcome → `.sage/decisions.md`
 - Agent behavior correction/self-learning → `.sage-memory/`
 
 This Capture Router is deterministic. Do not ask the user where to store a
@@ -460,12 +460,14 @@ or which active/resumable cycle to work on.
 
 **This step runs at CHECKPOINTS only — not per-task, not per-file.**
 
-**1. Prepend to decisions.md.**
+**1. Prepend to decisions.md only for decision-worthy outcomes.**
 
-If a significant decision was made at this checkpoint, prepend it to
-`.sage/decisions.md` (insert after the `# Decisions` header, before
-existing entries). The decision is typically part of the checkpoint
-output — write it once, prepend to decisions.md. Format:
+`.sage/decisions.md` is a decision log, not a process log. If a significant
+decision was made at this checkpoint, prepend it to `.sage/decisions.md`
+(insert after the `# Decisions` header, before existing entries). Process-only
+verdicts and bookkeeping remain in the nearest artifact or checkpoint
+conversation. The decision is typically part of the checkpoint output — write it
+once, prepend to decisions.md. Format:
 
 ```markdown
 ### YYYY-MM-DD — [Decision title]

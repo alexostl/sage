@@ -83,6 +83,32 @@ make_file_change_payload() {
     }'
 }
 
+write_decisions() {
+    local count="$1"
+    mkdir -p .sage
+    {
+        printf '# Decisions\n\n'
+        local i
+        i=1
+        while [ "$i" -le "$count" ]; do
+            printf '### 2026-05-14 — Decision %03d\n' "$i"
+            printf 'Body for decision %03d.\n\n' "$i"
+            i=$((i + 1))
+        done
+    } > .sage/decisions.md
+}
+
+decision_entry_count() {
+    grep -c '^### ' "$1" 2>/dev/null || true
+}
+
+touch_decisions_payload() {
+    local cwd="${1:-$PROJECT_ROOT}"
+    local cmd
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/decisions.md\n@@\n # Decisions\n*** End Patch\n')"
+    make_payload "$cmd" 0 "$cwd"
+}
+
 @test "post-tool-check.sh: claimed path matches diff → no incident, exit 0" {
     cd "$PROJECT_ROOT"
     echo "modified" >> seed.txt
@@ -397,4 +423,114 @@ EOF
     found_unclaimed_log=0
     [ -f "$log" ] && grep -q '"file":".sage/.session-mutations.log"' "$log" && found_unclaimed_log=1
     [ "$found_unclaimed_log" -eq 0 ]
+}
+
+@test "post-tool-check.sh: exactly 50 decisions does not rotate archive" {
+    cd "$PROJECT_ROOT"
+    write_decisions 50
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions.md")" -eq 50 ]
+    [ ! -f "$PROJECT_ROOT/.sage/decisions-archive.md" ]
+}
+
+@test "post-tool-check.sh: 51 decisions rotates one oldest entry to archive" {
+    cd "$PROJECT_ROOT"
+    write_decisions 51
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions.md")" -eq 50 ]
+    [ -f "$PROJECT_ROOT/.sage/decisions-archive.md" ]
+    [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions-archive.md")" -eq 1 ]
+    grep -q 'Decision 051' "$PROJECT_ROOT/.sage/decisions-archive.md"
+    ! grep -q 'Decision 051' "$PROJECT_ROOT/.sage/decisions.md"
+}
+
+@test "post-tool-check.sh: archive rotation preserves headers and prepends overflow newest-first" {
+    cd "$PROJECT_ROOT"
+    write_decisions 52
+    cat > .sage/decisions-archive.md <<'EOF'
+# Decisions Archive
+
+### 2026-05-01 — Existing archived decision
+Old archive body.
+EOF
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    head -n1 "$PROJECT_ROOT/.sage/decisions.md" | grep -q '^# Decisions$'
+    head -n1 "$PROJECT_ROOT/.sage/decisions-archive.md" | grep -q '^# Decisions Archive$'
+    first_archive_heading="$(grep '^### ' "$PROJECT_ROOT/.sage/decisions-archive.md" | sed -n '1p')"
+    second_archive_heading="$(grep '^### ' "$PROJECT_ROOT/.sage/decisions-archive.md" | sed -n '2p')"
+    third_archive_heading="$(grep '^### ' "$PROJECT_ROOT/.sage/decisions-archive.md" | sed -n '3p')"
+    [ "$first_archive_heading" = "### 2026-05-14 — Decision 051" ]
+    [ "$second_archive_heading" = "### 2026-05-14 — Decision 052" ]
+    [ "$third_archive_heading" = "### 2026-05-01 — Existing archived decision" ]
+}
+
+@test "post-tool-check.sh: linked worktree does not rotate decisions archive" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage
+    printf '# Decisions\n\n' > .sage/decisions.md
+    git add .sage/decisions.md
+    git commit -q -m "seed decisions"
+    WORKTREE_ROOT="$(mktemp -d -t post_tool_worktree.XXXXXX)"
+    rm -rf "$WORKTREE_ROOT"
+    git worktree add -q "$WORKTREE_ROOT"
+    (
+        cd "$WORKTREE_ROOT" || exit 1
+        write_decisions 51
+    )
+    payload="$(touch_decisions_payload "$WORKTREE_ROOT")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    [ "$(decision_entry_count "$WORKTREE_ROOT/.sage/decisions.md")" -eq 51 ]
+    [ ! -f "$WORKTREE_ROOT/.sage/decisions-archive.md" ]
+    git worktree remove -f "$WORKTREE_ROOT" >/dev/null 2>&1 || true
+}
+
+@test "post-tool-check.sh: failed apply_patch response does not rotate decisions" {
+    cd "$PROJECT_ROOT"
+    write_decisions 51
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/decisions.md\n@@\n # Decisions\n*** End Patch\n')"
+    payload="$(make_payload "$cmd" 1)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    [ "$(decision_entry_count "$PROJECT_ROOT/.sage/decisions.md")" -eq 51 ]
+    [ ! -f "$PROJECT_ROOT/.sage/decisions-archive.md" ]
+}
+
+@test "post-tool-check.sh: malformed decisions file fails open without data loss" {
+    cd "$PROJECT_ROOT"
+    mkdir -p .sage
+    cat > .sage/decisions.md <<'EOF'
+This file has no decisions header.
+
+### 2026-05-14 — Decision 001
+Body.
+EOF
+    before="$(cksum < .sage/decisions.md)"
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    after="$(cksum < .sage/decisions.md)"
+    [ "$before" = "$after" ]
+    [ ! -f "$PROJECT_ROOT/.sage/decisions-archive.md" ]
+}
+
+@test "post-tool-check.sh: archive rotation is idempotent" {
+    cd "$PROJECT_ROOT"
+    write_decisions 51
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    first_current="$(cksum < .sage/decisions.md)"
+    first_archive="$(cksum < .sage/decisions-archive.md)"
+    payload="$(touch_decisions_payload)"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    [ "$first_current" = "$(cksum < .sage/decisions.md)" ]
+    [ "$first_archive" = "$(cksum < .sage/decisions-archive.md)" ]
 }

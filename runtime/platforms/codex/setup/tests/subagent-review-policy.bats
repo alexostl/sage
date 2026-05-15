@@ -56,3 +56,13 @@ assert_not_contains() {
     assert_contains "$file" "prevention rules"
     assert_contains "$file" "set/select the current project"
 }
+
+@test "auto-review and auto-QA verdicts are process evidence, not mandatory decisions" {
+    assert_contains "core/capabilities/review/auto-review/SKILL.md" "process evidence"
+    assert_contains "core/capabilities/review/auto-review/SKILL.md" 'Do not create a global `.sage/decisions.md` entry for every verdict'
+    assert_not_contains "core/capabilities/review/auto-review/SKILL.md" 'After every auto-review (any verdict), prepend to `.sage/decisions.md`'
+
+    assert_contains "core/capabilities/review/auto-qa/SKILL.md" "process evidence"
+    assert_contains "core/capabilities/review/auto-qa/SKILL.md" 'Do not create a global `.sage/decisions.md` entry for every verdict'
+    assert_not_contains "core/capabilities/review/auto-qa/SKILL.md" 'After every auto-QA (any verdict), prepend to `.sage/decisions.md`'
+}

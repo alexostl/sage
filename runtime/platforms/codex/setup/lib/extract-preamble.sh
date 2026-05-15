@@ -7,8 +7,9 @@
 #   2. Skip blank lines.
 #   3. Skip optional H1 heading (`# ...`).
 #   4. Skip blank lines.
-#   5. Read until next blank line → that is the preamble paragraph.
-#   6. Truncate output to 300 chars per spec §5 Tier C.
+#   5. Skip the optional generated "Artifact Language Contract" block.
+#   6. Read until next blank line → that is the preamble paragraph.
+#   7. Truncate output to 300 chars per spec §5 Tier C.
 #
 # Usage (sourced or executed):
 #   extract_preamble <path-to-workflow-file>
@@ -27,6 +28,7 @@ extract_preamble() {
         #   start    -> scanning preface; if first non-blank is "---", enter frontmatter
         #   frontmatter -> skip until closing "---", then post-frontmatter
         #   post-frontmatter -> skip blanks; if line is "# ..." skip H1; else go to body
+        #   skip-artifact-contract -> skip generated language-contract boilerplate
         #   body -> accumulate until next blank line; then stop
         state == "start" {
             if ($0 ~ /^---[[:space:]]*$/) { state = "frontmatter"; next }
@@ -45,7 +47,22 @@ extract_preamble() {
         }
         state == "post-h1" {
             if ($0 ~ /^[[:space:]]*$/) { next }
+            if ($0 ~ /^##[[:space:]]+Artifact Language Contract[[:space:]]*$/) {
+                state = "skip-artifact-contract"
+                seen_contract_body = 0
+                next
+            }
             state = "body"
+        }
+        state == "skip-artifact-contract" {
+            if ($0 ~ /^[[:space:]]*$/) {
+                if (seen_contract_body == 1) {
+                    state = "post-h1"
+                }
+                next
+            }
+            seen_contract_body = 1
+            next
         }
         state == "body" {
             if ($0 ~ /^[[:space:]]*$/) { exit }

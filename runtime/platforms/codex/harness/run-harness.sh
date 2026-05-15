@@ -28,6 +28,11 @@ SAGE_BIN="$FRAMEWORK_ROOT/bin/sage"
 # shellcheck source=runtime/platforms/codex/harness/lib/log-parser.sh
 source "$HARNESS_DIR/lib/log-parser.sh"
 
+if [ "${HARNESS_TEST_READ_LOG:-}" = "1" ]; then
+    read_json_or_key_value_log "${1:?log path required}" "${2:-1}"
+    exit 0
+fi
+
 # Pre-flight: tools we need.
 for cmd in jq codex git; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -52,18 +57,122 @@ TRANSCRIPTS="$OUT_DIR/transcripts"
 HARNESS_MODEL="${HARNESS_MODEL:-gpt-5.4}"
 HARNESS_REASONING="${HARNESS_REASONING:-medium}"
 HARNESS_TARGET_MODE="${HARNESS_TARGET_MODE:-dummy-project}"
-mkdir -p "$TARGET" "$TRANSCRIPTS"
+HARNESS_SCENARIOS="${HARNESS_SCENARIOS:-}"
+HARNESS_HOOK_MODE="${HARNESS_HOOK_MODE:-on}"
+HARNESS_SERVICE_TIER="${HARNESS_SERVICE_TIER:-}"
+HARNESS_CODEX_HOME="${HARNESS_CODEX_HOME:-$(mktemp -d -t codex-harness-home.XXXXXX)}"
+SCENARIO_MANIFEST="$HARNESS_DIR/v11-scenarios.json"
+mkdir -p "$TARGET" "$TRANSCRIPTS" "$HARNESS_CODEX_HOME"
+if [ -f "$HOME/.codex/auth.json" ] && [ ! -f "$HARNESS_CODEX_HOME/auth.json" ]; then
+    cp "$HOME/.codex/auth.json" "$HARNESS_CODEX_HOME/auth.json"
+    chmod 0600 "$HARNESS_CODEX_HOME/auth.json" 2>/dev/null || true
+fi
+if [ -f "$HOME/.codex/installation_id" ] && [ ! -f "$HARNESS_CODEX_HOME/installation_id" ]; then
+    cp "$HOME/.codex/installation_id" "$HARNESS_CODEX_HOME/installation_id"
+fi
 
 case "$HARNESS_MODEL" in
     gpt-5.5|*gpt-5.5*)
         echo "ERROR: HARNESS_MODEL must not be gpt-5.5 for this extensive harness." >&2
         exit 2 ;;
 esac
+case "$HARNESS_HOOK_MODE" in
+    on|off) ;;
+    *)
+        echo "ERROR: HARNESS_HOOK_MODE must be one of: on, off" >&2
+        exit 2 ;;
+esac
+
+list_available_prompts() {
+    for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
+        [ -f "$prompt_file" ] || continue
+        basename "$prompt_file" .txt
+    done | sort
+}
+
+resolve_prompt_selector() {
+    local selector="${1:?selector required}"
+    local prompt
+
+    selector="$(printf '%s' "$selector" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    selector="${selector%.txt}"
+    [ -n "$selector" ] || return 1
+
+    if [ -f "$HARNESS_DIR/prompts/$selector.txt" ]; then
+        printf '%s\n' "$HARNESS_DIR/prompts/$selector.txt"
+        return 0
+    fi
+
+    if [ -f "$SCENARIO_MANIFEST" ]; then
+        prompt="$(jq -r --arg id "$selector" '.scenarios[]? | select(.id == $id) | .prompt' "$SCENARIO_MANIFEST" | head -1)"
+        if [ -n "$prompt" ] && [ "$prompt" != "null" ] && [ -f "$HARNESS_DIR/prompts/$prompt" ]; then
+            printf '%s\n' "$HARNESS_DIR/prompts/$prompt"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+append_prompt_file() {
+    local prompt_path="${1:?prompt path required}"
+    local existing
+
+    if [ "${#PROMPT_FILES[@]}" -gt 0 ]; then
+        for existing in "${PROMPT_FILES[@]}"; do
+            [ "$existing" = "$prompt_path" ] && return 0
+        done
+    fi
+    PROMPT_FILES+=("$prompt_path")
+}
+
+declare -a PROMPT_FILES
+if [ -n "$HARNESS_SCENARIOS" ]; then
+    while IFS= read -r raw_selector; do
+        selector="$(printf '%s' "$raw_selector" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+        [ -n "$selector" ] || continue
+        if ! prompt_path="$(resolve_prompt_selector "$selector")"; then
+            echo "ERROR: unknown HARNESS_SCENARIOS selector: $selector" >&2
+            echo "Available scenarios:" >&2
+            list_available_prompts >&2
+            exit 2
+        fi
+        append_prompt_file "$prompt_path"
+    done < <(printf '%s\n' "$HARNESS_SCENARIOS" | tr ',' '\n' | tr '[:space:]' '\n')
+else
+    while IFS= read -r prompt_file; do
+        [ -n "$prompt_file" ] || continue
+        PROMPT_FILES+=("$prompt_file")
+    done < <(find "$HARNESS_DIR/prompts" -maxdepth 1 -type f -name '*.txt' | sort)
+fi
+[ "${#PROMPT_FILES[@]}" -gt 0 ] || {
+    echo "ERROR: no harness prompts selected." >&2
+    exit 2
+}
+if [ -n "$HARNESS_SCENARIOS" ]; then
+    HARNESS_RUN_MODE="targeted"
+else
+    HARNESS_RUN_MODE="full"
+fi
+if [ "${HARNESS_LIST_PROMPTS_ONLY:-}" = "1" ]; then
+    for prompt_file in "${PROMPT_FILES[@]}"; do
+        basename "$prompt_file" .txt
+    done
+    exit 0
+fi
 
 echo "==> Harness output: $OUT_DIR"
 echo "==> Target dir:     $TARGET"
 echo "==> Target mode:    $HARNESS_TARGET_MODE"
 echo "==> Model profile:  $HARNESS_MODEL / reasoning=$HARNESS_REASONING"
+echo "==> Hook mode:      $HARNESS_HOOK_MODE"
+echo "==> Run mode:       $HARNESS_RUN_MODE (${#PROMPT_FILES[@]} prompts)"
+echo "==> Codex home:     $HARNESS_CODEX_HOME"
+if [ -n "$HARNESS_SERVICE_TIER" ]; then
+    echo "==> Service tier:   $HARNESS_SERVICE_TIER"
+else
+    echo "==> Service tier:   unset"
+fi
 
 # --- Step 1: init target -------------------------------------------
 (
@@ -127,6 +236,19 @@ persistence = "save-all"
 EOF
 fi
 
+if [ "$HARNESS_HOOK_MODE" = "off" ]; then
+    echo "==> Disabling project-local hooks inside isolated target..."
+    tmp_config="$(mktemp)"
+    sed 's/^\([[:space:]]*hooks[[:space:]]*=[[:space:]]*\)true[[:space:]]*$/\1false/' \
+        "$TARGET/.codex/config.toml" > "$tmp_config"
+    mv "$tmp_config" "$TARGET/.codex/config.toml"
+    cat > "$TARGET/.codex/hooks.json" <<'EOF'
+{
+  "hooks": {}
+}
+EOF
+fi
+
 # Commit the freshly-initialized framework so commits-during-codex
 # are visible to signal 7 + 8 (otherwise everything looks like one
 # initial commit and signals 7/8 measure nothing).
@@ -138,8 +260,13 @@ fi
 
 # --- Step 2: run codex exec on each prompt -------------------------
 prompt_idx=0
-prompt_total="$(find "$HARNESS_DIR/prompts" -maxdepth 1 -type f -name '*.txt' | wc -l | tr -d ' ')"
-for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
+prompt_total="${#PROMPT_FILES[@]}"
+codex_config_args=(-c "model_reasoning_effort=\"$HARNESS_REASONING\"")
+if [ -n "$HARNESS_SERVICE_TIER" ]; then
+    codex_config_args+=(-c "service_tier=\"$HARNESS_SERVICE_TIER\"")
+fi
+codex_config_args+=(-c "projects.\"$TARGET\".trust_level=\"trusted\"")
+for prompt_file in "${PROMPT_FILES[@]}"; do
     [ -f "$prompt_file" ] || continue
     prompt_idx=$((prompt_idx + 1))
     name="$(basename "$prompt_file" .txt)"
@@ -160,11 +287,14 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
     # --skip-git-repo-check + --ephemeral + --dangerously-bypass-... per
     # ADR-9 / cycle test setup; -C runs in target dir.
     # < /dev/null closes stdin (codex hangs on shell-special chars).
-    if codex exec --json --enable codex_hooks --skip-git-repo-check --ephemeral \
+    if [ "$HARNESS_HOOK_MODE" = "on" ]; then
+        codex_exec_cmd=(codex exec --json --enable codex_hooks)
+    else
+        codex_exec_cmd=(codex exec --json)
+    fi
+    if CODEX_HOME="$HARNESS_CODEX_HOME" "${codex_exec_cmd[@]}" --skip-git-repo-check --ephemeral \
         --dangerously-bypass-approvals-and-sandbox \
-        -m "$HARNESS_MODEL" -c "model_reasoning_effort=\"$HARNESS_REASONING\"" \
-        -c 'service_tier="fast"' \
-        -c "projects.\"$TARGET\".trust_level=\"trusted\"" \
+        -m "$HARNESS_MODEL" "${codex_config_args[@]}" \
         -C "$TARGET" "$prompt_text" > "$out" 2> "$out.stderr" < /dev/null; then
         rc=0
         printf '0\n' > "$out.exit"
@@ -192,6 +322,9 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
         --arg model "$HARNESS_MODEL" \
         --arg reasoning "$HARNESS_REASONING" \
         --arg mode "$HARNESS_TARGET_MODE" \
+        --arg run_mode "$HARNESS_RUN_MODE" \
+        --arg hook_mode "$HARNESS_HOOK_MODE" \
+        --arg service_tier "${HARNESS_SERVICE_TIER:-unset}" \
         --argjson exit_code "$rc" \
         --argjson files "$files_json" \
         --argjson manifests "$manifests_json" \
@@ -199,7 +332,7 @@ for prompt_file in "$HARNESS_DIR"/prompts/*.txt; do
         --argjson changed_files "$changed_files_json" \
         --argjson incidents "$incidents_json" \
         --argjson auto_fixes "$auto_fixes_json" \
-        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
+        '{prompt:$prompt, model:$model, reasoning_effort:$reasoning, target_mode:$mode, run_mode:$run_mode, hook_mode:$hook_mode, service_tier:$service_tier, exit_code:$exit_code, files:$files, manifests:$manifests, new_manifests:$new_manifests, changed_files:$changed_files, incidents:$incidents, auto_fixes:$auto_fixes}' \
         > "$out.state.json"
 
     # Commit each session's porcelain so the NEXT session's Stop hook

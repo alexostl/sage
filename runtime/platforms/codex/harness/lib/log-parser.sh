@@ -29,9 +29,9 @@ read_json_or_key_value_log() {
             severity = ""
         }
         function severity_from_heading(heading) {
-            if (match(heading, /severity:[[:space:]]*[^[:space:]]+/)) {
+            if (match(heading, /severity[:=][[:space:]]*[^[:space:]]+/)) {
                 value = substr(heading, RSTART, RLENGTH)
-                sub(/^severity:[[:space:]]*/, "", value)
+                sub(/^severity[:=][[:space:]]*/, "", value)
                 return value
             }
             return ""
@@ -40,18 +40,31 @@ read_json_or_key_value_log() {
             is_auto_fix_log = (file ~ /(^|\/)\.auto-fixes\.log$/)
         }
         {
+            normalized = tolower($0)
+            if (is_auto_fix_log && normalized ~ /(^|[[:space:]])(type|kind)=safe[-_]auto[-_]fix($|[[:space:]])/) {
+                emit_entry()
+                kind = "safe_auto_fix"
+                severity = severity_from_heading(normalized)
+                next
+            }
+            if (is_auto_fix_log && $0 ~ /^-[[:space:]]+[0-9][0-9][0-9][0-9]([- ][0-9]|$)/) {
+                emit_entry()
+                kind = "safe_auto_fix"
+                severity = severity_from_heading(normalized)
+                next
+            }
             if ($0 ~ /^#{2,6}[[:space:]]+/) {
                 emit_entry()
-                heading = tolower($0)
+                heading = normalized
                 if (is_auto_fix_log || heading ~ /safe/ || heading ~ /auto-fix/ || heading ~ /scope repair/) {
                     kind = "safe_auto_fix"
                     severity = severity_from_heading(heading)
                 }
                 next
             }
-            if (kind != "" && $0 ~ /^Severity:/) {
-                severity = $0
-                sub(/^Severity:[[:space:]]*/, "", severity)
+            if (kind != "" && normalized ~ /^-?[[:space:]]*severity[:=]/) {
+                severity = normalized
+                sub(/^-?[[:space:]]*severity[:=][[:space:]]*/, "", severity)
                 next
             }
             pipe_kind = ""
@@ -60,6 +73,9 @@ read_json_or_key_value_log() {
                 part = trim($i)
                 if (part ~ /^kind=/) {
                     pipe_kind = substr(part, 6)
+                    if (pipe_kind == "safe-auto-fix") {
+                        pipe_kind = "safe_auto_fix"
+                    }
                 }
                 if (part ~ /^severity=/) {
                     pipe_severity = substr(part, 10)

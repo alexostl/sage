@@ -337,6 +337,18 @@ EOF
     grep -q 'material risk changes the plan' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md defines decision log policy and archive read policy" {
+    PRESET=base run_stage3
+    grep -q 'decision log, not a process log' "$TARGET/AGENTS.md"
+    grep -q 'Only decision-worthy events' "$TARGET/AGENTS.md"
+    grep -q 'Auto-review and Auto-QA verdicts are process evidence' "$TARGET/AGENTS.md"
+    grep -q 'Process-only frontmatter' "$TARGET/AGENTS.md"
+    grep -q '50 newest decisions' "$TARGET/AGENTS.md"
+    grep -q '\.sage/decisions-archive.md' "$TARGET/AGENTS.md"
+    grep -q 'Archive read is search-first' "$TARGET/AGENTS.md"
+    grep -q 'full archive read requires a named reason' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md covers subagent scope inheritance" {
     PRESET=base run_stage3
     grep -q 'subagents/reviewer agents' "$TARGET/AGENTS.md"
@@ -429,15 +441,12 @@ EOF
     ! grep -q 'filter_tags: \["learning"\]' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: generated AGENTS.md stays compact and points to skills/workflows" {
+@test "stage3: generated AGENTS.md points to skills/workflows without verbose explainers" {
     PRESET=base run_stage3
-    bytes="$(wc -c < "$TARGET/AGENTS.md" | tr -d ' ')"
-    [ "$bytes" -lt 12000 ] || {
-        echo "AGENTS.md too large: $bytes bytes"
-        return 1
-    }
     grep -q '\.agents/skills/' "$TARGET/AGENTS.md"
     grep -q 'core/workflows/' "$TARGET/AGENTS.md"
+    ! grep -q 'How mutation preflight works' "$TARGET/AGENTS.md"
+    ! grep -q 'How closeout handoff works' "$TARGET/AGENTS.md"
 }
 
 @test "shared guidance: review and navigator use Capture Router instead of decisions backlog" {

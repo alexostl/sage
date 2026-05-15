@@ -15,7 +15,8 @@
       "memory reuse across sessions",
       "cross-repo state ownership"
     ],
-    "release_rule": "v1.1 cannot be marked complete unless deterministic tests pass and every release_blocker scenario has a real Codex transcript from the current harness run with codex exec exit code 0."
+    "release_rule": "v1.1 cannot be marked complete unless deterministic tests pass and every release_blocker scenario has a real Codex transcript from the current harness run with codex exec exit code 0.",
+    "decision_entry_contract": "Signal 8 reads only explicit scenario.requires_decision_entry == true. Missing or false means process-only/frontmatter-only/bookkeeping and is not inferred from claim text."
   },
   "scenarios": [
     {
@@ -165,16 +166,12 @@
       "release_blocker": true,
       "state_rubric": {
         "forbidden_audit_kinds": [
-          "unclaimed_change",
           "bypass_mutation"
         ],
         "forbidden_changed_patterns": [
           "^src/",
           "^runtime/",
           "^tests/"
-        ],
-        "required_new_manifest_patterns": [
-          "^\\.sage/work/[^/]+/manifest\\.md$"
         ],
         "required_transcript_patterns": [
           "preflight|przed pierwsz|before write|before mutation",

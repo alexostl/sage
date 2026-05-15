@@ -168,7 +168,7 @@ Starting with [first required step].
 
 If the user explicitly asks to skip a required step, write a minimal
 5-line spec anyway (WHAT, WHY, HOW, DONE-WHEN), present [A]/[R], and
-record the skip rationale in decisions.md.
+record the skip rationale only if it is decision-worthy under Rule 7.
 
 ## Step 3: Brief (Standard with unclear scope, or Comprehensive)
 
@@ -203,7 +203,7 @@ updated: YYYY-MM-DD
 🔒 **CHECKPOINT:**
 
 Sage: Brief saved to .sage/work/YYYYMMDD-slug/brief.md
-Decision: [key scope decisions]. (prepend to .sage/decisions.md)
+Decision: [decision-worthy scope choices, if any]. (prepend to .sage/decisions.md)
 
 [A] Approve — continue to spec in this session
 [R] Revise — tell me what to change
@@ -212,7 +212,7 @@ Decision: [key scope decisions]. (prepend to .sage/decisions.md)
 Pick A/R/N, or tell me what to change.
 
 On approval: update brief frontmatter to `status: completed`.
-Prepend decision to decisions.md (Rule 7).
+Prepend only decision-worthy choices to decisions.md (Rule 7).
 
 ## Step 4: Spec
 
@@ -237,7 +237,7 @@ updated: YYYY-MM-DD
 
 🔒 **CHECKPOINT:**
 Sage: Spec saved to .sage/work/YYYYMMDD-slug/spec.md
-Decision: [key technical decisions]. (prepend to .sage/decisions.md)
+Decision: [decision-worthy technical choices, if any]. (prepend to .sage/decisions.md)
 
 [A] Subagent review — explicitly authorize Codex to spawn a read-only subagent
     to review the spec; findings are shown and the user decides
@@ -259,7 +259,7 @@ handoff: |
   Risks: [what to watch for during implementation]
   Next agent should: [specific guidance for planning phase]
 ```
-3. Prepend decision to decisions.md (Rule 7).
+3. Prepend decision-worthy spec choices to decisions.md (Rule 7).
 4. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + Standard+ scope +
@@ -269,7 +269,8 @@ handoff: |
      Spawn sub-agent with the **Spec Review** prompt.
      Pass the spec path and decisions.md path.
      Present findings inline (see capability for format).
-     Prepend review verdict to decisions.md.
+     Treat the review verdict as process evidence; record only the user's
+     subsequent decision-worthy choice, if any.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
 5. Do not proceed to Step 5 until the user chooses an approval or
@@ -278,7 +279,7 @@ handoff: |
 **On [S] Skip review:**
 1. Update spec frontmatter, write handoff, append decision (same as above).
 2. Announce: "Skipping independent review."
-3. Log to decisions.md: "Spec approved without auto-review (user chose [S])."
+3. Record the skip only if it is decision-worthy under Rule 7.
 4. Proceed to Step 5.
 
 **On [C] Continue autonomously:**
@@ -329,7 +330,7 @@ Sage: Plan saved to .sage/work/YYYYMMDD-slug/plan.md
 Pick A/S/C/F/I/R/N, or tell me what to change.
 
 **On [A] Subagent review:**
-1. Prepend plan approach to decisions.md (Rule 7).
+1. Prepend the plan approach only if it is decision-worthy under Rule 7.
 2. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
    If conditions met (Task tool available + Standard+ scope +
@@ -339,7 +340,8 @@ Pick A/S/C/F/I/R/N, or tell me what to change.
      Spawn sub-agent with the **Plan Review** prompt.
      Pass the plan path and spec path.
      Present findings inline.
-     Prepend review verdict to decisions.md.
+     Treat the review verdict as process evidence; record only the user's
+     subsequent decision-worthy choice, if any.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
 3. Update `manifest.md` BEFORE Step 6:
@@ -352,9 +354,9 @@ Pick A/S/C/F/I/R/N, or tell me what to change.
    autonomous-implementation path after seeing findings.
 
 **On [S] Skip review:**
-1. Prepend plan approach to decisions.md.
+1. Prepend the plan approach only if it is decision-worthy under Rule 7.
 2. Announce: "Skipping independent review."
-3. Log to decisions.md: "Plan approved without auto-review (user chose [S])."
+3. Record the skip only if it is decision-worthy under Rule 7.
 4. Update `manifest.md` BEFORE Step 6:
    - Set phase to `implement`.
    - Add a `scope:` list containing every file or glob the approved plan
@@ -453,6 +455,11 @@ for the cycle. After closeout, report stage/commit status and ask whether to
 perform local handoff for this cycle's changes; do not ask for `push` by
 default and do not add a post-closeout `.sage` epilogue.
 
+After closeout, use completed manifest-only reconciliation only for obvious
+bookkeeping in that cycle's `manifest.md` while preserving
+`manifest.status: completed`. A substantive issue found later needs a follow-up
+cycle. Reopen is only for an immediate correction in the same active conversation before handoff.
+
 **Anti-deferral guard:** Before presenting the completion checkpoint,
 verify ALL plan tasks are addressed. If any tasks remain incomplete,
 do NOT present "Build complete." Instead:
@@ -465,7 +472,7 @@ defer planned work without the user's explicit decision.
 🔒 **CHECKPOINT:**
 
 Sage: Build complete. [summary of what was built]
-Decision: [key implementation decisions]. (prepend to .sage/decisions.md)
+Decision: [decision-worthy implementation choices, if any]. (prepend to .sage/decisions.md)
 
 [A] Approve — merge/ship
 [R] Revise — here's what needs fixing
@@ -476,7 +483,8 @@ Pick A/R/V, or tell me what to change.
 **On approval — checkpoint state (Rule 7):**
 1. Walk through plan.md and check completed tasks in bulk
 2. Update plan.md frontmatter: `status: completed`
-3. Prepend completion summary to `.sage/decisions.md`
+3. Prepend completion summary to `.sage/decisions.md` only when the closeout
+   contains a decision-worthy outcome
 4. Write `handoff` field in plan.md frontmatter with key decisions,
    open questions, and risks for the next agent
 5. Store key findings in memory if sage-memory available
@@ -527,6 +535,6 @@ Before presenting completed work, check each criterion above. Also:
 - Checkpoints mandatory (Rule 4). Present [A]/[R] and wait.
 - Verify with evidence (Rule 5). Paste actual test output.
 - Capture corrections (Rule 6). Store as self-learning.
-- Record decisions at checkpoints (Rule 7). Prepend to decisions.md.
+- Record decision-worthy decisions at checkpoints (Rule 7). Prepend to decisions.md.
 - Stay in scope — note improvements, don't add them.
 - If stuck, use problem-solving skill. Don't retry the same approach.

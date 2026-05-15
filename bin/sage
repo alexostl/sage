@@ -1498,6 +1498,28 @@ sage_doctor() {
 # ═══════════════════════════════════════════════════════════════
 # COMMAND: status (disk-direct, no MCP — per spec §7.3 + ADR-9 v1)
 # ═══════════════════════════════════════════════════════════════
+# Read one scalar from YAML frontmatter. Falls back to flat YAML manifests for
+# older artifacts, but delimited frontmatter never scans the markdown body.
+status_manifest_field() {
+  local file="$1"
+  local key="$2"
+  awk -v key="$key" '
+    BEGIN { in_yaml = 0; delimited = 0; pattern = "^" key ":[[:space:]]*" }
+    NR == 1 && $0 == "---" { in_yaml = 1; delimited = 1; next }
+    delimited && in_yaml && $0 == "---" { exit }
+    !delimited { in_yaml = 1 }
+    in_yaml && $0 ~ pattern {
+      sub(pattern, "")
+      sub(/^[[:space:]]*/, "")
+      sub(/[[:space:]]*$/, "")
+      gsub(/^"|"$/, "")
+      gsub(/^'\''|'\''$/, "")
+      print
+      exit
+    }
+  ' "$file"
+}
+
 # Plain text by default; --json for scriptable form.
 # 4 blocks: active cycles | pending gates | recent decisions | health.
 sage_status() {
@@ -1524,31 +1546,49 @@ sage_status() {
   fi
 
   # ── Read cycles from .sage/work/<id>/manifest.md ──
-  # Each cycle: id (dir name) + frontmatter (title, workflow, phase, status, updated).
+  # Each cycle is derived from manifest frontmatter only.
   local cycles_json=""
   local active_cycles_json=""
   local parked_cycles_json=""
+  local counts_by_status="{}"
+  local counts_by_resolution="{}"
   local cycle
   while IFS= read -r -d '' cycle; do
     local manifest="$cycle/manifest.md"
     [ -f "$manifest" ] || continue
-    local id title workflow phase status updated
+    local id cycle_id title workflow phase status priority owner updated resolution folded_into active_session_id
     id="$(basename "$cycle")"
-    title="$(awk -F': *' '/^title:/{sub(/^title: */,""); gsub(/^"|"$/,""); print; exit}' "$manifest")"
-    workflow="$(awk -F': *' '/^workflow:/{sub(/^workflow: */,""); print; exit}' "$manifest")"
-    phase="$(awk -F': *' '/^phase:/{sub(/^phase: */,""); print; exit}' "$manifest")"
-    status="$(awk -F': *' '/^status:/{sub(/^status: */,""); print; exit}' "$manifest")"
-    updated="$(awk -F': *' '/^updated:/{sub(/^updated: */,""); print; exit}' "$manifest")"
+    cycle_id="$(status_manifest_field "$manifest" cycle_id)"
+    title="$(status_manifest_field "$manifest" title)"
+    workflow="$(status_manifest_field "$manifest" workflow)"
+    phase="$(status_manifest_field "$manifest" phase)"
+    status="$(status_manifest_field "$manifest" status)"
+    priority="$(status_manifest_field "$manifest" priority)"
+    owner="$(status_manifest_field "$manifest" owner)"
+    updated="$(status_manifest_field "$manifest" updated)"
+    resolution="$(status_manifest_field "$manifest" resolution)"
+    folded_into="$(status_manifest_field "$manifest" folded_into)"
+    active_session_id="$(status_manifest_field "$manifest" active_session_id)"
+    [ -n "$cycle_id" ] || cycle_id="$id"
     case "$status" in
-      in-progress|in_progress|active|"") status="${status:-in-progress}" ;;
-      paused|intake) ;;
+      "") status="in-progress" ;;
+    esac
+    counts_by_status="$(jq -c --arg status "$status" '.[$status] = (.[$status] // 0) + 1' <<< "$counts_by_status")"
+    if [ -n "$resolution" ]; then
+      counts_by_resolution="$(jq -c --arg resolution "$resolution" '.[$resolution] = (.[$resolution] // 0) + 1' <<< "$counts_by_resolution")"
+    fi
+    case "$status" in
+      in-progress|in_progress|active|paused|intake) ;;
       *) continue ;;
     esac
     local entry
     entry="$(jq -n \
-      --arg id "$id" --arg title "$title" --arg workflow "$workflow" \
-      --arg phase "$phase" --arg status "$status" --arg updated "$updated" \
-      '{id: $id, title: $title, workflow: $workflow, phase: $phase, status: $status, updated: $updated}')"
+      --arg id "$id" --arg cycle_id "$cycle_id" --arg title "$title" \
+      --arg workflow "$workflow" --arg phase "$phase" --arg status "$status" \
+      --arg priority "$priority" --arg owner "$owner" --arg updated "$updated" \
+      --arg resolution "$resolution" --arg folded_into "$folded_into" \
+      --arg active_session_id "$active_session_id" \
+      '{id: $id, cycle_id: $cycle_id, title: $title, workflow: $workflow, phase: $phase, status: $status, priority: $priority, owner: $owner, updated: $updated, resolution: $resolution, folded_into: $folded_into, active_session_id: $active_session_id}')"
     if [ -z "$cycles_json" ]; then
       cycles_json="$entry"
     else
@@ -1639,10 +1679,12 @@ $line"; fi
   if [ "$json_mode" -eq 1 ]; then
     jq -n \
       --argjson cycles "[${cycles_json}]" \
+      --argjson counts_by_status "$counts_by_status" \
+      --argjson counts_by_resolution "$counts_by_resolution" \
       --argjson gates "[${gates_json}]" \
       --argjson decisions "[${decisions_json}]" \
       --argjson health "{\"pass\":$h_pass,\"warn\":$h_warn,\"fail\":$h_fail}" \
-      '{cycles: $cycles, gates: $gates, decisions: $decisions, health: $health}'
+      '{work_index: {cycles: $cycles, counts: {by_status: $counts_by_status, by_resolution: $counts_by_resolution}}, cycles: $cycles, gates: $gates, recent_decisions: $decisions, decisions: $decisions, health: $health}'
     return 0
   fi
 

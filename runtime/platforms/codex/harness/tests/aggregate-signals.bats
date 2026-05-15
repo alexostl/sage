@@ -100,8 +100,7 @@ write_release_blocker_states() {
                 06-action-creates-or-resumes-manifest.txt)
                     changed_files='[".sage/work/20260507-harness-action/manifest.md"]' ;;
                 13-mutation-preflight-lightweight.txt)
-                    changed_files='[".sage/work/20260513-preflight-note/manifest.md"]'
-                    new_manifests='[".sage/work/20260513-preflight-note/manifest.md"]' ;;
+                    changed_files='[".sage/.session-baseline.log"]' ;;
                 08-safe-autofix-metadata.txt)
                     auto_fixes='[{"kind":"safe_auto_fix"}]' ;;
             esac
@@ -121,6 +120,22 @@ write_release_blocker_states() {
             }' > "$base.state.json"
             unset new_manifests
         done
+}
+
+@test "aggregate-signals: scenario filter evaluates only selected release blockers" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    printf '0\n' > "$TRANSCRIPTS/08-safe-autofix-metadata.jsonl.exit"
+    printf '0\n' > "$TRANSCRIPTS/13-mutation-preflight-lightweight.jsonl.exit"
+
+    run env HARNESS_SCENARIOS="08-safe-autofix-metadata,13-mutation-preflight-lightweight" "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.total == 2' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.present == 2' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.missing | length == 0' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.run_mode == "targeted"' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.scenarios | length == 2' >/dev/null
 }
 
 @test "aggregate-signals: v1.1 release blocker signal reports missing transcripts" {
@@ -176,6 +191,28 @@ write_release_blocker_states() {
     echo "$output" | jq -e '.model_profile.model == "gpt-5.4"' >/dev/null
     echo "$output" | jq -e '.model_profile.reasoning_effort == "medium"' >/dev/null
     echo "$output" | jq -e '.model_profile.forbidden_models | index("gpt-5.5")' >/dev/null
+}
+
+@test "aggregate-signals: targeted run reports metadata and cannot satisfy full release gate" {
+    write_release_blocker_transcripts
+    write_release_blocker_states
+    for f in "$TRANSCRIPTS"/*.jsonl; do
+        printf '0\n' > "$f.exit"
+    done
+    for f in "$TRANSCRIPTS"/*.state.json; do
+        jq '.run_mode = "targeted" | .hook_mode = "off" | .service_tier = "default"' "$f" \
+            > "$TRANSCRIPTS/state.tmp"
+        mv "$TRANSCRIPTS/state.tmp" "$f"
+    done
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$REPO_ROOT"
+    [ "$status" -eq 0 ]
+    expected="$(release_blocker_count)"
+    echo "$output" | jq -e --argjson expected "$expected" '.signals.v11_release_blocker_harness.present == $expected' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.complete == false' >/dev/null
+    echo "$output" | jq -e '.signals.v11_release_blocker_harness.run_mode == "targeted"' >/dev/null
+    echo "$output" | jq -e '.harness_run.run_mode == "targeted"' >/dev/null
+    echo "$output" | jq -e '.harness_run.hook_mode == "off"' >/dev/null
+    echo "$output" | jq -e '.harness_run.prompts | length > 0' >/dev/null
 }
 
 @test "aggregate-signals: state rubric failures block release blocker completion" {
@@ -339,6 +376,86 @@ EOF
     echo "$output" | jq -e '.signals."7_l1_bypass".count == 0' >/dev/null
     expected="$(release_blocker_count)"
     echo "$output" | jq -e --argjson expected "$expected" '.signals."7_l1_bypass".total == $expected' >/dev/null
+}
+
+@test "aggregate-signals: signal 8 uses explicit requires_decision_entry metadata" {
+    local fake_fw
+    fake_fw="$(mktemp -d -t sage_fake_framework.XXXXXX)"
+    mkdir -p "$fake_fw/runtime/platforms/codex/harness"
+    cat > "$fake_fw/runtime/platforms/codex/harness/v11-scenarios.json" <<'EOF'
+{
+  "policy": {"release_rule": "test"},
+  "scenarios": [
+    {
+      "id": "needs-decision",
+      "prompt": "needs-decision.txt",
+      "requires_decision_entry": true,
+      "release_blocker": false
+    },
+    {
+      "id": "process-only",
+      "prompt": "process-only.txt",
+      "requires_decision_entry": false,
+      "release_blocker": false
+    },
+    {
+      "id": "default-process-only",
+      "prompt": "default-process-only.txt",
+      "claim": "accepted plan decision wording should not be classified",
+      "release_blocker": false
+    }
+  ]
+}
+EOF
+    for prompt in needs-decision process-only default-process-only; do
+        printf '{"type":"assistant","message":"ok"}\n' > "$TRANSCRIPTS/$prompt.jsonl"
+        jq -n --arg prompt "$prompt" '{
+            prompt: $prompt,
+            changed_files: [".sage/work/20260514-cycle/manifest.md"],
+            files: [],
+            incidents: [],
+            auto_fixes: []
+        }' > "$TRANSCRIPTS/$prompt.jsonl.state.json"
+    done
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$fake_fw"
+    rm -rf "$fake_fw"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals."8_decisions_missing".total == 1' >/dev/null
+    echo "$output" | jq -e '.signals."8_decisions_missing".count == 1' >/dev/null
+}
+
+@test "aggregate-signals: signal 8 passes when required decision entry changed" {
+    local fake_fw
+    fake_fw="$(mktemp -d -t sage_fake_framework.XXXXXX)"
+    mkdir -p "$fake_fw/runtime/platforms/codex/harness"
+    cat > "$fake_fw/runtime/platforms/codex/harness/v11-scenarios.json" <<'EOF'
+{
+  "policy": {"release_rule": "test"},
+  "scenarios": [
+    {
+      "id": "needs-decision",
+      "prompt": "needs-decision.txt",
+      "requires_decision_entry": true,
+      "release_blocker": false
+    }
+  ]
+}
+EOF
+    printf '{"type":"assistant","message":"ok"}\n' > "$TRANSCRIPTS/needs-decision.jsonl"
+    jq -n '{
+        prompt: "needs-decision",
+        changed_files: [".sage/work/20260514-cycle/manifest.md", ".sage/decisions.md"],
+        files: [],
+        incidents: [],
+        auto_fixes: []
+    }' > "$TRANSCRIPTS/needs-decision.jsonl.state.json"
+
+    run "$AGG" "$TARGET" "$TRANSCRIPTS" "$fake_fw"
+    rm -rf "$fake_fw"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.signals."8_decisions_missing".total == 1' >/dev/null
+    echo "$output" | jq -e '.signals."8_decisions_missing".count == 0' >/dev/null
 }
 
 @test "aggregate-signals: bug-report-no-fix fails if implementation files change" {

@@ -105,6 +105,97 @@ updated: 2026-05-02
 EOF
 }
 
+seed_status_index_cycles() {
+    mkdir -p "$TARGET/.sage/work/20260430-active"
+    cat > "$TARGET/.sage/work/20260430-active/manifest.md" <<'EOF'
+---
+cycle_id: "20260430-active"
+title: Active feature build
+workflow: build
+phase: implement
+status: in-progress
+priority: P1
+owner: alexostl
+updated: 2026-04-30
+active_session_id: session-123
+---
+
+## Body
+
+status: completed
+title: Body title must not override frontmatter
+EOF
+    mkdir -p "$TARGET/.sage/work/20260501-paused"
+    cat > "$TARGET/.sage/work/20260501-paused/manifest.md" <<'EOF'
+---
+cycle_id: "20260501-paused"
+title: Paused hook repair
+workflow: fix
+phase: diagnose
+status: paused
+priority: P2
+owner: alexostl
+updated: 2026-05-01
+---
+EOF
+    mkdir -p "$TARGET/.sage/work/20260502-intake"
+    cat > "$TARGET/.sage/work/20260502-intake/manifest.md" <<'EOF'
+---
+cycle_id: "20260502-intake"
+title: Intake status visibility
+workflow: intake
+phase: intake
+status: intake
+priority: P3
+owner: alexostl
+updated: 2026-05-02
+---
+EOF
+    mkdir -p "$TARGET/.sage/work/20260503-completed"
+    cat > "$TARGET/.sage/work/20260503-completed/manifest.md" <<'EOF'
+---
+cycle_id: "20260503-completed"
+title: Completed history item
+workflow: build
+phase: completed
+status: completed
+priority: P3
+owner: alexostl
+updated: 2026-05-03
+resolution: shipped
+---
+EOF
+    mkdir -p "$TARGET/.sage/work/20260504-folded"
+    cat > "$TARGET/.sage/work/20260504-folded/manifest.md" <<'EOF'
+---
+cycle_id: "20260504-folded"
+title: Folded history item
+workflow: fix
+phase: completed
+status: completed
+priority: P3
+owner: alexostl
+updated: 2026-05-04
+resolution: folded_into
+folded_into: "20260430-active"
+---
+EOF
+    mkdir -p "$TARGET/.sage/work/20260505-rejected"
+    cat > "$TARGET/.sage/work/20260505-rejected/manifest.md" <<'EOF'
+---
+cycle_id: "20260505-rejected"
+title: Rejected history item
+workflow: architect
+phase: rejected
+status: rejected-superseded
+priority: P3
+owner: alexostl
+updated: 2026-05-05
+resolution: rejected
+---
+EOF
+}
+
 # ─── Command exists + read-only ──────────────────────────────────────
 
 @test "status: command exists (sage status invocable)" {
@@ -218,6 +309,17 @@ EOF
     echo "$output" | jq -e '.health' >/dev/null
 }
 
+@test "status --json: exposes work_index while preserving legacy aliases" {
+    seed_status_index_cycles
+    run run_status --json
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.work_index.cycles' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_status' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_resolution' >/dev/null
+    echo "$output" | jq -e '.cycles == .work_index.cycles' >/dev/null
+    echo "$output" | jq -e '.recent_decisions == .decisions' >/dev/null
+}
+
 @test "status --json: cycles array contains 3 in-progress entries" {
     seed_cycles
     run run_status --json
@@ -240,6 +342,52 @@ EOF
     run run_status --json
     echo "$output" | jq -e '.cycles[0].id' >/dev/null
     echo "$output" | jq -e '.cycles[0].status' >/dev/null
+}
+
+@test "status --json: work_index cycle entries include lifecycle fields from frontmatter only" {
+    seed_status_index_cycles
+    run run_status --json
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .cycle_id == "20260430-active" and .title == "Active feature build" and .status == "in-progress" and .priority == "P1" and .owner == "alexostl" and .active_session_id == "session-123")' >/dev/null
+    ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .title == "Body title must not override frontmatter")' >/dev/null
+}
+
+@test "status --json: completed and folded cycles are counted but not listed by default" {
+    seed_status_index_cycles
+    run run_status --json
+    [ "$status" -eq 0 ]
+    [ "$(echo "$output" | jq -r '.work_index.cycles | length')" = "3" ]
+    ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260503-completed")' >/dev/null
+    ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260504-folded")' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_status["completed"] == 2' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_status["rejected-superseded"] == 1' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_resolution["folded_into"] == 1' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_resolution["shipped"] == 1' >/dev/null
+}
+
+@test "status --json: does not read decisions archive or raw evidence into default context" {
+    seed_status_index_cycles
+    cat > "$TARGET/.sage/decisions.md" <<'EOF'
+# Decisions
+
+### 2026-05-14 — Current Decision
+Current context only.
+EOF
+    cat > "$TARGET/.sage/decisions-archive.md" <<'EOF'
+# Decisions Archive
+
+### 2026-01-01 — Archived Secret
+ARCHIVE_SHOULD_NOT_APPEAR
+EOF
+    mkdir -p "$TARGET/.sage/work/20260503-completed/evidence"
+    cat > "$TARGET/.sage/work/20260503-completed/evidence/raw.log" <<'EOF'
+RAW_EVIDENCE_SHOULD_NOT_APPEAR
+EOF
+    run run_status --json
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q 'Current Decision'
+    ! echo "$output" | grep -q 'ARCHIVE_SHOULD_NOT_APPEAR'
+    ! echo "$output" | grep -q 'RAW_EVIDENCE_SHOULD_NOT_APPEAR'
 }
 
 # ─── Help mentions status ────────────────────────────────────────────

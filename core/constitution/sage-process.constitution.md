@@ -220,29 +220,44 @@ system — use it. If sage-memory MCP is unavailable, fall back to
 **Compliance:** Every user correction is followed by a sage_memory_store
 call with `self-learning` tag before continuing with the fix.
 
-## Rule 7: Record Decisions at Checkpoints
+## Rule 7: Record Decision-Worthy Checkpoints
 
-At each checkpoint, **prepend** significant decisions to
-`.sage/decisions.md` (insert after the `# Decisions` header, before
-existing entries) — newest first. Record what was decided, why, and
-what alternatives were considered. This serves both agents (session
-context) and humans (project history).
+`.sage/decisions.md` is a decision log, not a process log. Only decision-worthy events are prepended to `.sage/decisions.md` (insert after the
+`# Decisions` header, before existing entries) — newest first. Record what was
+decided, why, and what alternatives were considered.
 
-**Newest-first ordering:** Recent decisions are most relevant for
-context. Prepending ensures the agent reads recent context first
-without burning tokens on old entries.
+Decision-worthy events include accepted root cause, accepted plan or scope,
+scope expansion, final closeout decision, durable project rule, or user
+direction that changes priority, ownership, risk, or future agent behavior.
 
-**Archive rotation:** When decisions.md exceeds ~200 lines, archive
-old entries at the next workflow close:
-1. Keep the 20 most recent entries in decisions.md
-2. Move the rest to `decisions-{YYYY-MM-DD}.md` (today's date)
-3. If an archive file with that date already exists, append to it
-4. Archives are read-only reference — only decisions.md gets new entries
+Auto-review and Auto-QA verdicts are process evidence. Keep them in the
+nearest workflow artifact, review artifact, QA artifact, or checkpoint
+conversation when useful. Do not create a global `.sage/decisions.md` entry for
+every verdict.
 
-Update artifact frontmatter (status, phase) when artifacts are
-completed or change phase. The file system — what artifacts exist
-in `.sage/work/` and their frontmatter — is the source of truth
-for state. decisions.md is the source of truth for reasoning.
+Process-only frontmatter, intermediate artifact revisions, approval mechanics,
+pure bookkeeping, and completed-cycle reconciliation do not require decision
+entries unless they change future project policy or scope.
 
-**Compliance:** decisions.md has a new entry (prepended) after each
-checkpoint that involved a decision.
+completed-cycle artifacts are immutable except narrow completed manifest-only reconciliation. That exception may update only the completed cycle's
+`manifest.md`, must keep `status: completed`, and is not decision-worthy.
+Substantive post-closeout errors require a follow-up cycle unless they are
+corrected immediately in the same active conversation before handoff.
+
+**Retention:** Keep the 50 newest decisions in `.sage/decisions.md`. Older
+entries rotate to one `.sage/decisions-archive.md`, newest first, only from the
+primary checkout. Linked Git worktrees may exceed 50 entries and must not touch
+the archive.
+
+**Archive read policy:** Archive read is search-first. Use `rg` over
+`.sage/decisions-archive.md`, then read only the matching fragment. A full
+archive read requires a named reason, such as "rg found no needed context" or
+"the matching fragment depends on surrounding entries."
+
+Update artifact frontmatter (status, phase) when artifacts are completed or
+change phase. The file system — what artifacts exist in `.sage/work/` and their
+frontmatter — is the source of truth for workflow state. `.sage/decisions.md`
+is recent reasoning context, not the complete process transcript.
+
+**Compliance:** `.sage/decisions.md` has a new entry only after a checkpoint
+that involved a decision-worthy event.

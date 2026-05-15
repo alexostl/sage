@@ -15,6 +15,12 @@ assert_contains() {
     grep -q "$pattern" "$REPO_ROOT/$file"
 }
 
+assert_not_contains() {
+    local file="$1"
+    local pattern="$2"
+    ! grep -q "$pattern" "$REPO_ROOT/$file"
+}
+
 assert_between_contains() {
     local file="$1"
     local start="$2"
@@ -62,6 +68,56 @@ assert_between_contains() {
 
     assert_contains "core/workflows/fix.workflow.md" "root cause"
     assert_contains "core/workflows/fix.workflow.md" "linki do dowodow"
+}
+
+@test "alex-native core: decisions.md is decision log, not process log" {
+    assert_contains "core/constitution/sage-process.constitution.md" "decision log, not a process log"
+    assert_contains "core/constitution/sage-process.constitution.md" "Only decision-worthy events"
+    assert_contains "core/constitution/sage-process.constitution.md" "Auto-review and Auto-QA verdicts are process evidence"
+    assert_contains "core/constitution/sage-process.constitution.md" "Process-only frontmatter"
+    assert_contains "core/constitution/sage-process.constitution.md" "50 newest decisions"
+    assert_contains "core/constitution/sage-process.constitution.md" ".sage/decisions-archive.md"
+    assert_contains "core/constitution/sage-process.constitution.md" "search-first"
+
+    assert_contains "core/workflows/build.workflow.md" "decision-worthy"
+    assert_contains "core/workflows/fix.workflow.md" "decision-worthy"
+    assert_contains "core/workflows/architect.workflow.md" "decision-worthy"
+    assert_contains "core/workflows/analyze.workflow.md" "decision-worthy"
+    assert_contains "core/capabilities/review/auto-review/SKILL.md" "process evidence"
+    assert_contains "core/capabilities/review/auto-qa/SKILL.md" "process evidence"
+    assert_contains "core/capabilities/orchestration/sage-navigator/SKILL.md" "decision log, not a process log"
+
+    assert_not_contains "core/workflows/build.workflow.md" "Prepend review verdict to decisions.md"
+    assert_not_contains "core/workflows/architect.workflow.md" "Prepend review verdict to decisions.md"
+    assert_not_contains "core/capabilities/review/auto-review/SKILL.md" "After every auto-review (any verdict), prepend"
+    assert_not_contains "core/capabilities/review/auto-qa/SKILL.md" "After every auto-QA (any verdict), prepend"
+}
+
+@test "alex-native core: completed-cycle reconciliation is manifest-only and narrow" {
+    assert_contains "core/constitution/sage-process.constitution.md" "completed-cycle artifacts are immutable"
+    assert_contains "core/constitution/sage-process.constitution.md" "completed manifest-only reconciliation"
+    assert_contains "core/constitution/sage-process.constitution.md" "not decision-worthy"
+
+    assert_contains "core/workflows/build.workflow.md" "manifest.status: completed"
+    assert_contains "core/workflows/build.workflow.md" "completed manifest-only reconciliation"
+    assert_contains "core/workflows/build.workflow.md" "same active conversation"
+
+    assert_contains "core/workflows/fix.workflow.md" "manifest.status: completed"
+    assert_contains "core/workflows/fix.workflow.md" "completed manifest-only reconciliation"
+    assert_contains "core/workflows/fix.workflow.md" "same active conversation"
+
+    assert_contains "core/workflows/architect.workflow.md" "completed manifest-only reconciliation"
+    assert_contains "core/workflows/architect.workflow.md" "follow-up cycle"
+}
+
+@test "alex-native core: status work_index is lightweight and frontmatter-derived" {
+    assert_contains "core/workflows/status.workflow.md" "work_index"
+    assert_contains "core/workflows/status.workflow.md" "manifest frontmatter only"
+    assert_contains "core/workflows/status.workflow.md" "count-only in default status"
+    assert_contains "core/workflows/status.workflow.md" "search-first"
+    assert_contains "core/workflows/status.workflow.md" "recent_decisions"
+    assert_contains "core/workflows/status.workflow.md" "health"
+    assert_contains "core/workflows/status.workflow.md" "lifecycle source-of-truth"
 }
 
 @test "alex-native core: elicitation and planning capabilities use junior-friendly conversation" {

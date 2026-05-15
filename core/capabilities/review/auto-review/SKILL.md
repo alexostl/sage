@@ -109,13 +109,19 @@ Pick R/P/D, or tell me what to change.
 
 ## Decision Logging
 
-After every auto-review (any verdict), prepend to `.sage/decisions.md`:
+Auto-review verdicts are process evidence, not mandatory project decisions. Do not create a global `.sage/decisions.md` entry for every verdict.
+
+Keep the verdict in the nearest review artifact or checkpoint conversation:
 
 ```
 ### YYYY-MM-DD — Auto-review: {artifact type}
 Verdict: {PASS|NEEDS REVISION|FAIL}. {findings summary if any}.
 User chose: {R|P|D}. (auto-review sub-agent)
 ```
+
+Create a `.sage/decisions.md` entry only when the user makes a
+decision-worthy choice that changes scope, risk, project policy, or future
+agent behavior.
 
 ## Enforcement
 
