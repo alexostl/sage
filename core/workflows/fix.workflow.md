@@ -413,6 +413,13 @@ report stage/commit status and ask whether to perform local handoff for this
 cycle's changes; do not ask for `push` by default and do not add a
 post-closeout `.sage` epilogue.
 
+Standalone `closeout.md` is not the default for ordinary non-milestone fixes.
+Keep closeout evidence in existing lifecycle artifacts such as `manifest.md`,
+`plan.md`, verification notes, and decision-worthy `.sage/decisions.md`
+entries. Use standalone closeout artifacts only for umbrella, milestone-based,
+multi-phase, or architecture-style fix cycles where evidence spans multiple
+stages or absorbed cycles.
+
 After closeout, use completed manifest-only reconciliation only for obvious
 bookkeeping in that cycle's `manifest.md` while preserving
 `manifest.status: completed`. A substantive issue found later needs a follow-up

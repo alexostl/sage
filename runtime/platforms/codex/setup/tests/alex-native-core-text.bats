@@ -106,13 +106,18 @@ assert_between_contains() {
     assert_contains "core/workflows/build.workflow.md" "manifest.status: completed"
     assert_contains "core/workflows/build.workflow.md" "completed manifest-only reconciliation"
     assert_contains "core/workflows/build.workflow.md" "same active conversation"
+    assert_contains "core/workflows/build.workflow.md" "not the default for ordinary non-milestone builds"
+    assert_contains "core/workflows/build.workflow.md" "lifecycle artifacts complete"
 
     assert_contains "core/workflows/fix.workflow.md" "manifest.status: completed"
     assert_contains "core/workflows/fix.workflow.md" "completed manifest-only reconciliation"
     assert_contains "core/workflows/fix.workflow.md" "same active conversation"
+    assert_contains "core/workflows/fix.workflow.md" "not the default for ordinary non-milestone fixes"
 
     assert_contains "core/workflows/architect.workflow.md" "completed manifest-only reconciliation"
     assert_contains "core/workflows/architect.workflow.md" "follow-up cycle"
+    assert_contains "core/workflows/architect.workflow.md" "Standalone closeout artifacts are appropriate for architecture, umbrella"
+    assert_contains "core/constitution/sage-process.constitution.md" "is exceptional"
 }
 
 @test "alex-native core: fix workflow has implementation readiness preflight" {

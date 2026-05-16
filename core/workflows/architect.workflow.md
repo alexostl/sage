@@ -297,6 +297,11 @@ bookkeeping exception for a closed cycle. Later substantive errors become a
 follow-up cycle; reopen is limited to an immediate correction in the same active
 conversation before handoff.
 
+Standalone closeout artifacts are appropriate for architecture, umbrella,
+milestone-based, or multi-phase cycles when they summarize multiple milestones,
+absorbed cycles, or long verification streams. Do not create `closeout.md` by
+default for ordinary non-milestone work.
+
 Quality gates for each milestone include Gate 8 (Auto-QA) which runs
 automatically as part of the gate sequence when Task tool is available.
 See `quality-gates.workflow.md` for the full sequence including Gate 8.

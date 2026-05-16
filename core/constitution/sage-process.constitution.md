@@ -168,6 +168,9 @@ cycle active, for example `status: in-progress` and
 for closeout approval. Only explicit user approval may move the cycle to
 `manifest.status: completed`, and that completed-status update must be the last
 Sage artifact mutation for the closeout.
+Standalone `closeout.md` is exceptional: use existing lifecycle artifacts for
+ordinary non-milestone work, and reserve standalone closeout artifacts for
+umbrella, milestone-based, multi-phase, or architecture cycles.
 
 **Never change scope unilaterally.** The agent MUST NOT:
 - Defer, skip, or deprioritize planned work without asking

@@ -289,6 +289,9 @@ EOF
     grep -q 'stage/commit' "$TARGET/AGENTS.md"
     grep -q 'no default push' "$TARGET/AGENTS.md"
     grep -q 'no post-closeout .sage epilogue' "$TARGET/AGENTS.md"
+    grep -q 'Standalone closeout.md is exceptional' "$TARGET/AGENTS.md"
+    grep -q 'umbrella/milestone/multi-phase/architecture cycles' "$TARGET/AGENTS.md"
+    grep -q 'not ordinary non-milestone work' "$TARGET/AGENTS.md"
     ! grep -q 'How closeout handoff works' "$TARGET/AGENTS.md"
 }
 
