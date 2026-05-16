@@ -70,6 +70,12 @@ span sessions, so handoff guidance is critical.
 **Completion:** Close the cycle manifest after final milestone with
 `status: closed` and `phase: closed`. Artifact frontmatter such as `spec.md`
 may still use `status: completed`.
+Architecture diagnosis, design, ADRs, milestone planning, and capture-only
+`.sage` updates do not need `active_session_id`. Before milestone implementation
+mutates source/runtime/test files, bind `active_session_id` only to the current runtime hook `session_id`;
+never infer it from
+`codex://threads/*`, `CODEX_THREAD_ID`, transcripts, logs, or an analyzed
+thread id.
 **Anti-lazy-manifest:** Same contract as build workflow — summary must
 contain judgment, not spec titles.
 
@@ -296,6 +302,10 @@ For each milestone:
 Do NOT batch-implement multiple milestones without checkpoints.
 Do NOT skip per-milestone verification because "I'll test everything
 at the end."
+Before any milestone implementation edit, run the same implementation readiness
+preflight as build: real runtime `active_session_id`,
+`implementation_approval`, approved scope, and any required
+`semantic_reclassification`.
 Autonomy granted for one milestone does not approve the next milestone. If
 implementation reveals a new ADR/design decision or scope expansion, stop for
 the normal checkpoint before editing the expanded scope.

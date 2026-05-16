@@ -144,6 +144,19 @@ assert_between_contains() {
     assert_contains "core/workflows/fix.workflow.md" "same-turn boundary"
     assert_contains "core/workflows/fix.workflow.md" '\[C\] Checkpointed implementation'
     assert_contains "core/workflows/fix.workflow.md" '\[F\] Full autonomous implementation'
+    assert_contains "core/workflows/fix.workflow.md" 'current hook payload `session_id`'
+    assert_contains "core/workflows/fix.workflow.md" "codex://threads/*"
+}
+
+@test "alex-native core: session ownership lock is implementation-bound across workflows" {
+    assert_contains "core/workflows/fix.workflow.md" "not required for"
+    assert_contains "core/workflows/fix.workflow.md" "diagnosis"
+    assert_contains "core/workflows/build.workflow.md" "Before implementation/source mutation"
+    assert_contains "core/workflows/build.workflow.md" "codex://threads/*"
+    assert_contains "core/workflows/architect.workflow.md" "Before milestone implementation"
+    assert_contains "core/workflows/architect.workflow.md" 'current runtime hook `session_id`'
+    assert_contains "core/workflows/continue.workflow.md" "Parked cycles can be resumed by another agent"
+    assert_contains "core/workflows/continue.workflow.md" "ownership/control mutation"
 }
 
 @test "alex-native core: status work_index is lightweight and frontmatter-derived" {

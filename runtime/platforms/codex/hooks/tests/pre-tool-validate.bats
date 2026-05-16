@@ -313,6 +313,67 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "pre-tool-validate.sh: active_session_id update to another UUID is blocked even when old lock matches" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+active_session_id: test-uuid
+scope:
+  - ".sage/work/20260101-alpha/*"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-active_session_id: test-uuid\n+active_session_id: other-session\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "active_session_id"
+    echo "$output" | grep -q "current session_id"
+}
+
+@test "pre-tool-validate.sh: active_session_id update to codex thread URL is blocked" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: implement
+active_session_id: test-uuid
+scope:
+  - ".sage/work/20260101-alpha/*"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-active_session_id: test-uuid\n+active_session_id: \"codex://threads/019e2fba-7253-7ee0-90c5-17637ab688bd\"\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "active_session_id"
+    echo "$output" | grep -q "current session_id"
+}
+
+@test "pre-tool-validate.sh: active_session_id removal by owning session is allowed" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: completion-checkpoint
+active_session_id: test-uuid
+scope:
+  - ".sage/work/20260101-alpha/*"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n-phase: completion-checkpoint\n-active_session_id: test-uuid\n+status: closed\n+phase: closed\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
 @test "pre-tool-validate.sh: active cycle without active_session_id blocks scoped mutation" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
@@ -331,6 +392,69 @@ EOF
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "unbound active cycle"
     echo "$output" | grep -q "manifest-only claim/handoff"
+}
+
+@test "pre-tool-validate.sh: unbound active cycle allows root-cause artifact update without lock" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: root-cause-gate
+scope:
+  - ".sage/work/20260101-alpha/*"
+  - ".sage/decisions.md"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/20260101-alpha/root-cause.md\n+# Root cause\n*** Update File: .sage/decisions.md\n@@\n+diagnosis note\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"sage_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: unbound active cycle blocks manifest lifecycle field change" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: root-cause-gate
+scope:
+  - ".sage/work/20260101-alpha/*"
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: closed\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "ownership/lifecycle"
+}
+
+@test "pre-tool-validate.sh: active cycle owned by another session allows manifest body capture" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: in-progress
+phase: plan
+active_session_id: other-session
+scope:
+  - ".sage/work/20260101-alpha/*"
+---
+
+# Alpha
+
+## Captured Findings
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n ## Captured Findings\n+\n+- Finding from another cycle.\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"sage_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: placeholder active_session_id current blocks non-claim mutation" {
@@ -975,6 +1099,25 @@ semantic_reclassification: accepted
     log="$PROJECT_ROOT/.sage/.session-mutations.log"
     [ -f "$log" ]
     grep -q '"cycle_id":"20260103-new"' "$log"
+}
+
+@test "pre-tool-validate.sh: new-cycle bootstrap rejects wrong active_session_id" {
+    cycle="20260103-wrong-session"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/%s/manifest.md\n+---\n+cycle_id: \"%s\"\n+status: in-progress\n+phase: understand\n+active_session_id: \"019e2fba-7253-7ee0-90c5-17637ab688bd\"\n+---\n+\n+# Wrong Session\n*** End Patch\n' "$cycle" "$cycle")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "active_session_id"
+    echo "$output" | grep -q "current session_id"
+}
+
+@test "pre-tool-validate.sh: new-cycle bootstrap without active_session_id is allowed" {
+    cycle="20260103-no-session"
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/%s/manifest.md\n+---\n+cycle_id: \"%s\"\n+status: in-progress\n+phase: understand\n+---\n+\n+# No Session Yet\n*** End Patch\n' "$cycle" "$cycle")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q "\"cycle_id\":\"$cycle\"" "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: new intake manifest bootstrap allowed while another cycle is active" {

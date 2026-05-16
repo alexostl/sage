@@ -58,8 +58,11 @@ checkpoint.
 `phase` to the current gate, such as `root-cause-gate` or `fix-scope-gate`.
 Do not use `paused` for a live approval checkpoint.
 After every `status` or `phase` change, tell the user what changed after the
-frontmatter has been updated. If the platform provides a session id, store it as
-`active_session_id` when moving a cycle to `status: in-progress`.
+frontmatter has been updated. `active_session_id` is not required for
+diagnosis, root-cause, planning, or capture-only `.sage` artifacts. Before
+runtime/source/test implementation, bind `active_session_id` only to the current
+runtime hook `session_id`; never infer it from `codex://threads/*`,
+`CODEX_THREAD_ID`, transcripts, logs, or an analyzed thread id.
 **Session end ([N]) or explicit parking:** Mandatory update for Moderate+
 fixes; this is when `status: paused` is appropriate.
 
@@ -320,15 +323,18 @@ only the user-specified revision may happen before implementation. Scope
 expansion, new decisions, new risks, or ambiguous revision instructions stop
 the workflow and return to the gate.
 
-Before mutating runtime/source/test files, perform an implementation readiness preflight as a manifest-only readiness patch: bind the real
+Before mutating runtime/source/test files, perform an implementation readiness preflight
+as a manifest-only readiness patch: bind the real runtime
 `active_session_id`, record `implementation_approval` pointing at the existing
 canonical `plan.md`, add `semantic_reclassification: accepted` when the
 approved scope includes hook-risky paths, and confirm `scope` covers all
-planned files. If the canonical `plan.md` lacks prior-turn evidence for a
-same-turn boundary edit, stop after the readiness patch and continue in a later
-turn. After the readiness patch, preserve `[C] Checkpointed implementation` and
-`[F] Full autonomous implementation`; both remain bound to the approved
-`plan.md` and manifest scope.
+planned files. `active_session_id` must be verified against the current hook payload `session_id`;
+if that value is not available with high confidence, do not guess. If the
+canonical `plan.md` lacks prior-turn evidence for a same-turn boundary
+edit, stop after the readiness patch and continue in a later turn.
+After the readiness patch, preserve `[C] Checkpointed implementation` and `[F]`
+Full autonomous implementation`; both remain bound to the approved `plan.md`
+and manifest scope.
 
 ## Step 4: Implement Fix
 

@@ -552,6 +552,68 @@ is_closed_manifest_reconciliation_patch() {
     return 0
 }
 
+patch_touches_manifest_path() {
+    local path
+    for path in "${claimed_paths[@]}"; do
+        case "$path" in
+            .sage/work/*/manifest.md)
+                return 0 ;;
+        esac
+    done
+    return 1
+}
+
+patch_adds_active_session_id() {
+    [ "$tool_name" = "apply_patch" ] || return 1
+    patch_touches_manifest_path || return 1
+    printf '%s\n' "$cmd" | grep -E '^\+[[:space:]]*active_session_id:[[:space:]]*' >/dev/null
+}
+
+patch_sets_only_current_active_session_id() {
+    local current_session_id="$1"
+    local line value saw_added=0
+
+    [ "$tool_name" = "apply_patch" ] || return 1
+    patch_touches_manifest_path || return 1
+
+    while IFS= read -r line; do
+        case "$line" in
+            +[[:space:]]active_session_id:*|+active_session_id:*)
+                saw_added=1
+                value="$(printf '%s' "$line" | sed -E 's/^\+[[:space:]]*active_session_id:[[:space:]]*//; s/[[:space:]]*$//; s/^"//; s/"$//')"
+                [ "$value" = "$current_session_id" ] || return 1 ;;
+        esac
+    done <<< "$cmd"
+
+    [ "$saw_added" -eq 1 ]
+}
+
+patch_touches_manifest_control_field() {
+    [ "$tool_name" = "apply_patch" ] || return 1
+    patch_touches_manifest_path || return 1
+    printf '%s\n' "$cmd" |
+        grep -E '^[+-][[:space:]]*(status|phase|resolution|active_session_id|implementation_approval|semantic_reclassification|autonomy_grant|scope|folded_into|folded_cycles):[[:space:]]*' >/dev/null
+}
+
+is_sage_capture_without_control_patch() {
+    [ "$tool_name" = "apply_patch" ] || return 1
+    [ "${#claimed_paths[@]}" -gt 0 ] || return 1
+
+    local path op
+    for i in "${!claimed_paths[@]}"; do
+        path="${claimed_paths[$i]}"
+        op="${claimed_ops[$i]}"
+        case "$op" in Add|Update) ;; *) return 1 ;; esac
+        case "$path" in
+            .sage/work/*/*|.sage/decisions.md|.sage-memory/*.md) ;;
+            *) return 1 ;;
+        esac
+    done
+
+    patch_touches_manifest_control_field && return 1
+    return 0
+}
+
 is_unbound_active_cycle_claim_patch() {
     local cycle_id="$1"
     local current_session_id="$2"
@@ -637,6 +699,9 @@ mutation_kind=""
 if patch_contains_real_secret_value; then
     printf 'Sage: BLOCKING real secret value write. Agents may create placeholder env/config files, but real secrets must be edited by the user. Next legal move: write placeholders only, or ask the user to fill the secret locally.\n' >&2
     exit 2
+elif patch_adds_active_session_id && ! patch_sets_only_current_active_session_id "$session_id"; then
+    printf 'Sage: BLOCKING invalid active_session_id update. active_session_id must equal the current hook payload session_id. current session_id: %s. Do not use codex://threads/*, CODEX_THREAD_ID, transcripts, logs, or analyzed thread ids as the ownership lock.\n' "$session_id" >&2
+    exit 2
 elif is_surgical_patch; then
     resolution_kind="surgical"
     resolution_value=""
@@ -708,15 +773,21 @@ else
     if [ "$resolution_kind" = "active" ]; then
         active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
         if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
-            printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.\n' \
-                "$cycle_id" "$active_session_id" "$session_id" >&2
-            exit 2
+            if is_sage_capture_without_control_patch; then
+                mutation_kind="sage_capture_without_lock"
+            else
+                printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.\n' \
+                    "$cycle_id" "$active_session_id" "$session_id" >&2
+                exit 2
+            fi
         fi
         if [ -z "$active_session_id" ]; then
             if is_unbound_active_cycle_claim_patch "$cycle_id" "$session_id"; then
                 mutation_kind="active_cycle_claim_or_handoff"
+            elif is_sage_capture_without_control_patch; then
+                mutation_kind="sage_capture_without_lock"
             else
-                printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has status in-progress but no real active_session_id. Next legal move: first make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session or parks the cycle as paused; otherwise create a separate follow-up cycle.\n' \
+                printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has status in-progress but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.\n' \
                     "$cycle_id" >&2
                 exit 2
             fi

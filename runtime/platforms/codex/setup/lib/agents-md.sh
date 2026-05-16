@@ -277,9 +277,12 @@ approved plan without intermediate checkpoints until verification/close, bound
 to the approved plan and manifest scope. Any scope expansion cancels the grant;
 so does a new workflow/follow-up, product/architecture decision, key assumption,
 conflict, or material risk changes the plan.
-Before either path mutates runtime/source/test files, write a manifest-only readiness patch: real \`active_session_id\`, \`implementation_approval\`
+Before either path mutates runtime/source/test files, write a manifest-only readiness patch: real runtime \`active_session_id\`, \`implementation_approval\`
 pointing at canonical \`plan.md\`, \`semantic_reclassification\` when hook-risky
-paths are in scope, and full approved scope.
+paths are in scope, and full approved scope. \`active_session_id\` is an
+implementation/control lock, not a planning requirement; never infer it from
+\`codex://threads/*\`, \`CODEX_THREAD_ID\`, transcripts, logs, or an analyzed
+thread id.
 
 \`[I] Revise and Implement in the same turn\` is explicit bounded conditional
 approval: apply only the user-specified revision, record manifest frontmatter
@@ -302,14 +305,17 @@ Before any substantial response, scan \`.sage/work/\` frontmatter for
 active initiatives. Read \`.sage/decisions.md\` for recent context.
 Never start fresh when there is existing context.
 
-Treat \`status: in-progress\` as implementation-active, including active
-approval checkpoints such as \`root-cause-gate\`, \`fix-scope-gate\`,
-\`plan-gate\`, or \`findings-checkpoint\`. Checkpoints update \`phase\`; they do
-not pause the cycle. If an in-progress manifest has \`active_session_id\`, only
-that session may mutate the cycle; otherwise ask for handoff/parking or create
-a separate intake. Treat \`status: paused\` and \`status: intake\` as parked,
-resumable work. Parked work may be manifest-only and is not
-implementation-active until explicit continuation.
+Treat \`status: in-progress\` as live workflow state, including active approval
+checkpoints such as \`root-cause-gate\`, \`fix-scope-gate\`, \`plan-gate\`, or
+\`findings-checkpoint\`. Checkpoints update \`phase\`; they do not pause the
+cycle. \`.sage\` diagnosis, planning, and capture may proceed without
+\`active_session_id\` when they do not change ownership/lifecycle/control
+frontmatter. If an in-progress manifest has \`active_session_id\`, only that
+runtime session may perform implementation/control mutations; otherwise ask for
+handoff/parking or create a separate intake. Treat \`status: paused\` and
+\`status: intake\` as parked, resumable work. Parked work may be
+manifest-only/capture-only and is not implementation-active until explicit
+continuation.
 \`sage status\` shows active work separately from paused/intake; \`sage doctor\`
 diagnoses structural issues such as actionable work placed in \`.sage/docs/\`.
 Closed cycle manifests use \`status: closed\`, \`phase: closed\`, and

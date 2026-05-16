@@ -361,6 +361,10 @@ EOF
     grep -q 'semantic_reclassification' "$TARGET/AGENTS.md"
     grep -q 'active_session_id' "$TARGET/AGENTS.md"
     grep -q 'canonical `plan.md`' "$TARGET/AGENTS.md"
+    grep -q 'real runtime `active_session_id`' "$TARGET/AGENTS.md"
+    grep -q 'not a planning requirement' "$TARGET/AGENTS.md"
+    grep -q 'codex://threads/\*' "$TARGET/AGENTS.md"
+    grep -q 'CODEX_THREAD_ID' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md carries compact option recommendation reminder" {
@@ -401,8 +405,11 @@ EOF
 @test "stage3: generated AGENTS.md explains paused/intake visibility vs implementation-active state" {
     PRESET=base run_stage3
     grep -q 'status: in-progress' "$TARGET/AGENTS.md"
-    grep -q 'implementation-active' "$TARGET/AGENTS.md"
+    grep -q 'live workflow state' "$TARGET/AGENTS.md"
     grep -q 'active_session_id' "$TARGET/AGENTS.md"
+    grep -q 'diagnosis, planning, and capture' "$TARGET/AGENTS.md"
+    grep -q 'ownership/lifecycle/control' "$TARGET/AGENTS.md"
+    grep -q 'implementation/control mutations' "$TARGET/AGENTS.md"
     grep -q 'handoff/parking' "$TARGET/AGENTS.md"
     grep -q 'status: paused' "$TARGET/AGENTS.md"
     grep -q 'status: intake' "$TARGET/AGENTS.md"
@@ -411,6 +418,7 @@ EOF
     grep -q 'parked,' "$TARGET/AGENTS.md"
     grep -q 'resumable work' "$TARGET/AGENTS.md"
     grep -q 'manifest-only' "$TARGET/AGENTS.md"
+    grep -q 'capture-only' "$TARGET/AGENTS.md"
     grep -q 'sage status' "$TARGET/AGENTS.md"
     grep -q 'sage doctor' "$TARGET/AGENTS.md"
 }

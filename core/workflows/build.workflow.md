@@ -109,8 +109,11 @@ guidance and context summary before ending.
 `status: completed`.
 
 After every `status` or `phase` change, tell the user what changed after the
-frontmatter has been updated. If the platform exposes a session id, record it
-as `active_session_id` when moving a cycle to `status: in-progress`.
+frontmatter has been updated. New build cycles do not need `active_session_id`
+for specification, planning, or capture-only `.sage` artifacts. Before implementation/source mutation,
+bind `active_session_id` only to the current runtime hook `session_id`; never
+infer it from `codex://threads/*`,
+`CODEX_THREAD_ID`, transcripts, logs, or an analyzed thread id.
 
 **Anti-lazy-manifest contract:**
 Context summary MUST NOT be:
@@ -403,6 +406,9 @@ Execute the plan task by task using the build loop.
 
 Before the first implementation edit, run this preflight:
 - Re-read `manifest.md` and confirm `scope:` covers the next task's files.
+- Confirm implementation readiness frontmatter exists: a real runtime
+  `active_session_id`, `implementation_approval` pointing at the approved
+  `plan.md`, and any required `semantic_reclassification`.
 - If the next file is outside `manifest.scope`, stop for a scope expansion
   checkpoint. Do not update `manifest.md` and continue under the old grant.
 - Do not attempt the implementation patch and let PreToolUse reject it; the

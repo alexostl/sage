@@ -37,8 +37,11 @@ immediate same-conversation reopen.
 
 Formal continuation of `paused` or `intake` work must update the manifest before
 new artifacts or code are written. After the frontmatter changes, say exactly
-which `status`/`phase` changed. If the platform provides a session id, store it
-as `active_session_id` when the cycle becomes `status: in-progress`.
+which `status`/`phase` changed. Do not infer `active_session_id` from
+`codex://threads/*`, `CODEX_THREAD_ID`, transcripts, logs, or an analyzed
+thread id. Parked cycles can be resumed by another agent for diagnosis,
+planning, or capture; bind `active_session_id` only before implementation or
+ownership/control mutation, using the current runtime hook `session_id`.
 
 Formal resume checklist:
 
@@ -46,8 +49,9 @@ Formal resume checklist:
    framework repository.
 2. Change the parked cycle to `status: in-progress` and set `phase` to the
    workflow's next real phase or gate.
-3. Preserve existing context fields; add `active_session_id` only when the
-   platform exposes one.
+3. Preserve existing context fields; add `active_session_id` only for
+   implementation/control readiness when the runtime `session_id` is available
+   with high confidence.
 4. Announce the completed frontmatter change after it is written.
 5. Route to the workflow's Auto-Pickup before creating artifacts or touching
    implementation files.
