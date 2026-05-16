@@ -176,6 +176,9 @@ Decision: [decision-worthy architecture choices]. (prepend to .sage/decisions.md
 [N] New session — type /architect to continue with milestone plan
 
 Pick A/S/R/Q/N, or tell me what to change.
+Before presenting this checkpoint, mark the best option for current
+evidence/risk with `(Recommended)` and add `Rekomenduję [X], bo ...`.
+This is advice only; wait for the user's choice before proceeding.
 
 **On [A] Subagent review:**
 1. Update spec frontmatter to `status: completed`.
@@ -232,6 +235,9 @@ Sage: Milestone plan saved to .sage/work/YYYYMMDD-slug/plan.md
 [N] New session — type /build to start milestone 1
 
 Pick A/S/I/R/N, or tell me what to change.
+Before presenting this checkpoint, mark the best option for current
+evidence/risk with `(Recommended)` and add `Rekomenduję [X], bo ...`.
+This is advice only; wait for the user's choice before proceeding.
 
 **On [A] Subagent review:**
 1. Prepend the plan approach only if it is decision-worthy under Rule 7.

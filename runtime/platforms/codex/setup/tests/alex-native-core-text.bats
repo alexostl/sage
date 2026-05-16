@@ -75,6 +75,23 @@ assert_between_contains() {
     assert_contains "core/workflows/fix.workflow.md" "linki do dowodow"
 }
 
+@test "alex-native core: local workflow gates require recommendations" {
+    assert_between_contains "core/workflows/fix.workflow.md" "ROOT CAUSE GATE" "On \\[A\\]" "(Recommended)"
+    assert_between_contains "core/workflows/fix.workflow.md" "ROOT CAUSE GATE" "On \\[A\\]" "Rekomenduję \\[X\\], bo"
+    assert_between_contains "core/workflows/fix.workflow.md" "FIX SCOPE GATE" "On \\[A\\]" "(Recommended)"
+    assert_between_contains "core/workflows/fix.workflow.md" "FIX SCOPE GATE" "On \\[A\\]" "This is advice only"
+
+    assert_between_contains "core/workflows/build.workflow.md" "Spec saved" "On \\[A\\]" "(Recommended)"
+    assert_between_contains "core/workflows/build.workflow.md" "Spec saved" "On \\[A\\]" "Rekomenduję \\[X\\], bo"
+    assert_between_contains "core/workflows/build.workflow.md" "Plan saved" "On \\[A\\]" "(Recommended)"
+    assert_between_contains "core/workflows/build.workflow.md" "Plan saved" "On \\[A\\]" "This is advice only"
+
+    assert_between_contains "core/workflows/architect.workflow.md" "DESIGN CHECKPOINT" "On \\[A\\]" "(Recommended)"
+    assert_between_contains "core/workflows/architect.workflow.md" "DESIGN CHECKPOINT" "On \\[A\\]" "Rekomenduję \\[X\\], bo"
+    assert_between_contains "core/workflows/architect.workflow.md" "PLAN CHECKPOINT" "On \\[A\\]" "(Recommended)"
+    assert_between_contains "core/workflows/architect.workflow.md" "PLAN CHECKPOINT" "On \\[A\\]" "wait for the user's choice"
+}
+
 @test "alex-native core: decisions.md is decision log, not process log" {
     assert_contains "core/constitution/sage-process.constitution.md" "decision log, not a process log"
     assert_contains "core/constitution/sage-process.constitution.md" "Only decision-worthy events"

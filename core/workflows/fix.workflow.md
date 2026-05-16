@@ -209,6 +209,9 @@ Sage: Root cause analysis complete.
 [N] New session — type sage:fix or natural-language resume to continue
 
 Pick A/S/R/K/N, or tell me what to change.
+Before presenting this gate, mark the best option for current evidence/risk
+with `(Recommended)` and add `Rekomenduję [X], bo ...`. This is advice only;
+wait for the user's choice before proceeding.
 
 **On [A]:** Run auto-review (root cause review prompt), present findings,
 and return to the gate decision. This catches weak diagnoses — symptom-level
@@ -296,6 +299,9 @@ Sage: Fix scope: [Moderate/Systemic]
 [N] New session — type sage:fix or natural-language resume to continue
 
 Pick A/S/I/R/E/N, or tell me what to change.
+Before presenting this gate, mark the best option for current evidence/risk
+with `(Recommended)` and add `Rekomenduję [X], bo ...`. This is advice only;
+wait for the user's choice before proceeding.
 
 **On [A]:** Run auto-review (fix plan review prompt), present findings, and
 return to the gate decision. See
