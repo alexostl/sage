@@ -31,6 +31,9 @@ checkpoints where the next move is to review/approve/revise the current gate.
 Do not "resume" an in-progress checkpoint by changing it to paused first. Treat
 `paused` and `intake` as parked/resumable but not mutation-active until the user
 confirms continuation.
+Treat `closed` and legacy `completed` cycle manifests as closed history, not
+continuation targets; substantive follow-up needs a new cycle unless it is
+immediate same-conversation reopen.
 
 Formal continuation of `paused` or `intake` work must update the manifest before
 new artifacts or code are written. After the frontmatter changes, say exactly

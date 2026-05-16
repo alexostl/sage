@@ -50,8 +50,8 @@ write_release_blocker_transcripts() {
                 printf '{"type":"assistant","message":"Sage: The third file is required, so I will not do scope amputation. This needs Moderate+ escalation and a scope gate before implementation continues."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "15-cross-repo-fix-intake-capture.txt" ]; then
                 printf '{"type":"assistant","message":"Sage: The secondary target repository owns this capture intake. I parked the finding there and did not mutate source/runtime/tests in the primary repository."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
-            elif [ "$prompt" = "16-completed-cycle-explicit-reopen.txt" ]; then
-                printf '{"type":"assistant","message":"Sage: The completed cycle needs an explicit reopen decision. I am using a legal recovery wrapper to resume without adding a new artifact after closeout."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
+            elif [ "$prompt" = "16-closed-cycle-explicit-reopen.txt" ]; then
+                printf '{"type":"assistant","message":"Sage: The closed cycle needs an explicit reopen decision. I am using a legal recovery wrapper to resume without adding a new artifact after closeout."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "17-local-gitignored-config-artifact.txt" ]; then
                 printf '{"type":"assistant","message":"Sage: Created a local-only gitignored artifact under .sage-local and avoided source/runtime/tests mutation."}\n' > "$TRANSCRIPTS/${prompt%.txt}.jsonl"
             elif [ "$prompt" = "18-surgical-edit-quantitative.txt" ]; then

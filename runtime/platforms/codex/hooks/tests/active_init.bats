@@ -72,13 +72,13 @@ EOF
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-alpha" ]
 }
 
-@test "active_init_path: only completed cycles → empty output" {
+@test "active_init_path: only closed cycles → empty output" {
     # shellcheck disable=SC1090
     source "$LIB"
     # shellcheck disable=SC1090
     source "$BOOTSTRAP_LIB"
-    make_cycle "20260101-alpha" "completed"
-    make_cycle "20260102-beta" "completed"
+    make_cycle "20260101-alpha" "closed"
+    make_cycle "20260102-beta" "closed"
     result="$(active_init_path "$PROJECT_ROOT")"
     [ -z "$result" ]
 }
@@ -95,12 +95,12 @@ EOF
     echo "$summary" | grep -q "20260102-intake status=intake"
 }
 
-@test "active_init_path: mixed in-progress + completed → returns only in-progress" {
+@test "active_init_path: mixed in-progress + closed → returns only in-progress" {
     # shellcheck disable=SC1090
     source "$LIB"
-    make_cycle "20260101-alpha" "completed"
+    make_cycle "20260101-alpha" "closed"
     make_cycle "20260102-beta" "in-progress"
-    make_cycle "20260103-gamma" "completed"
+    make_cycle "20260103-gamma" "closed"
     result="$(active_init_path "$PROJECT_ROOT")"
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260102-beta" ]
 }
@@ -236,19 +236,19 @@ EOF
     [ "$result" = "parked-capture:$PROJECT_ROOT/.sage/work/20260102-intake" ]
 }
 
-@test "resolve_cycle_for_patch: completed cycle path is explicit, not none" {
+@test "resolve_cycle_for_patch: closed cycle path is explicit, not none" {
     # shellcheck disable=SC1090
     source "$LIB"
-    make_cycle "20260101-done" "completed"
+    make_cycle "20260101-done" "closed"
     result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260101-done/manifest.md")"
-    [ "$result" = "completed:$PROJECT_ROOT/.sage/work/20260101-done" ]
+    [ "$result" = "closed:$PROJECT_ROOT/.sage/work/20260101-done" ]
 }
 
-@test "resolve_cycle_for_patch: completed cycle path beats unrelated active cycle" {
+@test "resolve_cycle_for_patch: closed cycle path beats unrelated active cycle" {
     # shellcheck disable=SC1090
     source "$LIB"
     make_cycle "20260101-active" "in-progress"
-    make_cycle "20260102-done" "completed"
+    make_cycle "20260102-done" "closed"
     result="$(resolve_cycle_for_patch "$PROJECT_ROOT" ".sage/work/20260102-done/manifest.md" ".sage/decisions.md")"
-    [ "$result" = "completed:$PROJECT_ROOT/.sage/work/20260102-done" ]
+    [ "$result" = "closed:$PROJECT_ROOT/.sage/work/20260102-done" ]
 }

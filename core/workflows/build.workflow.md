@@ -104,7 +104,9 @@ judgment that's about to be lost.
 **Session end ([N]):** Manifest update is MANDATORY. Write handoff
 guidance and context summary before ending.
 
-**Completion:** Set `status: complete` at Step 8.
+**Completion:** Close the cycle manifest at Step 8 with `status: closed` and
+`phase: closed`; workflow artifacts such as `plan.md` may still use
+`status: completed`.
 
 After every `status` or `phase` change, tell the user what changed after the
 frontmatter has been updated. If the platform exposes a session id, record it
@@ -453,10 +455,11 @@ it, do a final self-review and finish required verification evidence, plan
 bookkeeping, decisions, and handoff context while keeping the manifest active,
 for example `status: in-progress`, `phase: completion-checkpoint`. Only after
 explicit user closeout approval may the agent mark lifecycle artifacts complete.
-Treat `manifest.status: completed` as the last Sage artifact mutation for the
-cycle. After closeout, report stage/commit status and ask whether to perform
-local handoff for this cycle's changes; do not ask for `push` by default and do
-not add a post-closeout `.sage` epilogue.
+Treat cycle manifest `status: closed` and `phase: closed` as the last Sage
+artifact mutation for the cycle. Artifact frontmatter may still use `status:
+completed`. After closeout, report stage/commit status and ask whether to
+perform local handoff for this cycle's changes; do not ask for `push` by default
+and do not add a post-closeout `.sage` epilogue.
 
 Standalone `closeout.md` is not the default for ordinary non-milestone builds.
 Keep closeout evidence in existing lifecycle artifacts such as `manifest.md`,
@@ -465,9 +468,9 @@ entries. Use standalone closeout artifacts only for umbrella, milestone-based,
 multi-phase, or architecture-style build cycles where evidence spans multiple
 stages or absorbed cycles.
 
-After closeout, use completed manifest-only reconciliation only for obvious
-bookkeeping in that cycle's `manifest.md` while preserving
-`manifest.status: completed`. A substantive issue found later needs a follow-up
+After closeout, use closed manifest-only reconciliation only for obvious
+bookkeeping in that cycle's `manifest.md` while preserving `status: closed` (or
+legacy `status: completed` during migration). A substantive issue found later needs a follow-up
 cycle. Reopen is only for an immediate correction in the same active conversation before handoff.
 
 **Anti-deferral guard:** Before presenting the completion checkpoint,
@@ -505,7 +508,7 @@ Pick A/R/V, or tell me what to change.
    ontology entities and link them to existing graph. Skip for small
    changes within existing modules — only update when the codebase's
    *navigable structure* changed. Search ontology first to avoid dupes.
-8. Set `manifest.status: completed` as the last Sage artifact mutation.
+8. Set cycle manifest `status: closed` and `phase: closed` as the last Sage artifact mutation.
 9. Report stage/commit status and ask about local git handoff. Do not push
    unless the user explicitly asks for push.
 

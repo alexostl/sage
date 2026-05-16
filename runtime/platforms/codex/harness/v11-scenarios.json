@@ -229,8 +229,8 @@
       }
     },
     {
-      "id": "16-completed-cycle-explicit-reopen",
-      "prompt": "16-completed-cycle-explicit-reopen.txt",
+      "id": "16-closed-cycle-explicit-reopen",
+      "prompt": "16-closed-cycle-explicit-reopen.txt",
       "claim": "explicit user reopen decision produces a legal reopen or recovery path instead of post-closeout mutation",
       "verification_class": "real-codex-harness",
       "release_blocker": true,
@@ -241,7 +241,7 @@
           "^tests/"
         ],
         "required_transcript_patterns": [
-          "completed cycle|closed cycle|zamkni|completed",
+          "closed cycle|zamkni",
           "reopen|resume|wznaw|wznow",
           "legal|recovery|wrapper|decision|decyz"
         ],

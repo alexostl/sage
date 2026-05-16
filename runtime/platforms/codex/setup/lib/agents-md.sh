@@ -255,8 +255,8 @@ State transitions are part of the contract:
 - Mutation preflight before write: active cycle/scope/count; threshold/closeout/tool path. Text edits use \`apply_patch\`; binary assets need explicit binary path.
 - Surgical mode is quantitative: exactly 1 file, at most 2 diff lines total,
   no manifest, and no secrets/policy/runtime/instruction surfaces.
-- Before mutation, choose the legal mode: read-only, surgical, capture, workflow, or completed-cycle-bookkeeping. If there is no valid mode, a mode mismatch, paused/completed/wrong-cycle state, cross-repo ambiguity, or prior hook block, activate Sage Navigator/workflow docs before editing; paused means route/recover, not wait.
-- Closeout order: completion checkpoint is not approval; keep manifest active until user approves closeout; then set manifest.status completed last after self-review/artifacts/decisions/handoff, report stage/commit, ask handoff, no default push, no post-closeout .sage epilogue. Standalone closeout.md is exceptional: reserve it for umbrella/milestone/multi-phase/architecture cycles, not ordinary non-milestone work.
+- Before mutation, choose the legal mode: read-only, surgical, capture, workflow, or closed-cycle-bookkeeping. If there is no valid mode, a mode mismatch, paused/closed/wrong-cycle state, cross-repo ambiguity, or prior hook block, activate Sage Navigator/workflow docs before editing; paused means route/recover, not wait.
+- Closeout order: completion checkpoint is not approval; keep manifest active until user approves closeout; then set cycle manifest \`status: closed\` and \`phase: closed\` last after self-review/artifacts/decisions/handoff; artifact frontmatter may still use \`status: completed\`; report stage/commit, ask handoff, no default push, no post-closeout .sage epilogue. Standalone closeout.md is exceptional: reserve it for umbrella/milestone/multi-phase/architecture cycles, not ordinary non-milestone work.
 
 For Standard+ Codex work, keep native plan/progress view as visibility layer;
 never replaces Sage artifacts. Skip for lightweight/read-only conversation.
@@ -312,6 +312,10 @@ resumable work. Parked work may be manifest-only and is not
 implementation-active until explicit continuation.
 \`sage status\` shows active work separately from paused/intake; \`sage doctor\`
 diagnoses structural issues such as actionable work placed in \`.sage/docs/\`.
+Closed cycle manifests use \`status: closed\`, \`phase: closed\`, and
+\`resolution: shipped | superseded | folded_into | rejected\`; \`status:
+completed\` remains valid for completed artifacts such as \`plan.md\`,
+\`spec.md\`, and \`root-cause.md\`.
 
 ### Skills Before Assumptions
 
@@ -410,7 +414,7 @@ proceeding. This is automatic, not optional.
 
 Decision logging policy:
 - \`.sage/decisions.md\` is a decision log, not a process log. Only decision-worthy events go there: accepted root cause/plan/scope, scope expansion, closeout, durable project rule, or user direction changing priority/ownership/risk/future behavior.
-- Auto-review and Auto-QA verdicts are process evidence. Process-only frontmatter, intermediate revisions, pure bookkeeping, and completed-cycle reconciliation do not require decision entries.
+- Auto-review and Auto-QA verdicts are process evidence. Process-only frontmatter, intermediate revisions, pure bookkeeping, and closed-cycle reconciliation do not require decision entries.
 - Keep the 50 newest decisions in \`.sage/decisions.md\`; rotate older entries to \`.sage/decisions-archive.md\` newest first from the primary checkout only. Worktrees may exceed 50 and must not touch archive.
 - Archive read is search-first: use \`rg\`, read fragments; full archive read requires a named reason.
 

@@ -98,23 +98,23 @@ assert_between_contains() {
     assert_not_contains "core/capabilities/review/auto-qa/SKILL.md" "After every auto-QA (any verdict), prepend"
 }
 
-@test "alex-native core: completed-cycle reconciliation is manifest-only and narrow" {
-    assert_contains "core/constitution/sage-process.constitution.md" "completed-cycle artifacts are immutable"
-    assert_contains "core/constitution/sage-process.constitution.md" "completed manifest-only reconciliation"
+@test "alex-native core: closed-cycle reconciliation is manifest-only and narrow" {
+    assert_contains "core/constitution/sage-process.constitution.md" "Closed-cycle artifacts are immutable"
+    assert_contains "core/constitution/sage-process.constitution.md" "closed manifest-only reconciliation"
     assert_contains "core/constitution/sage-process.constitution.md" "not decision-worthy"
 
-    assert_contains "core/workflows/build.workflow.md" "manifest.status: completed"
-    assert_contains "core/workflows/build.workflow.md" "completed manifest-only reconciliation"
+    assert_contains "core/workflows/build.workflow.md" "status: closed"
+    assert_contains "core/workflows/build.workflow.md" "closed manifest-only reconciliation"
     assert_contains "core/workflows/build.workflow.md" "same active conversation"
     assert_contains "core/workflows/build.workflow.md" "not the default for ordinary non-milestone builds"
     assert_contains "core/workflows/build.workflow.md" "lifecycle artifacts complete"
 
-    assert_contains "core/workflows/fix.workflow.md" "manifest.status: completed"
-    assert_contains "core/workflows/fix.workflow.md" "completed manifest-only reconciliation"
+    assert_contains "core/workflows/fix.workflow.md" "status: closed"
+    assert_contains "core/workflows/fix.workflow.md" "closed manifest-only reconciliation"
     assert_contains "core/workflows/fix.workflow.md" "same active conversation"
     assert_contains "core/workflows/fix.workflow.md" "not the default for ordinary non-milestone fixes"
 
-    assert_contains "core/workflows/architect.workflow.md" "completed manifest-only reconciliation"
+    assert_contains "core/workflows/architect.workflow.md" "closed manifest-only reconciliation"
     assert_contains "core/workflows/architect.workflow.md" "follow-up cycle"
     assert_contains "core/workflows/architect.workflow.md" "Standalone closeout artifacts are appropriate for architecture, umbrella"
     assert_contains "core/constitution/sage-process.constitution.md" "is exceptional"

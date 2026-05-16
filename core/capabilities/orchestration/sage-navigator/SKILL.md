@@ -233,8 +233,8 @@ Surgical mode is quantitative: exactly 1 file, at most 2 diff lines total, no
 manifest, and no secrets/policy/runtime/instruction surfaces.
 
 Before mutation, choose the legal mode: `read-only`, `surgical`, `capture`,
-`workflow`, or `completed-cycle-bookkeeping`. If no valid mode is available, or if
-the detected mode conflicts with paused/completed/wrong-cycle state,
+`workflow`, or `closed-cycle-bookkeeping`. If no valid mode is available, or if
+the detected mode conflicts with paused/closed/wrong-cycle state,
 cross-repo ownership, or a prior hook block, route to the matching workflow
 docs or recovery path before editing. If the user explicitly names another
 repository as the capture-only target, the legal cross-repo path is only a new intake manifest

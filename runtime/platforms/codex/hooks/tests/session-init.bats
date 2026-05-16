@@ -87,8 +87,8 @@ EOF
     echo "$output" | grep -q "intake"
 }
 
-@test "session-init.sh: completed cycle → no summary line emitted" {
-    make_cycle "20260103-gamma" "completed" "Done feature" "build" "review"
+@test "session-init.sh: closed cycle → no summary line emitted" {
+    make_cycle "20260103-gamma" "closed" "Done feature" "build" "closed"
     payload="$(make_payload "$PROJECT_ROOT")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
@@ -96,7 +96,7 @@ EOF
 }
 
 @test "session-init.sh: mixed cycles → only in-progress + paused + intake listed" {
-    make_cycle "20260101-done" "completed" "Done" "build" "review"
+    make_cycle "20260101-done" "closed" "Done" "build" "closed"
     make_cycle "20260102-active" "in-progress" "Active" "build" "implement"
     make_cycle "20260103-pause" "paused" "Paused" "fix" "diagnose"
     make_cycle "20260104-intake" "intake" "Intake" "intake" "intake"
@@ -117,8 +117,9 @@ EOF
 cycle_id: "20260102-done"
 title: Completed item
 workflow: build
-status: completed
-phase: completed
+status: closed
+phase: closed
+resolution: shipped
 ---
 EOF
     cat > "$PROJECT_ROOT/.sage/work/20260102-done/evidence/raw.log" <<'EOF'

@@ -126,7 +126,12 @@ make_cycle_with_scope() {
         printf -- '---\n'
         printf 'cycle_id: "%s"\n' "$cycle"
         printf 'status: %s\n' "$status"
-        printf 'phase: implement\n'
+        if [ "$status" = "closed" ] || [ "$status" = "completed" ]; then
+            printf 'phase: closed\n'
+            printf 'resolution: shipped\n'
+        else
+            printf 'phase: implement\n'
+        fi
         [ "$status" = "in-progress" ] && printf 'active_session_id: test-uuid\n'
         printf 'scope:\n'
         local g
@@ -385,7 +390,7 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: unbound active cycle blocks manifest-only completed closeout" {
+@test "pre-tool-validate.sh: unbound active cycle blocks manifest-only closed closeout" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<'EOF'
@@ -397,7 +402,7 @@ scope:
   - "src/**"
 ---
 EOF
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: completed\n phase: implement\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: closed\n phase: implement\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
@@ -644,79 +649,79 @@ semantic_reclassification: accepted
     echo "$output" | grep -q "docs/bad.md"
 }
 
-@test "pre-tool-validate.sh: completed cycle (not in-progress) → exit 2 (no active cycle)" {
-    make_cycle_with_scope "20260101-done" "completed" "src/**"
+@test "pre-tool-validate.sh: closed cycle (not in-progress) → exit 2 (no active cycle)" {
+    make_cycle_with_scope "20260101-done" "closed" "src/**"
     cmd="$(make_patch_cmd Add src/foo.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 2 ]
 }
 
-@test "pre-tool-validate.sh: completed cycle plan mutation gives closeout recovery guidance" {
-    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
+@test "pre-tool-validate.sh: closed cycle plan mutation gives closeout recovery guidance" {
+    make_cycle_with_scope "20260101-done" "closed" ".sage/work/20260101-done/*"
     cmd="$(make_patch_cmd Update .sage/work/20260101-done/plan.md)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed cycle"
     echo "$output" | grep -qi "immutable"
     echo "$output" | grep -qi "manifest-only reconciliation"
     echo "$output" | grep -qi "wrapper/follow-up"
 }
 
-@test "pre-tool-validate.sh: completed cycle artifact path beats unrelated active cycle" {
+@test "pre-tool-validate.sh: closed cycle artifact path beats unrelated active cycle" {
     make_cycle_with_scope "20260101-active" "in-progress" "src/**"
-    make_cycle_with_scope "20260102-done" "completed" ".sage/work/20260102-done/*"
+    make_cycle_with_scope "20260102-done" "closed" ".sage/work/20260102-done/*"
     cmd="$(make_patch_cmd Update .sage/work/20260102-done/plan.md)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed cycle"
     ! echo "$output" | grep -q "outside cycle scope"
 }
 
-@test "pre-tool-validate.sh: completed manifest-only reconciliation is allowed" {
-    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-phase: verify\n+phase: completed\n*** End Patch\n')"
+@test "pre-tool-validate.sh: closed manifest-only reconciliation is allowed" {
+    make_cycle_with_scope "20260101-done" "closed" ".sage/work/20260101-done/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-resolution: shipped\n+resolution: superseded\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
-    jq -e 'select(.mutation_kind == "completed_manifest_reconciliation")' "$PROJECT_ROOT/.sage/.session-mutations.log" >/dev/null
+    jq -e 'select(.mutation_kind == "closed_manifest_reconciliation")' "$PROJECT_ROOT/.sage/.session-mutations.log" >/dev/null
 }
 
-@test "pre-tool-validate.sh: completed manifest-only reconciliation blocks reopen status" {
-    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-status: completed\n+status: in-progress\n*** End Patch\n')"
+@test "pre-tool-validate.sh: closed manifest-only reconciliation blocks reopen status" {
+    make_cycle_with_scope "20260101-done" "closed" ".sage/work/20260101-done/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-status: closed\n+status: in-progress\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed cycle"
 }
 
-@test "pre-tool-validate.sh: completed manifest-only reconciliation blocks status removal" {
-    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-status: completed\n phase: completed\n*** End Patch\n')"
+@test "pre-tool-validate.sh: closed manifest-only reconciliation blocks status removal" {
+    make_cycle_with_scope "20260101-done" "closed" ".sage/work/20260101-done/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-status: closed\n phase: closed\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed cycle"
 }
 
-@test "pre-tool-validate.sh: completed manifest reconciliation blocks any second file" {
-    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-phase: verify\n+phase: completed\n*** Update File: .sage/decisions.md\n@@\n+decision\n*** End Patch\n')"
+@test "pre-tool-validate.sh: closed manifest reconciliation blocks any second file" {
+    make_cycle_with_scope "20260101-done" "closed" ".sage/work/20260101-done/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-done/manifest.md\n@@\n-resolution: shipped\n+resolution: superseded\n*** Update File: .sage/decisions.md\n@@\n+decision\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed cycle"
 }
 
-@test "pre-tool-validate.sh: completed manifest reconciliation requires apply_patch command details" {
-    make_cycle_with_scope "20260101-done" "completed" ".sage/work/20260101-done/*"
+@test "pre-tool-validate.sh: closed manifest reconciliation requires apply_patch command details" {
+    make_cycle_with_scope "20260101-done" "closed" ".sage/work/20260101-done/*"
     payload="$(make_file_change_payload update "$PROJECT_ROOT/.sage/work/20260101-done/manifest.md")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "completed cycle"
+    echo "$output" | grep -qi "closed cycle"
 }
 
 @test "pre-tool-validate.sh: paused/intake cycles are parked, not silently activated" {

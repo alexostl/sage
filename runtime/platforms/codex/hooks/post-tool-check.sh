@@ -90,11 +90,11 @@ emit_incident() {
     json_log_append "$incidents_log" "$line"
 }
 
-# Close-cycle contract: flipping a manifest to completed should be the final
+# Close-cycle contract: flipping a cycle manifest to closed should be the final
 # mutation by default. If the same patch also touches implementation/public
 # files, surface a critical incident unless the manifest explicitly carries a
 # pre-flip closeout marker.
-completed_cycles=()
+closed_cycles=()
 for p in "${claimed_paths[@]}"; do
     case "$p" in
         .sage/work/*/manifest.md)
@@ -104,16 +104,16 @@ for p in "${claimed_paths[@]}"; do
             [ -f "$manifest" ] || continue
             status_now="$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null || true)"
             epilogue="$(manifest_yaml "$manifest" | yq eval '.closeout_epilogue // ""' - 2>/dev/null || true)"
-            if [ "$status_now" = "completed" ]; then
+            if is_closed_cycle_status "$status_now"; then
                 case "$epilogue" in allowed|accepted|true|yes) ;;
-                    *) completed_cycles+=("$cycle") ;;
+                    *) closed_cycles+=("$cycle") ;;
                 esac
             fi
             ;;
     esac
 done
 
-for cycle in ${completed_cycles[@]+"${completed_cycles[@]}"}; do
+for cycle in ${closed_cycles[@]+"${closed_cycles[@]}"}; do
     for p in "${claimed_paths[@]}"; do
         if ! is_cycle_artifact_path "$p" "$cycle"; then
             emit_incident "post_completion_mutation" "$p" "critical"

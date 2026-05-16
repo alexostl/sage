@@ -56,9 +56,9 @@ EOF
 }
 
 @test "run-harness.sh: selects Minimization Path discovery scenarios" {
-    run env HARNESS_LIST_PROMPTS_ONLY=1 HARNESS_SCENARIOS="15-cross-repo-fix-intake-capture,16-completed-cycle-explicit-reopen,17-local-gitignored-config-artifact" "$RUN_HARNESS"
+    run env HARNESS_LIST_PROMPTS_ONLY=1 HARNESS_SCENARIOS="15-cross-repo-fix-intake-capture,16-closed-cycle-explicit-reopen,17-local-gitignored-config-artifact" "$RUN_HARNESS"
     [ "$status" -eq 0 ]
-    [ "$output" = $'15-cross-repo-fix-intake-capture\n16-completed-cycle-explicit-reopen\n17-local-gitignored-config-artifact' ]
+    [ "$output" = $'15-cross-repo-fix-intake-capture\n16-closed-cycle-explicit-reopen\n17-local-gitignored-config-artifact' ]
 }
 
 @test "run-harness.sh: selects M1 calibration scenarios" {

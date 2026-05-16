@@ -14,8 +14,9 @@ description: >
 ---
 cycle_id: "YYYYMMDD-slug"
 workflow: build | architect | fix | research | design | analyze | reflect
-phase: framing | brief | spec | plan | implement | quality-gates | review | complete
-status: in-progress | paused | blocked | complete
+phase: framing | brief | spec | plan | implement | quality-gates | review | closed
+status: intake | in-progress | paused | closed
+resolution: shipped | superseded | folded_into | rejected  # only when status: closed
 created: YYYY-MM-DD
 updated: YYYY-MM-DD HH:MM
 ---

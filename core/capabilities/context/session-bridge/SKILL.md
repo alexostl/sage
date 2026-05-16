@@ -126,7 +126,7 @@ FIX mode typically doesn't have plan artifacts. For FIX mode:
 
 **No artifacts found:** "Sage: Fresh project, no work in progress."
 
-**All artifacts completed:** "Previous initiative [name] is complete.
+**All artifacts completed:** "Previous initiative [name] is closed.
 Ready for a new task."
 
 **Artifacts and codebase disagree:** Always trust the codebase (git log,

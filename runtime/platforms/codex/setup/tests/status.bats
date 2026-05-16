@@ -151,14 +151,14 @@ owner: alexostl
 updated: 2026-05-02
 ---
 EOF
-    mkdir -p "$TARGET/.sage/work/20260503-completed"
-    cat > "$TARGET/.sage/work/20260503-completed/manifest.md" <<'EOF'
+    mkdir -p "$TARGET/.sage/work/20260503-closed"
+    cat > "$TARGET/.sage/work/20260503-closed/manifest.md" <<'EOF'
 ---
-cycle_id: "20260503-completed"
-title: Completed history item
+cycle_id: "20260503-closed"
+title: Closed shipped history item
 workflow: build
-phase: completed
-status: completed
+phase: closed
+status: closed
 priority: P3
 owner: alexostl
 updated: 2026-05-03
@@ -171,8 +171,8 @@ EOF
 cycle_id: "20260504-folded"
 title: Folded history item
 workflow: fix
-phase: completed
-status: completed
+phase: closed
+status: closed
 priority: P3
 owner: alexostl
 updated: 2026-05-04
@@ -187,7 +187,7 @@ cycle_id: "20260505-rejected"
 title: Rejected history item
 workflow: architect
 phase: rejected
-status: rejected-superseded
+status: closed
 priority: P3
 owner: alexostl
 updated: 2026-05-05
@@ -376,17 +376,17 @@ EOF
     ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .title == "Body title must not override frontmatter")' >/dev/null
 }
 
-@test "status --json: completed and folded cycles are counted but not listed by default" {
+@test "status --json: closed and folded cycles are counted but not listed by default" {
     seed_status_index_cycles
     run run_status --json
     [ "$status" -eq 0 ]
     [ "$(echo "$output" | jq -r '.work_index.cycles | length')" = "3" ]
-    ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260503-completed")' >/dev/null
+    ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260503-closed")' >/dev/null
     ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260504-folded")' >/dev/null
-    echo "$output" | jq -e '.work_index.counts.by_status["completed"] == 2' >/dev/null
-    echo "$output" | jq -e '.work_index.counts.by_status["rejected-superseded"] == 1' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_status["closed"] == 3' >/dev/null
     echo "$output" | jq -e '.work_index.counts.by_resolution["folded_into"] == 1' >/dev/null
     echo "$output" | jq -e '.work_index.counts.by_resolution["shipped"] == 1' >/dev/null
+    echo "$output" | jq -e '.work_index.counts.by_resolution["rejected"] == 1' >/dev/null
 }
 
 @test "status --json: does not read decisions archive or raw evidence into default context" {
@@ -403,8 +403,8 @@ EOF
 ### 2026-01-01 — Archived Secret
 ARCHIVE_SHOULD_NOT_APPEAR
 EOF
-    mkdir -p "$TARGET/.sage/work/20260503-completed/evidence"
-    cat > "$TARGET/.sage/work/20260503-completed/evidence/raw.log" <<'EOF'
+    mkdir -p "$TARGET/.sage/work/20260503-closed/evidence"
+    cat > "$TARGET/.sage/work/20260503-closed/evidence/raw.log" <<'EOF'
 RAW_EVIDENCE_SHOULD_NOT_APPEAR
 EOF
     run run_status --json

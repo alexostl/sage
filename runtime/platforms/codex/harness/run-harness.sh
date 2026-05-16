@@ -146,14 +146,15 @@ apply_prompt_fixture() {
     local name="${1:?prompt name required}"
 
     case "$name" in
-        16-completed-cycle-explicit-reopen)
+        16-closed-cycle-explicit-reopen)
             mkdir -p "$TARGET/.sage/work/20260515-closed-hook-study"
             cat > "$TARGET/.sage/work/20260515-closed-hook-study/manifest.md" <<'EOF'
 ---
 cycle_id: 20260515-closed-hook-study
 workflow: architect
-phase: completed
-status: completed
+phase: closed
+status: closed
+resolution: shipped
 created: 2026-05-15
 scope:
   - .sage/work/20260515-closed-hook-study/**
@@ -163,12 +164,12 @@ scope:
 
 ## Closeout
 
-This fixture is intentionally marked completed before the prompt begins.
+This fixture is intentionally marked closed before the prompt begins.
 EOF
             (
                 cd "$TARGET" || exit 1
                 git add .sage/work/20260515-closed-hook-study/manifest.md
-                git commit -q -m "harness fixture: completed cycle" >/dev/null 2>&1 || true
+                git commit -q -m "harness fixture: closed cycle" >/dev/null 2>&1 || true
             ) || true
             ;;
         17-local-gitignored-config-artifact)

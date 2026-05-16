@@ -43,7 +43,9 @@ the most recent artifact if present.
 plan checkpoint, each milestone completion.
 **Session end ([N]):** Manifest update is MANDATORY — architect cycles
 span sessions, so handoff guidance is critical.
-**Completion:** Set `status: complete` after final milestone.
+**Completion:** Close the cycle manifest after final milestone with
+`status: closed` and `phase: closed`. Artifact frontmatter such as `spec.md`
+may still use `status: completed`.
 **Anti-lazy-manifest:** Same contract as build workflow — summary must
 contain judgment, not spec titles.
 

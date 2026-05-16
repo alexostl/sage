@@ -523,27 +523,30 @@ is_standalone_repo_hygiene_patch() {
     [ "${claimed_paths[0]}" = ".gitignore" ]
 }
 
-is_completed_manifest_reconciliation_patch() {
+is_closed_manifest_reconciliation_patch() {
     local cycle_id="$1"
+    local manifest_path=".sage/work/$cycle_id/manifest.md"
 
     [ "${#claimed_paths[@]}" -eq 1 ] || return 1
     [ "${#claimed_ops[@]}" -eq 1 ] || return 1
     [ "${claimed_ops[0]}" = "Update" ] || return 1
-    [ "${claimed_paths[0]}" = ".sage/work/$cycle_id/manifest.md" ] || return 1
+    [ "${claimed_paths[0]}" = "$manifest_path" ] || return 1
 
     # Only apply_patch carries enough patch detail for a safe pre-write status
-    # invariant check. File-change shaped payloads stay blocked for completed
+    # invariant check. File-change shaped payloads stay blocked for closed
     # cycles because PreToolUse cannot inspect the future manifest contents.
-    printf '%s\n' "$cmd" | grep -Fq "*** Update File: .sage/work/$cycle_id/manifest.md" || return 1
-
-    # Never allow reopening a completed cycle through this narrow bookkeeping
-    # path. Non-status manifest edits are allowed; any added status must remain
-    # completed.
-    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*' >/dev/null; then
-        printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*completed[[:space:]]*$' >/dev/null || return 1
+    if ! printf '%s\n' "$cmd" | grep -Fq "*** Update File: $manifest_path"; then
+        printf '%s\n' "$cmd" | grep -Fq "*** Update File: $cwd/$manifest_path" || return 1
     fi
-    if printf '%s\n' "$cmd" | grep -E '^-status:[[:space:]]*completed[[:space:]]*$' >/dev/null; then
-        printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*completed[[:space:]]*$' >/dev/null || return 1
+
+    # Never allow reopening a closed cycle through this narrow bookkeeping
+    # path. Non-status manifest edits are allowed; any added status must remain
+    # closed (or legacy completed during migration).
+    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*' >/dev/null; then
+        printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*(closed|completed)[[:space:]]*$' >/dev/null || return 1
+    fi
+    if printf '%s\n' "$cmd" | grep -E '^-status:[[:space:]]*(closed|completed)[[:space:]]*$' >/dev/null; then
+        printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*(closed|completed)[[:space:]]*$' >/dev/null || return 1
     fi
 
     return 0
@@ -552,16 +555,19 @@ is_completed_manifest_reconciliation_patch() {
 is_unbound_active_cycle_claim_patch() {
     local cycle_id="$1"
     local current_session_id="$2"
+    local manifest_path=".sage/work/$cycle_id/manifest.md"
     local escaped_session_id
 
     [ "$tool_name" = "apply_patch" ] || return 1
     [ "${#claimed_paths[@]}" -eq 1 ] || return 1
     [ "${#claimed_ops[@]}" -eq 1 ] || return 1
     [ "${claimed_ops[0]}" = "Update" ] || return 1
-    [ "${claimed_paths[0]}" = ".sage/work/$cycle_id/manifest.md" ] || return 1
-    printf '%s\n' "$cmd" | grep -Fq "*** Update File: .sage/work/$cycle_id/manifest.md" || return 1
+    [ "${claimed_paths[0]}" = "$manifest_path" ] || return 1
+    if ! printf '%s\n' "$cmd" | grep -Fq "*** Update File: $manifest_path"; then
+        printf '%s\n' "$cmd" | grep -Fq "*** Update File: $cwd/$manifest_path" || return 1
+    fi
 
-    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*completed[[:space:]]*$' >/dev/null; then
+    if printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*(closed|completed)[[:space:]]*$' >/dev/null; then
         return 1
     fi
 
@@ -668,12 +674,12 @@ elif [ "$resolution_kind" = "local-ignored-artifact" ]; then
     cycle_id=""
 elif [ "$resolution_kind" = "bootstrap" ]; then
     cycle_id="$resolution_value"
-elif [ "$resolution_kind" = "completed" ]; then
+elif [ "$resolution_kind" = "closed" ]; then
     cycle_id="$(basename "$resolution_value")"
-    if is_completed_manifest_reconciliation_patch "$cycle_id"; then
-        mutation_kind="completed_manifest_reconciliation"
+    if is_closed_manifest_reconciliation_patch "$cycle_id"; then
+        mutation_kind="closed_manifest_reconciliation"
     else
-        printf 'Sage: BLOCKING completed cycle mutation. Cycle: %s. Completed cycles are immutable. Next legal move: if this is stale completed-cycle bookkeeping, use a manifest-only reconciliation that keeps status completed; otherwise create a wrapper/follow-up cycle. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
+        printf 'Sage: BLOCKING closed cycle mutation. Cycle: %s. Closed cycles are immutable. Next legal move: if this is stale closed-cycle bookkeeping, use a manifest-only reconciliation that keeps status closed; otherwise create a wrapper/follow-up cycle. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
         exit 2
     fi
 elif [ "$resolution_kind" = "none" ]; then

@@ -166,8 +166,10 @@ A completion checkpoint is not approval. At completion checkpoint, keep the
 cycle active, for example `status: in-progress` and
 `phase: completion-checkpoint`, while showing verification evidence and asking
 for closeout approval. Only explicit user approval may move the cycle to
-`manifest.status: completed`, and that completed-status update must be the last
-Sage artifact mutation for the closeout.
+cycle manifest `status: closed` and `phase: closed`, and that closed-status
+update must be the last Sage artifact mutation for the closeout. Artifact
+frontmatter such as `plan.md` may still use `status: completed` to mean the
+artifact is approved/done.
 Standalone `closeout.md` is exceptional: use existing lifecycle artifacts for
 ordinary non-milestone work, and reserve standalone closeout artifacts for
 umbrella, milestone-based, multi-phase, or architecture cycles.
@@ -250,11 +252,14 @@ conversation when useful. Do not create a global `.sage/decisions.md` entry for
 every verdict.
 
 Process-only frontmatter, intermediate artifact revisions, approval mechanics,
-pure bookkeeping, and completed-cycle reconciliation do not require decision
+pure bookkeeping, and closed-cycle reconciliation do not require decision
 entries unless they change future project policy or scope.
 
-completed-cycle artifacts are immutable except narrow completed manifest-only reconciliation. That exception may update only the completed cycle's
-`manifest.md`, must keep `status: completed`, and is not decision-worthy.
+Closed-cycle artifacts are immutable except narrow closed manifest-only
+reconciliation. The closed manifest-only reconciliation exception may update
+only the closed cycle's `manifest.md`,
+must keep `status: closed` (or legacy `status: completed` during migration),
+and is not decision-worthy.
 Substantive post-closeout errors require a follow-up cycle unless they are
 corrected immediately in the same active conversation before handoff.
 

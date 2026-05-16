@@ -43,7 +43,7 @@ Paused / intake:
   [initiative-name] [intake] — parked actionable work, no implementation started
 
 History:
-  completed/folded/rejected counts only; details are search-first when needed
+  closed/shipped/folded/rejected counts only; details are search-first when needed
 
 Docs: [N] files in .sage/docs/
 Recent decisions: [last 2-3 decision titles]
@@ -64,10 +64,13 @@ Gates: [mode config summary]
   approved, but the cycle is not parked.
 - `paused` and `intake` are visible and resumable, but not
   implementation-active for hooks.
+- Closed cycle manifests use `status: closed` and `phase: closed`; the close
+  outcome is stored in `resolution: shipped | superseded | folded_into |
+  rejected`. Legacy `status: completed` is read as closed during migration.
 - `work_index` is derived from manifest frontmatter only. It is the lightweight
   lifecycle layer for status JSON; do not read manifest bodies, raw evidence,
   transcripts, or archive decisions for ordinary status.
-- Completed/folded/rejected history is count-only in default status. When
+- Closed/folded/rejected history is count-only in default status. When
   details are needed, search targeted artifacts with `rg` and read only the
   matching fragment.
 - `recent_decisions` and `health` are context/diagnostic layers. They do not

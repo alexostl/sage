@@ -407,11 +407,12 @@ If ANY fails → go back. Do NOT present the checkpoint.
 it, finish final self-review, decisions, verification notes, plan/manifest
 bookkeeping, and handoff context while keeping the manifest active, for example
 `status: in-progress`, `phase: completion-checkpoint`. Only after explicit user
-closeout approval may the agent mark the cycle completed. Treat
-`manifest.status: completed` as the last Sage artifact mutation. After closeout,
-report stage/commit status and ask whether to perform local handoff for this
-cycle's changes; do not ask for `push` by default and do not add a
-post-closeout `.sage` epilogue.
+closeout approval may the agent close the cycle. Treat cycle manifest
+`status: closed` and `phase: closed` as the last Sage artifact mutation.
+Artifact frontmatter may still use `status: completed`. After closeout, report
+stage/commit status and ask whether to perform local handoff for this cycle's
+changes; do not ask for `push` by default and do not add a post-closeout
+`.sage` epilogue.
 
 Standalone `closeout.md` is not the default for ordinary non-milestone fixes.
 Keep closeout evidence in existing lifecycle artifacts such as `manifest.md`,
@@ -420,9 +421,9 @@ entries. Use standalone closeout artifacts only for umbrella, milestone-based,
 multi-phase, or architecture-style fix cycles where evidence spans multiple
 stages or absorbed cycles.
 
-After closeout, use completed manifest-only reconciliation only for obvious
-bookkeeping in that cycle's `manifest.md` while preserving
-`manifest.status: completed`. A substantive issue found later needs a follow-up
+After closeout, use closed manifest-only reconciliation only for obvious
+bookkeeping in that cycle's `manifest.md` while preserving `status: closed` (or
+legacy `status: completed` during migration). A substantive issue found later needs a follow-up
 cycle. Reopen is only for an immediate correction in the same active conversation before handoff.
 
 Sage: Fix ready for completion approval.
@@ -448,7 +449,7 @@ Pick A/R/V, or tell me what to change.
    an interface, check all callers. If you added error handling, verify
    the error path is wired end-to-end. Incomplete wiring is the #1
    cause of fixes that need re-fixing.
-5. Set `manifest.status: completed` as the last Sage artifact mutation.
+5. Set cycle manifest `status: closed` and `phase: closed` as the last Sage artifact mutation.
 6. Report stage/commit status and ask about local git handoff. Do not push
    unless the user explicitly asks for push.
 7. **Ontology update (if sage-memory available):** If the fix changed

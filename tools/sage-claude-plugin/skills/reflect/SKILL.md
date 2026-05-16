@@ -13,12 +13,13 @@ Look back. Extract learnings. Seed the next cycle.
 
 ## Auto-Pickup
 
-Scan `.sage/work/` for recently completed initiatives
-(status: completed in frontmatter). Scan `.sage/docs/` for
+Scan `.sage/work/` for recently closed initiatives
+(`status: closed` or legacy `status: completed` in cycle manifest
+frontmatter). Scan `.sage/docs/` for
 research and analysis artifacts. Read `.sage/decisions.md`
 for the full decision trail.
 
-If no completed work exists: "Sage: No completed initiatives
+If no closed work exists: "Sage: No closed initiatives
 found. /reflect works best after a deliver cycle. Describe
 what you want to reflect on, or type / for other commands."
 

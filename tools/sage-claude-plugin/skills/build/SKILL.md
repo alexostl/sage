@@ -68,7 +68,9 @@ judgment that's about to be lost.
 **Session end ([N]):** Manifest update is MANDATORY. Write handoff
 guidance and context summary before ending.
 
-**Completion:** Set `status: complete` at Step 8.
+**Completion:** Close the cycle manifest at Step 8 with `status: closed` and
+`phase: closed`; workflow artifacts such as `plan.md` may still use
+`status: completed`.
 
 **Anti-lazy-manifest contract:**
 Context summary MUST NOT be:

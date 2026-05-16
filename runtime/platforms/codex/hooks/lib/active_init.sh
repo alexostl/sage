@@ -25,6 +25,15 @@ manifest_yaml() {
     fi
 }
 
+is_closed_cycle_status() {
+    case "$1" in
+        closed|completed)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
 active_init_path() {
     local project_root="$1"
     local work_dir="$project_root/.sage/work"
@@ -172,8 +181,8 @@ resolve_cycle_for_patch() {
             paused|intake)
                 printf 'parked-capture:%s\n' "$project_root/.sage/work/$cycle_id"
                 return 0 ;;
-            completed)
-                printf 'completed:%s\n' "$project_root/.sage/work/$cycle_id"
+            closed|completed)
+                printf 'closed:%s\n' "$project_root/.sage/work/$cycle_id"
                 return 0 ;;
         esac
     fi

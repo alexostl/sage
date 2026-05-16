@@ -116,12 +116,12 @@ log_baseline() {
     grep -q "seed.txt" "$log"
 }
 
-@test "turn-audit.sh: phase-jump probe — status flipped to completed → phase_jump_observed" {
+@test "turn-audit.sh: phase-jump probe — status flipped to closed/completed → phase_jump_observed" {
     cd "$PROJECT_ROOT"
     mkdir -p .sage/work/20260101-alpha
     cat > .sage/work/20260101-alpha/spec.md <<'EOF'
 ---
-status: completed
+status: closed
 title: "alpha"
 ---
 EOF
@@ -327,7 +327,7 @@ EOF
     mkdir -p .sage/work/20260101-alpha
     cat > .sage/work/20260101-alpha/manifest.md <<'EOF'
 ---
-status: completed
+status: closed
 title: "alpha"
 ---
 EOF

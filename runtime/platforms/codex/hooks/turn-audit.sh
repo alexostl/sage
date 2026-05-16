@@ -24,6 +24,15 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/dirty_state.sh"
 
+is_closed_cycle_status() {
+    case "$1" in
+        closed|completed)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
 if ! command -v jq >/dev/null 2>&1; then
     exit 0
 fi
@@ -189,7 +198,7 @@ if [ -f "$mutations_log" ]; then
 fi
 
 # Step 4 — phase-jump probe: did this session mutate a manifest/spec/
-# plan and is the on-disk file at status: completed? Informational —
+# plan and is the on-disk file at closed/completed status? Informational —
 # feeds outcome harness for §6.2 v2 promotion trigger #1.
 if command -v yq >/dev/null 2>&1; then
     for p in ${claimed_paths[@]+"${claimed_paths[@]}"}; do
@@ -201,7 +210,7 @@ if command -v yq >/dev/null 2>&1; then
         fm="$(awk '/^---$/{c++; next} c==1{print} c>=2{exit}' "$cwd/$p" 2>/dev/null || true)"
         [ -n "$fm" ] || continue
         new_status="$(printf '%s' "$fm" | yq eval '.status // ""' - 2>/dev/null || true)"
-        if [ "$new_status" = "completed" ]; then
+        if is_closed_cycle_status "$new_status"; then
             cycle="$(basename "$(dirname "$p")")"
             extras="$(jq -nc --arg cycle "$cycle" --arg ns "$new_status" \
                 '{cycle:$cycle, new_status:$ns}')"

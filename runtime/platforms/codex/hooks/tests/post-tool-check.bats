@@ -334,18 +334,18 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "post-tool-check.sh: completing manifest plus implementation file logs post_completion_mutation" {
+@test "post-tool-check.sh: closing manifest plus implementation file logs post_completion_mutation" {
     cd "$PROJECT_ROOT"
     mkdir -p .sage/work/20260101-alpha src
     cat > .sage/work/20260101-alpha/manifest.md <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: completed
+status: closed
 ---
 EOF
     echo "changed" > src/late.sh
     git add .sage/work/20260101-alpha/manifest.md src/late.sh
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: completed\n*** Add File: src/late.sh\n+changed\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: closed\n*** Add File: src/late.sh\n+changed\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
@@ -361,13 +361,13 @@ EOF
     cat > .sage/work/20260101-alpha/manifest.md <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: completed
+status: closed
 closeout_epilogue: allowed
 ---
 EOF
     echo "changed" > src/late.sh
     git add .sage/work/20260101-alpha/manifest.md src/late.sh
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: completed\n*** Add File: src/late.sh\n+changed\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: closed\n*** Add File: src/late.sh\n+changed\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]

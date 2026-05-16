@@ -1608,6 +1608,7 @@ sage_status() {
     [ -n "$cycle_id" ] || cycle_id="$id"
     case "$status" in
       "") status="in-progress" ;;
+      completed|complete|rejected-superseded) status="closed" ;;
     esac
     counts_by_status="$(jq -c --arg status "$status" '.[$status] = (.[$status] // 0) + 1' <<< "$counts_by_status")"
     if [ -n "$resolution" ]; then
