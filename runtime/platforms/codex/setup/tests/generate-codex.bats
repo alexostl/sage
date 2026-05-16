@@ -17,6 +17,16 @@ teardown() {
     rm -rf "$TARGET"
 }
 
+build_complete_target() {
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 3 >/dev/null
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 4 >/dev/null
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 5 >/dev/null
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 6 >/dev/null
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 7 >/dev/null
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 9 >/dev/null
+    env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 9a >/dev/null
+}
+
 @test "generate-codex.sh: --help prints usage with --target / --preset flags" {
     run "$GEN" --help
     [ "$status" -eq 0 ]
@@ -79,39 +89,7 @@ teardown() {
 }
 
 @test "generate-codex.sh: Stage 10 passes sanity sweep on faked-complete target" {
-    # Simulate a fully generated target — minimum invariants per spec §4 Stage 10.
-    cat > "$TARGET/AGENTS.md" <<'EOF'
-# Sage — Project Instructions
-
-## Operating Kernel
-
-Discover available Sage Memory tools through Codex tool discovery.
-Fall back to `.sage-memory/` files only when MCP tools are unavailable.
-
-<!-- SAGE-MANAGED-END -->
-EOF
-    mkdir -p "$TARGET/.codex/hooks" "$TARGET/.sage/gates/scripts"
-    cat > "$TARGET/.codex/config.toml" <<'EOF'
-trust_level = "trusted"
-EOF
-    cat > "$TARGET/.codex/hooks.json" <<'EOF'
-{"hooks": {}}
-EOF
-    for h in session-init pre-tool-validate post-tool-check turn-audit; do
-        echo '#!/bin/sh' > "$TARGET/.codex/hooks/$h.sh"
-        chmod +x "$TARGET/.codex/hooks/$h.sh"
-    done
-    # T1.16 tightening: src gates count must match tgt — copy real ones.
-    for g in "$REPO_ROOT"/core/gates/scripts/*.sh; do
-        [ -f "$g" ] || continue
-        cp "$g" "$TARGET/.sage/gates/scripts/"
-        chmod 0755 "$TARGET/.sage/gates/scripts/$(basename "$g")"
-    done
-    cat > "$TARGET/.sage/constitution.md" <<'EOF'
----
-extends: base
----
-EOF
+    build_complete_target
     run env SAGE_FRAMEWORK="$REPO_ROOT" "$GEN" --target "$TARGET" --preset base --stage 10 --dry-run
     [ "$status" -eq 0 ]
 }
