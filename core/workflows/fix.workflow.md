@@ -314,6 +314,16 @@ only the user-specified revision may happen before implementation. Scope
 expansion, new decisions, new risks, or ambiguous revision instructions stop
 the workflow and return to the gate.
 
+Before mutating runtime/source/test files, perform an implementation readiness preflight as a manifest-only readiness patch: bind the real
+`active_session_id`, record `implementation_approval` pointing at the existing
+canonical `plan.md`, add `semantic_reclassification: accepted` when the
+approved scope includes hook-risky paths, and confirm `scope` covers all
+planned files. If the canonical `plan.md` lacks prior-turn evidence for a
+same-turn boundary edit, stop after the readiness patch and continue in a later
+turn. After the readiness patch, preserve `[C] Checkpointed implementation` and
+`[F] Full autonomous implementation`; both remain bound to the approved
+`plan.md` and manifest scope.
+
 ## Step 4: Implement Fix
 
 Write a failing test that reproduces the bug. Confirm the test fails

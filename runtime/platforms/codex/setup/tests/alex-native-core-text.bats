@@ -115,6 +115,15 @@ assert_between_contains() {
     assert_contains "core/workflows/architect.workflow.md" "follow-up cycle"
 }
 
+@test "alex-native core: fix workflow has implementation readiness preflight" {
+    assert_contains "core/workflows/fix.workflow.md" "implementation readiness preflight"
+    assert_contains "core/workflows/fix.workflow.md" "manifest-only readiness patch"
+    assert_contains "core/workflows/fix.workflow.md" 'canonical `plan.md`'
+    assert_contains "core/workflows/fix.workflow.md" "same-turn boundary"
+    assert_contains "core/workflows/fix.workflow.md" '\[C\] Checkpointed implementation'
+    assert_contains "core/workflows/fix.workflow.md" '\[F\] Full autonomous implementation'
+}
+
 @test "alex-native core: status work_index is lightweight and frontmatter-derived" {
     assert_contains "core/workflows/status.workflow.md" "work_index"
     assert_contains "core/workflows/status.workflow.md" "manifest frontmatter only"

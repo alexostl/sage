@@ -277,6 +277,9 @@ approved plan without intermediate checkpoints until verification/close, bound
 to the approved plan and manifest scope. Any scope expansion cancels the grant;
 so does a new workflow/follow-up, product/architecture decision, key assumption,
 conflict, or material risk changes the plan.
+Before either path mutates runtime/source/test files, write a manifest-only readiness patch: real \`active_session_id\`, \`implementation_approval\`
+pointing at canonical \`plan.md\`, \`semantic_reclassification\` when hook-risky
+paths are in scope, and full approved scope.
 
 \`[I] Revise and Implement in the same turn\` is explicit bounded conditional
 approval: apply only the user-specified revision, record manifest frontmatter

@@ -350,6 +350,15 @@ EOF
     grep -q 'material risk changes the plan' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md carries implementation readiness preflight reminder" {
+    PRESET=base run_stage3
+    grep -q 'manifest-only readiness patch' "$TARGET/AGENTS.md"
+    grep -q 'implementation_approval' "$TARGET/AGENTS.md"
+    grep -q 'semantic_reclassification' "$TARGET/AGENTS.md"
+    grep -q 'active_session_id' "$TARGET/AGENTS.md"
+    grep -q 'canonical `plan.md`' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md carries compact option recommendation reminder" {
     PRESET=base run_stage3
     grep -q '(Recommended)' "$TARGET/AGENTS.md"
