@@ -355,6 +355,46 @@ EOF
     grep -q "src/late.sh" "$log"
 }
 
+@test "post-tool-check.sh: source hook edit without installed sync logs hook_deploy_drift" {
+    cd "$PROJECT_ROOT"
+    mkdir -p runtime/platforms/codex/hooks .codex/hooks
+    printf '#!/usr/bin/env bash\nprintf source\n' > runtime/platforms/codex/hooks/pre-tool-validate.sh
+    printf '#!/usr/bin/env bash\nprintf installed\n' > .codex/hooks/pre-tool-validate.sh
+    git add runtime/platforms/codex/hooks/pre-tool-validate.sh .codex/hooks/pre-tool-validate.sh
+    git commit -q -m "seed hooks"
+
+    printf '#!/usr/bin/env bash\nprintf changed-source\n' > runtime/platforms/codex/hooks/pre-tool-validate.sh
+    cmd="$(make_patch_cmd Update runtime/platforms/codex/hooks/pre-tool-validate.sh)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    [ -f "$log" ]
+    grep -q "hook_deploy_drift" "$log"
+    grep -q ".codex/hooks/pre-tool-validate.sh" "$log"
+    grep -q '"severity":"critical"' "$log"
+}
+
+@test "post-tool-check.sh: source hook edit with installed sync does not log hook_deploy_drift" {
+    cd "$PROJECT_ROOT"
+    mkdir -p runtime/platforms/codex/hooks .codex/hooks
+    printf '#!/usr/bin/env bash\nprintf old\n' > runtime/platforms/codex/hooks/pre-tool-validate.sh
+    cp runtime/platforms/codex/hooks/pre-tool-validate.sh .codex/hooks/pre-tool-validate.sh
+    git add runtime/platforms/codex/hooks/pre-tool-validate.sh .codex/hooks/pre-tool-validate.sh
+    git commit -q -m "seed synced hooks"
+
+    printf '#!/usr/bin/env bash\nprintf synced\n' > runtime/platforms/codex/hooks/pre-tool-validate.sh
+    cp runtime/platforms/codex/hooks/pre-tool-validate.sh .codex/hooks/pre-tool-validate.sh
+    cmd="$(printf '*** Begin Patch\n*** Update File: runtime/platforms/codex/hooks/pre-tool-validate.sh\n@@\n-old\n+synced\n*** Update File: .codex/hooks/pre-tool-validate.sh\n@@\n-old\n+synced\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.mcp-incidents.log"
+    if [ -f "$log" ]; then
+        ! grep -q "hook_deploy_drift" "$log"
+    fi
+}
+
 @test "post-tool-check.sh: explicit closeout_epilogue marker suppresses post_completion_mutation" {
     cd "$PROJECT_ROOT"
     mkdir -p .sage/work/20260101-alpha src

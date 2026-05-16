@@ -101,6 +101,13 @@ run_doctor() {
     echo "$output" | grep -qi 'session-init\|hook'
 }
 
+@test "M2 warn: hook script drifted from runtime source → sync guidance emitted" {
+    echo "# drift" >> "$TARGET/.codex/hooks/pre-tool-validate.sh"
+    run run_doctor
+    echo "$output" | grep -qi 'M2'
+    echo "$output" | grep -qi 'hook drifted\|pre-tool-validate\|update --platform codex'
+}
+
 # ─── M1 — AGENTS.md matches generated baseline ───────────────────────
 
 @test "M1 pass: AGENTS.md matches generated baseline" {

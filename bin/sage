@@ -1336,6 +1336,16 @@ sage_doctor() {
       m2_fail=1
     fi
   done
+  if [ -n "$fw" ] && [ -d "$fw/runtime/platforms/codex/hooks" ]; then
+    for h in session-init pre-tool-validate post-tool-check turn-audit; do
+      if [ -f "$target/.codex/hooks/$h.sh" ] && \
+         [ -f "$fw/runtime/platforms/codex/hooks/$h.sh" ] && \
+         ! cmp -s "$target/.codex/hooks/$h.sh" "$fw/runtime/platforms/codex/hooks/$h.sh"; then
+        _doctor_warn "M2" "hook drifted from runtime source: .codex/hooks/$h.sh" \
+          "bin/sage update --platform codex"
+      fi
+    done
+  fi
   for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       case "$(uname -s)" in

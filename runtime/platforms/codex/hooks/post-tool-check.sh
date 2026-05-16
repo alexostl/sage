@@ -121,6 +121,23 @@ for cycle in ${closed_cycles[@]+"${closed_cycles[@]}"}; do
     done
 done
 
+# Hook source/install drift: Codex GUI runs `.codex/hooks/*.sh`, while Sage
+# source lives in `runtime/platforms/codex/hooks/*.sh`. If a patch edits source
+# without syncing the installed copy, surface a critical incident immediately.
+for p in "${claimed_paths[@]}"; do
+    case "$p" in
+        runtime/platforms/codex/hooks/*.sh)
+            hook_name="$(basename "$p")"
+            installed_path=".codex/hooks/$hook_name"
+            [ -f "$cwd/$installed_path" ] || continue
+            [ -f "$cwd/$p" ] || continue
+            if ! cmp -s "$cwd/$p" "$cwd/$installed_path"; then
+                emit_incident "hook_deploy_drift" "$installed_path" "critical"
+            fi
+            ;;
+    esac
+done
+
 # Step 2 — Check A (diff-claim mismatch).
 # Use `git status --porcelain -uall` (not `git diff --name-only HEAD`):
 #   - Porcelain reports untracked files (new apply_patch additions are
