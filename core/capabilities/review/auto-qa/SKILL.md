@@ -68,6 +68,15 @@ Before spawning the sub-agent, gather:
 
 Pass all four to the sub-agent prompt.
 
+### Alex-Facing Subagent Handoff Language
+
+When the main agent writes a concrete implementation QA handoff prompt for
+Alex, the prompt must use Polish natural-language prose. Keep
+canonical identifiers verbatim: paths, commands, tool names, frontmatter keys,
+quoted evidence, and raw command/test output. This does not translate
+this agent-loaded instruction file; it controls the concrete handoff prompt
+passed to the sub-agent.
+
 ## Sub-Agent Prompt
 
 ```

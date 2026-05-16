@@ -44,6 +44,15 @@ a choice the agent makes.
 
 Announce: "⚡ Running code quality review (sub-agent)..."
 
+### Alex-Facing Subagent Handoff Language
+
+When the main agent writes a concrete code review handoff prompt for Alex,
+the prompt must use Polish natural-language prose. Keep canonical identifiers verbatim:
+paths, commands, tool names, frontmatter keys, quoted
+evidence, and raw command/test output. This does not translate this
+agent-loaded instruction file; it controls the concrete handoff prompt
+passed to the sub-agent.
+
 Spawn a sub-agent with the following prompt:
 
 ```

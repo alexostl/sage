@@ -57,6 +57,25 @@ assert_not_contains() {
     assert_contains "$file" "set/select the current project"
 }
 
+@test "subagent prompts carry Alex-facing Polish handoff language contract" {
+    local quality_gates="core/workflows/sub-workflows/quality-gates.workflow.md"
+    assert_contains "$quality_gates" "Alex-facing Polish handoff language contract"
+    assert_contains "$quality_gates" "quality-review/SKILL.md"
+    assert_contains "$quality_gates" "auto-qa/SKILL.md"
+
+    for file in \
+        "core/capabilities/review/auto-review/SKILL.md" \
+        "core/capabilities/review/quality-review/SKILL.md" \
+        "core/capabilities/review/auto-qa/SKILL.md"; do
+        assert_contains "$file" "Alex-Facing Subagent Handoff Language"
+        assert_contains "$file" "Polish natural-language prose"
+        assert_contains "$file" "canonical identifiers verbatim"
+        assert_contains "$file" "handoff prompt"
+    done
+
+    assert_contains "core/capabilities/review/auto-review/SKILL.md" 'filter_tags: ["self-learning"]'
+}
+
 @test "auto-review and auto-QA verdicts are process evidence, not mandatory decisions" {
     assert_contains "core/capabilities/review/auto-review/SKILL.md" "process evidence"
     assert_contains "core/capabilities/review/auto-review/SKILL.md" 'Do not create a global `.sage/decisions.md` entry for every verdict'

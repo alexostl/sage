@@ -64,6 +64,8 @@ Step 3: If available AND explicitly authorized AND `independent_gate3` ≠ false
   Announce: "⚡ Running code quality review (sub-agent)..."
   Read `sage/core/capabilities/review/quality-review/SKILL.md`.
   Spawn sub-agent with the code review prompt from that capability.
+  The prompt must follow that capability's Alex-facing Polish handoff
+  language contract.
   Present findings as Gate 3 result. This is MANDATORY, not optional.
 Step 4: If the tool is unavailable, authorization is absent, or
 `independent_gate3` is false →
@@ -153,6 +155,8 @@ If ANY condition is false → skip silently.
 2. Read `sage/core/capabilities/review/auto-qa/SKILL.md`.
 3. Gather changed file list, spec path, plan path, test files.
 4. Spawn sub-agent with the Implementation QA prompt.
+   The prompt must follow that capability's Alex-facing Polish handoff
+   language contract.
 5. Present findings inline.
 
 **Advisory.** Gate 8 findings are warnings and recommendations.
@@ -226,8 +230,8 @@ On platforms supporting sub-agents (Claude Code Task tool), Gates 1-3
 
 **Main agent dispatches Gates 1-3 to reviewer sub-agent:**
 
-Use the Sub-Agent Delegation Protocol from the navigator. The context
-package for gate review:
+Use the Sub-Agent Delegation Protocol from the navigator. The context package
+for gate review must follow the Alex-facing Polish handoff language contract:
 ```
 PERSONA: sage/core/agents/reviewer.persona.md
 ARTIFACTS: [implementation files] + [spec file]

@@ -289,6 +289,8 @@ continue only when prior plan/scope evidence exists. It is never self-approval.
 When using subagents/reviewer agents, give project instructions, Sage scope, and
 MCP/tool expectations. Subagent edits are not exempt from manifest scope, plan
 approval, or verification gates.
+Alex-facing subagent handoff prompts use Polish natural-language prose;
+canonical identifiers stay verbatim.
 
 Codex subagent authorization must be literal. Only call spawn_agent after the
 user asks for subagents/delegation/parallel work, or selects [A] Subagent

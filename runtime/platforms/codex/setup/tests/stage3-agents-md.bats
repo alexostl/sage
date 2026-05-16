@@ -483,6 +483,13 @@ EOF
     ! grep -q 'filter_tags: \["learning"\]' "$TARGET/AGENTS.md"
 }
 
+@test "stage3: generated AGENTS.md carries compact Polish subagent handoff contract" {
+    PRESET=base run_stage3
+    grep -q 'Alex-facing subagent handoff prompts' "$TARGET/AGENTS.md"
+    grep -q 'Polish natural-language prose' "$TARGET/AGENTS.md"
+    grep -q 'canonical identifiers stay verbatim' "$TARGET/AGENTS.md"
+}
+
 @test "stage3: generated AGENTS.md points to skills/workflows without verbose explainers" {
     PRESET=base run_stage3
     grep -q '\.agents/skills/' "$TARGET/AGENTS.md"

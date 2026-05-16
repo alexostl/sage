@@ -160,6 +160,16 @@ this capability.
 If a sub-agent modifies a spec, plan, or code file, the review is
 INVALID and must be discarded. Re-run with the original artifact.
 
+### Alex-Facing Subagent Handoff Language
+
+When the main agent writes a concrete review/fix/research handoff prompt
+for Alex, the prompt must use Polish natural-language prose.
+Keep canonical identifiers verbatim: paths, commands, tool names,
+frontmatter keys, `filter_tags: ["self-learning"]`, quoted evidence, and
+raw command/test output. This does not translate this agent-loaded
+instruction file; it controls the concrete handoff prompt passed to the
+sub-agent.
+
 ### Targeted Recall For Subagent Review
 
 Include this block in every review sub-agent prompt when SageMemory or
