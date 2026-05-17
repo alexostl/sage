@@ -150,7 +150,7 @@ make_cycle_with_scope() {
         else
             printf 'phase: implement\n'
         fi
-        case "$status" in in-progress|defining|implementing) printf 'active_session_id: test-uuid\n' ;; esac
+        case "$status" in implementing) printf 'active_session_id: test-uuid\n' ;; esac
         printf 'scope:\n'
         local g
         for g in "$@"; do
@@ -172,7 +172,7 @@ make_cycle_with_writable_scope() {
         printf 'cycle_id: "%s"\n' "$cycle"
         printf 'status: %s\n' "$status"
         printf 'phase: implement\n'
-        case "$status" in in-progress|defining|implementing) printf 'active_session_id: test-uuid\n' ;; esac
+        case "$status" in implementing) printf 'active_session_id: test-uuid\n' ;; esac
         printf 'scope:\n'
         printf '  writable: ['
         local first=1
@@ -329,7 +329,7 @@ make_cycle_with_writable_scope() {
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 active_session_id: other-session
 scope:
@@ -372,7 +372,7 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 active_session_id: test-uuid
 scope:
@@ -393,7 +393,7 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 active_session_id: test-uuid
 scope:
@@ -433,7 +433,7 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 scope:
   - "src/**"
@@ -453,7 +453,7 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: root-cause-gate
 scope:
   - ".sage/work/20260101-alpha/*"
@@ -473,13 +473,13 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: root-cause-gate
 scope:
   - ".sage/work/20260101-alpha/*"
 ---
 EOF
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: closed\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: implementing\n+status: closed\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
@@ -560,7 +560,7 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "unbound active cycle"
+    echo "$output" | grep -q "before implementation state"
 }
 
 @test "pre-tool-validate.sh: implementing cycle-related SageDocs is not repo capture" {
@@ -620,7 +620,7 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 active_session_id: current
 scope:
@@ -640,13 +640,13 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 scope:
   - "src/**"
 ---
 EOF
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n status: in-progress\n+active_session_id: test-uuid\n phase: implement\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n status: implementing\n+active_session_id: test-uuid\n phase: implement\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
@@ -659,13 +659,13 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 scope:
   - "src/**"
 ---
 EOF
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: paused\n phase: implement\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: implementing\n+status: paused\n phase: implement\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
@@ -677,13 +677,13 @@ EOF
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 scope:
   - "src/**"
 ---
 EOF
-    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: in-progress\n+status: closed\n phase: implement\n*** End Patch\n')"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: implementing\n+status: closed\n phase: implement\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]

@@ -783,22 +783,27 @@ else
     cycle_id="$(basename "$cycle_dir")"
     manifest="$cycle_dir/manifest.md"
     if [ "$resolution_kind" = "active" ]; then
-        active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
-        if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
-            if is_repo_capture_without_control_patch "$cycle_id"; then
-                mutation_kind="repo_capture_without_lock"
-            else
-                block_with_developer_override "$(printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.' "$cycle_id" "$active_session_id" "$session_id")"
+        cycle_status_value="$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)"
+        if is_implementation_status "$cycle_status_value"; then
+            active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
+            if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
+                if is_repo_capture_without_control_patch "$cycle_id"; then
+                    mutation_kind="repo_capture_without_lock"
+                else
+                    block_with_developer_override "$(printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.' "$cycle_id" "$active_session_id" "$session_id")"
+                fi
             fi
-        fi
-        if [ -z "$active_session_id" ]; then
-            if is_unbound_active_cycle_claim_patch "$cycle_id" "$session_id"; then
-                mutation_kind="active_cycle_claim_or_handoff"
-            elif is_repo_capture_without_control_patch "$cycle_id"; then
-                mutation_kind="repo_capture_without_lock"
-            else
-                block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
+            if [ -z "$active_session_id" ]; then
+                if is_unbound_active_cycle_claim_patch "$cycle_id" "$session_id"; then
+                    mutation_kind="active_cycle_claim_or_handoff"
+                elif is_repo_capture_without_control_patch "$cycle_id"; then
+                    mutation_kind="repo_capture_without_lock"
+                else
+                    block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
+                fi
             fi
+        elif is_repo_capture_without_control_patch "$cycle_id"; then
+            mutation_kind="repo_capture_without_lock"
         fi
     fi
     if [ "$resolution_kind" = "parked-capture" ]; then
