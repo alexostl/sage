@@ -1016,6 +1016,25 @@ semantic_reclassification: accepted
     tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "decisions_only_repo_hygiene"' >/dev/null
 }
 
+@test "pre-tool-validate.sh: decisions-only log allows .sage/decisions.md without active cycle" {
+    make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
+    cmd="$(make_patch_cmd Update .sage/decisions.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    log="$PROJECT_ROOT/.sage/.session-mutations.log"
+    [ -f "$log" ]
+    tail -n1 "$log" | jq -e '.cycle_id == "" and .mutation_kind == "decisions_only_log"' >/dev/null
+}
+
+@test "pre-tool-validate.sh: decisions-only log does not authorize mixed runtime mutation" {
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/decisions.md\n@@\n+pretend approval\n*** Update File: runtime/platforms/codex/hooks/pre-tool-validate.sh\n@@\n+bad\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "no active"
+}
+
 @test "pre-tool-validate.sh: standalone .gitignore repo hygiene gets decisions-only guidance" {
     cmd="$(make_patch_cmd Update .gitignore)"
     payload="$(make_payload "$cmd")"

@@ -506,6 +506,13 @@ is_decisions_only_repo_hygiene_patch() {
     [ "$has_repo_hygiene" -eq 1 ] && [ "$has_decision" -eq 1 ]
 }
 
+is_decisions_only_log_patch() {
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    case "${claimed_ops[0]}" in Add|Update) ;; *) return 1 ;; esac
+    [ "${claimed_paths[0]}" = ".sage/decisions.md" ]
+}
+
 is_standalone_repo_hygiene_patch() {
     [ "${#claimed_paths[@]}" -eq 1 ] || return 1
     [ "${#claimed_ops[@]}" -eq 1 ] || return 1
@@ -687,7 +694,10 @@ elif [ "$resolution_kind" = "closed" ]; then
         exit 2
     fi
 elif [ "$resolution_kind" = "none" ]; then
-    if is_decisions_only_repo_hygiene_patch; then
+    if is_decisions_only_log_patch; then
+        cycle_id=""
+        mutation_kind="decisions_only_log"
+    elif is_decisions_only_repo_hygiene_patch; then
         cycle_id=""
         mutation_kind="decisions_only_repo_hygiene"
     elif is_standalone_repo_hygiene_patch; then
