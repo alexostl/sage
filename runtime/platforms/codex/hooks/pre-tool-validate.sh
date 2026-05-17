@@ -86,6 +86,11 @@ block_with_developer_override() {
     exit 2
 }
 
+block_without_developer_override() {
+    printf '%s\n' "$1" >&2
+    exit 2
+}
+
 bash_strip_token_path() {
     local token="$1"
 
@@ -622,7 +627,7 @@ patch_touches_manifest_control_field() {
     [ "$tool_name" = "apply_patch" ] || return 1
     patch_touches_manifest_path || return 1
     printf '%s\n' "$cmd" |
-        grep -E '^[+-][[:space:]]*(status|active_session_id):[[:space:]]*' >/dev/null
+        grep -E '^[+-][[:space:]]*(status|phase|resolution|active_session_id|autonomy_grant|folded_into|folded_cycles):[[:space:]]*' >/dev/null
 }
 
 is_cycle_related_sagedocs_patch() {
@@ -707,6 +712,71 @@ is_unbound_active_cycle_claim_patch() {
     return 1
 }
 
+is_single_manifest_update_patch() {
+    local cycle_id="$1"
+    local manifest_path=".sage/work/$cycle_id/manifest.md"
+
+    [ "$tool_name" = "apply_patch" ] || return 1
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    [ "${claimed_ops[0]}" = "Update" ] || return 1
+    [ "${claimed_paths[0]}" = "$manifest_path" ] || return 1
+    if ! printf '%s\n' "$cmd" | grep -Fq "*** Update File: $manifest_path"; then
+        printf '%s\n' "$cmd" | grep -Fq "*** Update File: $cwd/$manifest_path" || return 1
+    fi
+}
+
+is_defining_phase_checkpoint_patch() {
+    local cycle_id="$1"
+
+    [ "$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)" = "defining" ] || return 1
+    is_single_manifest_update_patch "$cycle_id" || return 1
+    printf '%s\n' "$cmd" | grep -E '^[+-][[:space:]]*phase:[[:space:]]*' >/dev/null || return 1
+    if printf '%s\n' "$cmd" |
+        grep -E '^[+-][[:space:]]*(status|resolution|active_session_id|autonomy_grant|folded_into|folded_cycles):[[:space:]]*' >/dev/null; then
+        return 1
+    fi
+
+    return 0
+}
+
+is_defining_to_implementing_patch() {
+    local cycle_id="$1"
+
+    [ "$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)" = "defining" ] || return 1
+    is_single_manifest_update_patch "$cycle_id" || return 1
+    printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*implementing[[:space:]]*$' >/dev/null
+}
+
+readiness_missing_session_message() {
+    local cycle_id="$1"
+
+    printf 'Sage: BLOCKING implementation readiness without active_session_id. Cycle: %s. current session_id: %s. Next legal move: make a single-file manifest-only readiness patch that changes status to implementing, sets phase to deliver, and adds active_session_id: "%s". Do not use codex://threads/*, CODEX_THREAD_ID, transcripts, logs, or analyzed thread ids as the ownership lock.' "$cycle_id" "$session_id" "$session_id"
+}
+
+is_parked_cycle_resume_patch() {
+    local cycle_id="$1"
+    local manifest_path=".sage/work/$cycle_id/manifest.md"
+
+    [ "$tool_name" = "apply_patch" ] || return 1
+    [ "${#claimed_paths[@]}" -eq 1 ] || return 1
+    [ "${#claimed_ops[@]}" -eq 1 ] || return 1
+    [ "${claimed_ops[0]}" = "Update" ] || return 1
+    [ "${claimed_paths[0]}" = "$manifest_path" ] || return 1
+    if ! printf '%s\n' "$cmd" | grep -Fq "*** Update File: $manifest_path"; then
+        printf '%s\n' "$cmd" | grep -Fq "*** Update File: $cwd/$manifest_path" || return 1
+    fi
+
+    printf '%s\n' "$cmd" | grep -E '^-status:[[:space:]]*(intake|paused)[[:space:]]*$' >/dev/null || return 1
+    printf '%s\n' "$cmd" | grep -E '^\+status:[[:space:]]*defining[[:space:]]*$' >/dev/null || return 1
+    if printf '%s\n' "$cmd" |
+        grep -E '^[+-][[:space:]]*(resolution|active_session_id|autonomy_grant|folded_into|folded_cycles):[[:space:]]*' >/dev/null; then
+        return 1
+    fi
+
+    return 0
+}
+
 mutation_kind=""
 if patch_contains_real_secret_value; then
     printf 'Sage: BLOCKING real secret value write. Agents may create placeholder env/config files, but real secrets must be edited by the user. Next legal move: write placeholders only, or ask the user to fill the secret locally.\n' >&2
@@ -784,8 +854,8 @@ else
     manifest="$cycle_dir/manifest.md"
     if [ "$resolution_kind" = "active" ]; then
         cycle_status_value="$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)"
+        active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
         if is_implementation_status "$cycle_status_value"; then
-            active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
             if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
                 if is_repo_capture_without_control_patch "$cycle_id"; then
                     mutation_kind="repo_capture_without_lock"
@@ -804,10 +874,24 @@ else
             fi
         elif is_repo_capture_without_control_patch "$cycle_id"; then
             mutation_kind="repo_capture_without_lock"
+        elif patch_touches_manifest_control_field; then
+            if is_defining_phase_checkpoint_patch "$cycle_id"; then
+                mutation_kind="defining_checkpoint_update"
+            elif is_unbound_active_cycle_claim_patch "$cycle_id" "$session_id"; then
+                mutation_kind="active_cycle_claim_or_handoff"
+            elif is_defining_to_implementing_patch "$cycle_id"; then
+                block_without_developer_override "$(readiness_missing_session_message "$cycle_id")"
+            elif [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
+                block_with_developer_override "$(printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.' "$cycle_id" "$active_session_id" "$session_id")"
+            elif [ -z "$active_session_id" ]; then
+                block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current PreToolUse hook payload field session_id, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
+            fi
         fi
     fi
     if [ "$resolution_kind" = "parked-capture" ]; then
-        if ! is_repo_capture_without_control_patch "$cycle_id"; then
+        if is_parked_cycle_resume_patch "$cycle_id"; then
+            mutation_kind="parked_cycle_resume"
+        elif ! is_repo_capture_without_control_patch "$cycle_id"; then
             block_with_developer_override "$(printf 'Sage: BLOCKING parked-cycle capture with implementation/control/out-of-cycle paths: %s. Active cycle: %s. Parked cycles allow only repo capture artifacts. Next legal move: explicitly continue the cycle before implementation or split the patch.' "${claimed_paths[*]}" "$cycle_id")"
         fi
     fi

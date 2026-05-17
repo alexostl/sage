@@ -486,7 +486,7 @@ EOF
     echo "$output" | grep -q "ownership/lifecycle"
 }
 
-@test "pre-tool-validate.sh: unbound active cycle allows manifest non-control phase edit" {
+@test "pre-tool-validate.sh: unbound defining cycle allows phase checkpoint update" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<'EOF'
@@ -502,7 +502,89 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
-    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+    grep -q '"mutation_kind":"defining_checkpoint_update"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: unbound defining cycle implementing transition requires current session id" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: fix-scope-gate
+---
+
+# Alpha
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: defining\n+status: implementing\n-phase: fix-scope-gate\n+phase: deliver\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "current session_id: test-uuid"
+    echo "$output" | grep -q "active_session_id: \"test-uuid\""
+}
+
+@test "pre-tool-validate.sh: unbound defining cycle allows implementing transition with current session id" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: fix-scope-gate
+---
+
+# Alpha
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-status: defining\n+status: implementing\n-phase: fix-scope-gate\n+phase: deliver\n+active_session_id: test-uuid\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"active_cycle_claim_or_handoff"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: unbound defining cycle still blocks non-readiness manifest control fields" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: root-cause-gate
+---
+
+# Alpha
+EOF
+    for control_patch in \
+        "$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n+resolution: shipped\n*** End Patch\n')" \
+        "$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n+autonomy_grant: full\n*** End Patch\n')" \
+        "$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n+folded_into: 20260102-beta\n*** End Patch\n')" \
+        "$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n+folded_cycles: []\n*** End Patch\n')"; do
+        payload="$(make_payload "$control_patch")"
+        run bash -c "echo '$payload' | '$HOOK' 2>&1"
+        [ "$status" -eq 2 ]
+        echo "$output" | grep -q "ownership/lifecycle/control"
+    done
+}
+
+@test "pre-tool-validate.sh: claimed defining cycle allows manifest phase control edit" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: root-cause-gate
+active_session_id: test-uuid
+---
+
+# Alpha
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-phase: root-cause-gate\n+phase: fix-scope-gate\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: active cycle owned by another session allows manifest body capture" {
@@ -1329,9 +1411,37 @@ semantic_reclassification: accepted
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: parked intake capture blocks manifest control fields" {
+@test "pre-tool-validate.sh: parked intake manifest-only resume to defining is allowed" {
     make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
     cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n-status: intake\n+status: defining\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"mutation_kind":"parked_cycle_resume"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: parked paused manifest-only resume to defining is allowed" {
+    make_cycle_with_scope "20260101-paused" "paused" ".sage/work/20260101-paused/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-paused/manifest.md\n@@\n-status: paused\n+status: defining\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"mutation_kind":"parked_cycle_resume"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: parked intake resume blocks extra manifest control fields" {
+    make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n-status: intake\n+status: defining\n+resolution: shipped\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "parked-cycle capture"
+    echo "$output" | grep -qi "control"
+}
+
+@test "pre-tool-validate.sh: parked intake capture still blocks non-resume manifest control fields" {
+    make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n+resolution: shipped\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
