@@ -799,7 +799,7 @@ else
                 elif is_repo_capture_without_control_patch "$cycle_id"; then
                     mutation_kind="repo_capture_without_lock"
                 else
-                    block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
+                    block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current PreToolUse hook payload field session_id, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
                 fi
             fi
         elif is_repo_capture_without_control_patch "$cycle_id"; then

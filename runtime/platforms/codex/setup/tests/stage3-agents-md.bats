@@ -361,6 +361,7 @@ EOF
     grep -q 'active_session_id' "$TARGET/AGENTS.md"
     grep -q 'status: implementing' "$TARGET/AGENTS.md"
     grep -q 'real runtime `active_session_id`' "$TARGET/AGENTS.md"
+    grep -q 'current `PreToolUse` hook payload field `session_id`' "$TARGET/AGENTS.md"
     grep -q 'not a planning requirement' "$TARGET/AGENTS.md"
     grep -q 'codex://threads/\*' "$TARGET/AGENTS.md"
     grep -q 'CODEX_THREAD_ID' "$TARGET/AGENTS.md"

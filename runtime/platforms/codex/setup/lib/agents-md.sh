@@ -277,7 +277,7 @@ approved plan without intermediate checkpoints until verification/close, bound
 to the approved plan and workflow stop conditions. Any scope expansion cancels the grant;
 so does a new workflow/follow-up, product/architecture decision, key assumption,
 conflict, or material risk changes the plan.
-Before either path mutates runtime/source/test files, write a manifest-only readiness patch: set \`status: implementing\` and bind the real runtime \`active_session_id\` when the platform exposes one. \`active_session_id\` is an
+Before either path mutates runtime/source/test files, write a manifest-only readiness patch: set \`status: implementing\` and bind the real runtime \`active_session_id\` when the platform exposes one. The source is the current \`PreToolUse\` hook payload field \`session_id\`. \`active_session_id\` is an
 implementation/control lock, not a planning requirement; never infer it from
 \`codex://threads/*\`, \`CODEX_THREAD_ID\`, transcripts, logs, or an analyzed
 thread id.

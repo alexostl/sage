@@ -578,6 +578,7 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "unbound active cycle"
+    echo "$output" | grep -q 'current PreToolUse hook payload field session_id'
 }
 
 @test "pre-tool-validate.sh: implementing unrelated SageDocs still passes as repo capture" {
