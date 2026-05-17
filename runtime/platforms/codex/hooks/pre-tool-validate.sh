@@ -622,10 +622,32 @@ patch_touches_manifest_control_field() {
     [ "$tool_name" = "apply_patch" ] || return 1
     patch_touches_manifest_path || return 1
     printf '%s\n' "$cmd" |
-        grep -E '^[+-][[:space:]]*(status|phase|resolution|active_session_id|autonomy_grant|folded_into|folded_cycles):[[:space:]]*' >/dev/null
+        grep -E '^[+-][[:space:]]*(status|active_session_id):[[:space:]]*' >/dev/null
 }
 
-is_sage_capture_without_control_patch() {
+is_cycle_related_sagedocs_patch() {
+    local active_cycle_id="$1"
+    local escaped_cycle_id path has_sagedocs_path=0
+
+    [ -n "$active_cycle_id" ] || return 1
+
+    for path in "${claimed_paths[@]}"; do
+        case "$path" in
+            .sage/docs/*)
+                has_sagedocs_path=1
+                case "$path" in .sage/docs/*"$active_cycle_id"*) return 0 ;; esac ;;
+        esac
+    done
+    [ "$has_sagedocs_path" -eq 1 ] || return 1
+
+    escaped_cycle_id="$(printf '%s' "$active_cycle_id" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
+    printf '%s\n' "$cmd" | grep -E "^\+.*$escaped_cycle_id" >/dev/null && return 0
+    printf '%s\n' "$cmd" | grep -E "^\+[[:space:]]*cycle_id:[[:space:]]*\"?$escaped_cycle_id\"?[[:space:]]*$" >/dev/null
+}
+
+is_repo_capture_without_control_patch() {
+    local active_cycle_id="${1:-}"
+
     [ "$tool_name" = "apply_patch" ] || return 1
     [ "${#claimed_paths[@]}" -gt 0 ] || return 1
 
@@ -635,12 +657,23 @@ is_sage_capture_without_control_patch() {
         op="${claimed_ops[$i]}"
         case "$op" in Add|Update) ;; *) return 1 ;; esac
         case "$path" in
-            .sage/work/*/*|.sage/decisions.md|.sage-memory/*.md) ;;
+            .sage/.git/*|.sage/**/.git/*) return 1 ;;
+            .sage/work/*/*)
+                [ -n "$active_cycle_id" ] || return 1
+                case "$path" in
+                    .sage/work/"$active_cycle_id"/*) ;;
+                    *) return 1 ;;
+                esac ;;
+            .sage/*|.sage-memory/*) ;;
             *) return 1 ;;
         esac
     done
 
     patch_touches_manifest_control_field && return 1
+    if [ -n "$active_cycle_id" ] && [ "$(cycle_status "$cwd" "$active_cycle_id" 2>/dev/null || true)" = "implementing" ]; then
+        is_cycle_related_sagedocs_patch "$active_cycle_id" && return 1
+    fi
+
     return 0
 }
 
@@ -734,6 +767,9 @@ elif [ "$resolution_kind" = "none" ]; then
         block_with_developer_override 'Sage: BLOCKING standalone repo hygiene mutation. Decisions-only repo hygiene requires the single repo-hygiene file plus .sage/decisions.md in the same patch. Next legal move: add a concise .sage/decisions.md entry or start a workflow if this is not obvious low-risk hygiene.'
     elif is_lightweight_config_only_patch; then
         cycle_id=""
+    elif is_repo_capture_without_control_patch ""; then
+        cycle_id=""
+        mutation_kind="repo_capture_without_lock"
     else
         resumable="$(resumable_cycles_summary "$cwd" || true)"
         if [ -n "$resumable" ]; then
@@ -749,8 +785,8 @@ else
     if [ "$resolution_kind" = "active" ]; then
         active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
         if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
-            if is_sage_capture_without_control_patch; then
-                mutation_kind="sage_capture_without_lock"
+            if is_repo_capture_without_control_patch "$cycle_id"; then
+                mutation_kind="repo_capture_without_lock"
             else
                 block_with_developer_override "$(printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.' "$cycle_id" "$active_session_id" "$session_id")"
             fi
@@ -758,23 +794,16 @@ else
         if [ -z "$active_session_id" ]; then
             if is_unbound_active_cycle_claim_patch "$cycle_id" "$session_id"; then
                 mutation_kind="active_cycle_claim_or_handoff"
-            elif is_sage_capture_without_control_patch; then
-                mutation_kind="sage_capture_without_lock"
+            elif is_repo_capture_without_control_patch "$cycle_id"; then
+                mutation_kind="repo_capture_without_lock"
             else
                 block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
             fi
         fi
     fi
     if [ "$resolution_kind" = "parked-capture" ]; then
-        capture_out_of_scope=()
-        for path in "${claimed_paths[@]}"; do
-            case "$path" in
-                .sage/work/"$cycle_id"/*|.sage/decisions.md|.sage-memory/*.md) ;;
-                *) capture_out_of_scope+=("$path") ;;
-            esac
-        done
-        if [ "${#capture_out_of_scope[@]}" -gt 0 ]; then
-            block_with_developer_override "$(printf 'Sage: BLOCKING parked-cycle capture with implementation/out-of-cycle paths: %s. Parked cycles allow only same-cycle .sage artifacts, .sage/decisions.md, and narrow .sage-memory capture. Next legal move: explicitly continue the cycle before implementation.' "${capture_out_of_scope[*]}")"
+        if ! is_repo_capture_without_control_patch "$cycle_id"; then
+            block_with_developer_override "$(printf 'Sage: BLOCKING parked-cycle capture with implementation/control/out-of-cycle paths: %s. Active cycle: %s. Parked cycles allow only repo capture artifacts. Next legal move: explicitly continue the cycle before implementation or split the patch.' "${claimed_paths[*]}" "$cycle_id")"
         fi
     fi
     outside_repo_paths=()

@@ -13,7 +13,7 @@ is_cycle_artifact_path() {
 is_documentation_artifact_path() {
     local path="$1"
     case "$path" in
-        .sage/docs/decision-*.md|.sage/docs/analysis-*.md) return 0 ;;
+        .sage/docs/*|.sage-memory/*) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -32,7 +32,7 @@ count_prior_impl_files() {
         [.[] | select(.session_id == $sid and (.cycle_id // "") == $cycle)
          | .files[]?
          | select((startswith(".sage/work/" + $cycle + "/") | not) and . != ".sage/decisions.md")
-         | select((test("^\\.sage/docs/(decision|analysis)-.*\\.md$")) | not)]
+         | select((startswith(".sage/docs/") or startswith(".sage-memory/")) | not)]
         | length
     ' "$session_log" 2>/dev/null || printf '0\n'
 }

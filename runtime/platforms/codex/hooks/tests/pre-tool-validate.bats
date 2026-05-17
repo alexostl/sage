@@ -464,7 +464,7 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
-    grep -q '"sage_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: unbound active cycle blocks manifest lifecycle field change" {
@@ -484,6 +484,25 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "ownership/lifecycle"
+}
+
+@test "pre-tool-validate.sh: unbound active cycle allows manifest non-control phase edit" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: root-cause-gate
+---
+
+# Alpha
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-alpha/manifest.md\n@@\n-phase: root-cause-gate\n+phase: fix-scope-gate\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: active cycle owned by another session allows manifest body capture" {
@@ -507,7 +526,92 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
-    grep -q '"sage_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: local SageDocs custom path passes as repo capture without lock" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: root-cause-gate
+---
+EOF
+    cmd="$(make_patch_cmd Add ".sage/docs/anything.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: SageDocs mixed with runtime path is not repo capture" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: defining
+phase: root-cause-gate
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/docs/anything.md\n+doc\n*** Add File: runtime/oops.sh\n+runtime\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "unbound active cycle"
+}
+
+@test "pre-tool-validate.sh: implementing cycle-related SageDocs is not repo capture" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: implementing
+phase: deliver
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/docs/implementation-note.md\n+cycle_id: \"20260101-alpha\"\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "unbound active cycle"
+}
+
+@test "pre-tool-validate.sh: implementing unrelated SageDocs still passes as repo capture" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: implementing
+phase: deliver
+---
+EOF
+    cmd="$(make_patch_cmd Add ".sage/docs/unrelated-note.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: implementing same-cycle work artifact can mention cycle id as repo capture" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
+    mkdir -p "$cycle_dir"
+    cat > "$cycle_dir/manifest.md" <<'EOF'
+---
+cycle_id: "20260101-alpha"
+status: implementing
+phase: deliver
+---
+EOF
+    cmd="$(printf '*** Begin Patch\n*** Add File: .sage/work/20260101-alpha/notes.md\n+cycle_id: \"20260101-alpha\"\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"repo_capture_without_lock"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: placeholder active_session_id current blocks non-claim mutation" {
@@ -1224,6 +1328,16 @@ semantic_reclassification: accepted
     [ "$status" -eq 0 ]
 }
 
+@test "pre-tool-validate.sh: parked intake capture blocks manifest control fields" {
+    make_cycle_with_scope "20260101-intake" "intake" ".sage/work/20260101-intake/*"
+    cmd="$(printf '*** Begin Patch\n*** Update File: .sage/work/20260101-intake/manifest.md\n@@\n-status: intake\n+status: defining\n*** End Patch\n')"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -qi "parked-cycle capture"
+    echo "$output" | grep -qi "control"
+}
+
 @test "pre-tool-validate.sh: cross-cycle capture to existing intake works while another cycle is active" {
     make_cycle_with_scope "20260101-active" "in-progress" "src/**"
     make_cycle_with_scope "20260102-intake" "intake" ".sage/work/20260102-intake/*"
@@ -1612,6 +1726,26 @@ EOF
     printf '{"session_id":"test-uuid","cycle_id":"20260101-architect","files":[".sage/docs/decision-codex-a.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     printf '{"session_id":"test-uuid","cycle_id":"20260101-architect","files":[".sage/docs/decision-codex-b.md"]}\n' >> "$PROJECT_ROOT/.sage/.session-mutations.log"
     cmd="$(make_patch_cmd Update ".sage/docs/decision-codex-v11-layered-operating-model.md")"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: custom SageDocs names do not count as Standard+ implementation files" {
+    cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
+    mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
+    cat > "$cycle_dir/manifest.md" <<EOF
+---
+cycle_id: "20260101-architect"
+workflow: architect
+status: in-progress
+phase: design
+active_session_id: test-uuid
+---
+EOF
+    printf '{"session_id":"test-uuid","cycle_id":"20260101-architect","files":[".sage/docs/custom-a.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
+    printf '{"session_id":"test-uuid","cycle_id":"20260101-architect","files":[".sage/docs/custom-b.md"]}\n' >> "$PROJECT_ROOT/.sage/.session-mutations.log"
+    cmd="$(make_patch_cmd Update ".sage/docs/custom-name.md")"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
