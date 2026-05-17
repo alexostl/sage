@@ -24,7 +24,7 @@ status: intake | defining | implementing | paused | closed
 resolution: shipped | superseded | folded_into | rejected  # only when status: closed
 created: YYYY-MM-DD
 updated: YYYY-MM-DD HH:MM
-priority: {agent-assigned; project-specific values}
+priority: high | medium | low
 owner: {person-or-agent}
 source: conversation | qa-report | review | incident | other
 related:

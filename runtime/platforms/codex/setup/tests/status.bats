@@ -119,7 +119,7 @@ workflow: build
 cycle_tier: standard
 phase: implement
 status: in-progress
-priority: P1
+priority: high
 owner: alexostl
 updated: 2026-04-30
 active_session_id: session-123
@@ -138,7 +138,7 @@ title: Paused hook repair
 workflow: fix
 phase: diagnose
 status: paused
-priority: P2
+priority: medium
 owner: alexostl
 updated: 2026-05-01
 ---
@@ -151,7 +151,7 @@ title: Intake status visibility
 workflow: intake
 phase: intake
 status: intake
-priority: P3
+priority: low
 owner: alexostl
 updated: 2026-05-02
 ---
@@ -164,7 +164,7 @@ title: Closed shipped history item
 workflow: build
 phase: closed
 status: closed
-priority: P3
+priority: low
 owner: alexostl
 updated: 2026-05-03
 resolution: shipped
@@ -178,7 +178,7 @@ title: Folded history item
 workflow: fix
 phase: closed
 status: closed
-priority: P3
+priority: low
 owner: alexostl
 updated: 2026-05-04
 resolution: folded_into
@@ -193,7 +193,7 @@ title: Rejected history item
 workflow: architect
 phase: rejected
 status: closed
-priority: P3
+priority: low
 owner: alexostl
 updated: 2026-05-05
 resolution: rejected
@@ -379,7 +379,7 @@ EOF
     seed_status_index_cycles
     run run_status --json
     [ "$status" -eq 0 ]
-    echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .cycle_id == "20260430-active" and .title == "Active feature build" and .cycle_tier == "standard" and .status == "in-progress" and .priority == "P1" and .owner == "alexostl" and .active_session_id == "session-123")' >/dev/null
+    echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .cycle_id == "20260430-active" and .title == "Active feature build" and .cycle_tier == "standard" and .status == "in-progress" and .priority == "high" and .owner == "alexostl" and .active_session_id == "session-123")' >/dev/null
     ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .title == "Body title must not override frontmatter")' >/dev/null
 }
 
