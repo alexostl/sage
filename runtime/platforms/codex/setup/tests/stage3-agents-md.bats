@@ -221,20 +221,20 @@ EOF
     PRESET=base run_stage3
     grep -q 'After workflow entry, Codex-native enforcement still applies' "$TARGET/AGENTS.md"
     grep -q 'spec/plan gates' "$TARGET/AGENTS.md"
-    grep -q 'manifest scope protection' "$TARGET/AGENTS.md"
+    grep -q 'lifecycle mutation protection' "$TARGET/AGENTS.md"
     grep -q 'verification-before-done' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: generated AGENTS.md requires Moderate+ fix artifacts before code" {
+@test "stage3: generated AGENTS.md requires Standard+ fix artifacts before code" {
     PRESET=base run_stage3
-    grep -q 'Moderate+ fixes must update plan.md and manifest.md before code changes' "$TARGET/AGENTS.md"
+    grep -q 'Standard+ fixes must update plan.md and manifest.md before code changes' "$TARGET/AGENTS.md"
     grep -q 'Writing plan.md or manifest.md after code does not cure the violation' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md defines state transition boundary without overlogging lightweight work" {
     PRESET=base run_stage3
-    grep -q 'Lightweight/Surgical work may finish with code plus conversation summary' "$TARGET/AGENTS.md"
-    grep -q 'Standard+/Moderate+ entry or resume must create/update the manifest' "$TARGET/AGENTS.md"
+    grep -q 'Lightweight work may finish with code plus conversation summary' "$TARGET/AGENTS.md"
+    grep -q 'Standard+ entry or resume must create/update the manifest' "$TARGET/AGENTS.md"
     grep -q 'After changing `status` or `phase`, say what changed' "$TARGET/AGENTS.md"
     grep -q 'identify workflow/cycle' "$TARGET/AGENTS.md"
     grep -q 'update `manifest.md` first' "$TARGET/AGENTS.md"
@@ -254,13 +254,13 @@ EOF
     grep -q 'recoverable hook block is correction guidance' "$TARGET/AGENTS.md"
     grep -q 'retry via legal path' "$TARGET/AGENTS.md"
     grep -q 'user decision' "$TARGET/AGENTS.md"
-    grep -q 'scope amputation' "$TARGET/AGENTS.md"
+    ! grep -q 'scope amputation' "$TARGET/AGENTS.md"
 }
 
 @test "stage3: generated AGENTS.md contains laconic mutation preflight contract" {
     PRESET=base run_stage3
     grep -q 'Mutation preflight before write' "$TARGET/AGENTS.md"
-    grep -q 'active cycle/scope/count' "$TARGET/AGENTS.md"
+    grep -q 'active cycle/status/count' "$TARGET/AGENTS.md"
     grep -q 'threshold/closeout/' "$TARGET/AGENTS.md"
     grep -q 'tool path' "$TARGET/AGENTS.md"
     grep -q 'Text edits use `apply_patch`' "$TARGET/AGENTS.md"
@@ -343,12 +343,12 @@ EOF
     grep -q '\[I\] Revise and Implement in the same turn' "$TARGET/AGENTS.md"
     grep -q 'explicit bounded conditional' "$TARGET/AGENTS.md"
     grep -q 'approval' "$TARGET/AGENTS.md"
-    grep -q 'implementation_approval' "$TARGET/AGENTS.md"
-    grep -q 'existing canonical `plan.md`' "$TARGET/AGENTS.md"
-    grep -q 'never self-approval' "$TARGET/AGENTS.md"
+    ! grep -q 'implementation_approval' "$TARGET/AGENTS.md"
+    grep -q 'approved plan/checkpoint evidence' "$TARGET/AGENTS.md"
+    grep -q 'self-approval' "$TARGET/AGENTS.md"
     grep -q 'approved plan without intermediate' "$TARGET/AGENTS.md"
     grep -q 'scoped autonomy, not general autonomy' "$TARGET/AGENTS.md"
-    grep -q 'approved plan and manifest scope' "$TARGET/AGENTS.md"
+    grep -q 'approved plan and workflow stop conditions' "$TARGET/AGENTS.md"
     grep -q 'scope expansion cancels the grant' "$TARGET/AGENTS.md"
     grep -q 'key assumption' "$TARGET/AGENTS.md"
     grep -q 'material risk changes the plan' "$TARGET/AGENTS.md"
@@ -357,10 +357,9 @@ EOF
 @test "stage3: generated AGENTS.md carries implementation readiness preflight reminder" {
     PRESET=base run_stage3
     grep -q 'manifest-only readiness patch' "$TARGET/AGENTS.md"
-    grep -q 'implementation_approval' "$TARGET/AGENTS.md"
-    grep -q 'semantic_reclassification' "$TARGET/AGENTS.md"
+    ! grep -q 'semantic_reclassification' "$TARGET/AGENTS.md"
     grep -q 'active_session_id' "$TARGET/AGENTS.md"
-    grep -q 'canonical `plan.md`' "$TARGET/AGENTS.md"
+    grep -q 'status: implementing' "$TARGET/AGENTS.md"
     grep -q 'real runtime `active_session_id`' "$TARGET/AGENTS.md"
     grep -q 'not a planning requirement' "$TARGET/AGENTS.md"
     grep -q 'codex://threads/\*' "$TARGET/AGENTS.md"
@@ -404,8 +403,9 @@ EOF
 
 @test "stage3: generated AGENTS.md explains paused/intake visibility vs implementation-active state" {
     PRESET=base run_stage3
-    grep -q 'status: in-progress' "$TARGET/AGENTS.md"
-    grep -q 'live workflow state' "$TARGET/AGENTS.md"
+    grep -q 'status: defining' "$TARGET/AGENTS.md"
+    grep -q 'status: implementing' "$TARGET/AGENTS.md"
+    grep -q 'live workflow' "$TARGET/AGENTS.md"
     grep -q 'active_session_id' "$TARGET/AGENTS.md"
     grep -q 'diagnosis, planning, and capture' "$TARGET/AGENTS.md"
     grep -q 'ownership/lifecycle/control' "$TARGET/AGENTS.md"
@@ -464,7 +464,7 @@ EOF
     grep -q 'Target Repo Ownership' "$TARGET/AGENTS.md"
     grep -q 'current working directory' "$TARGET/AGENTS.md"
     grep -q 'edited repository owns workflow state' "$TARGET/AGENTS.md"
-    grep -q 'state, memory, scope, gates, and recovery' "$TARGET/AGENTS.md"
+    grep -q 'state, memory, gates, and recovery' "$TARGET/AGENTS.md"
     grep -q 'framework repository must not impersonate' "$TARGET/AGENTS.md"
     grep -q 'ambiguous repo ownership' "$TARGET/AGENTS.md"
     grep -q 'new intake state' "$TARGET/AGENTS.md"
@@ -591,7 +591,7 @@ EOF
     grep -q '<!-- SAGE-MANAGED-END' "$TARGET/AGENTS.md"
 }
 
-@test "stage3: generated AGENTS.md says checkpoints keep cycles in-progress" {
+@test "stage3: generated AGENTS.md says checkpoints keep cycles defining/active" {
     PRESET=base run_stage3
     grep -q 'active' "$TARGET/AGENTS.md"
     grep -q 'approval checkpoints' "$TARGET/AGENTS.md"

@@ -12,8 +12,6 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/bootstrap_check.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/artifact_order.sh"
-# shellcheck source=/dev/null
-. "$HOOK_DIR/lib/recovery_autofix.sh"
 
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -23,14 +21,13 @@ for tool in jq yq; do
     fi
 done
 
-manifest_scope_lines() {
-    local yaml
-    yaml="$(manifest_yaml "$1")" || return 0
-    if printf '%s\n' "$yaml" | yq eval -e '.scope | tag == "!!map"' - >/dev/null 2>&1; then
-        printf '%s\n' "$yaml" | yq eval -r '.scope.writable[]? // ""' - 2>/dev/null || true
-    else
-        printf '%s\n' "$yaml" | yq eval -r '.scope[]? // ""' - 2>/dev/null || true
-    fi
+is_implementation_status() {
+    case "$1" in
+        implementing)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
 }
 
 payload="$(cat 2>/dev/null || true)"
@@ -173,7 +170,7 @@ if [ "$tool_name" = "Bash" ]; then
     fi
     if [ "$mutating" -eq 1 ] && [[ "$cmd" == SAGE_BINARY_MUTATION=1* ]]; then
         if [[ "$cmd" =~ [\;\|\&\<\>\*\?\[\]\{\}\`] ]] || [[ "$cmd" == *'$('* ]]; then
-            printf 'Sage: BLOCKING binary asset mutation with non-simple Bash syntax. Binary asset mutations must use a simple allowlisted command with exact paths only. Next legal move: use a generator/helper with approved scope, or split to a simple `SAGE_BINARY_MUTATION=1 rm <path>` command.\n' >&2
+            printf 'Sage: BLOCKING binary asset mutation with non-simple Bash syntax. Binary asset mutations must use a simple allowlisted command with exact paths only. Next legal move: use a generator/helper after the workflow is in implementation state, or split to a simple `SAGE_BINARY_MUTATION=1 rm <path>` command.\n' >&2
             exit 2
         fi
         binary_path=""
@@ -188,7 +185,7 @@ if [ "$tool_name" = "Bash" ]; then
         resolution_kind="${resolution%%:*}"
         resolution_value="${resolution#*:}"
         if [ "$resolution_kind" != "active" ]; then
-            printf 'Sage: BLOCKING binary asset mutation without an active implementation cycle. File: %s. Next legal move: start/resume the workflow and approve manifest scope first.\n' "$claimed_path" >&2
+            printf 'Sage: BLOCKING binary asset mutation without an active implementation cycle. File: %s. Next legal move: start/resume the workflow and move to implementation state after the required checkpoint.\n' "$claimed_path" >&2
             exit 2
         fi
         cycle_dir="$resolution_value"
@@ -200,16 +197,9 @@ if [ "$tool_name" = "Bash" ]; then
                 "$cycle_id" "$active_session_id" "$session_id" >&2
             exit 2
         fi
-        scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
-        while IFS= read -r line; do
-            [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-        done < <(manifest_scope_lines "$manifest")
-        matched=0
-        for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
-            case "$claimed_path" in $glob) matched=1; break ;; esac
-        done
-        if [ "$matched" -ne 1 ]; then
-            printf 'Sage: BLOCKING binary asset mutation outside cycle scope: %s. Active cycle: %s. Next legal move: update the approved manifest scope/plan first.\n' "$claimed_path" "$cycle_id" >&2
+        cycle_status_value="$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)"
+        if ! is_implementation_status "$cycle_status_value"; then
+            printf 'Sage: BLOCKING binary asset mutation before implementation state. File: %s. Active cycle: %s status=%s. Next legal move: move the workflow to implementing after the required checkpoint.\n' "$claimed_path" "$cycle_id" "${cycle_status_value:-unknown}" >&2
             exit 2
         fi
         ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -221,10 +211,10 @@ if [ "$tool_name" = "Bash" ]; then
     fi
     if [ "$mutating" -eq 1 ] && [ "$targets_guarded" -eq 1 ]; then
         if [ "$binary_like" -eq 1 ]; then
-            printf 'Sage: BLOCKING binary asset mutation without explicit binary intent. Binary assets cannot use apply_patch, but shell mutation still needs approved scope. Next legal move: use a simple `SAGE_BINARY_MUTATION=1 rm <path>` command after confirming the file is in manifest scope.\n' >&2
+            printf 'Sage: BLOCKING binary asset mutation without explicit binary intent. Binary assets cannot use apply_patch, but shell mutation still needs implementation state. Next legal move: use a simple `SAGE_BINARY_MUTATION=1 rm <path>` command after moving the workflow to implementation state.\n' >&2
             exit 2
         fi
-        printf 'Sage: BLOCKING mutating Bash command against managed/project paths. Bash cannot claim exact Sage scope before execution. Next legal move: use apply_patch so PreToolUse can validate exact paths, or update the approved manifest scope/plan first.\n' >&2
+        printf 'Sage: BLOCKING mutating Bash command against managed/project paths. Bash cannot provide exact pre-write mutation intent. Next legal move: use apply_patch so PreToolUse can validate exact paths and lifecycle state.\n' >&2
         exit 2
     fi
     exit 0
@@ -592,7 +582,7 @@ patch_touches_manifest_control_field() {
     [ "$tool_name" = "apply_patch" ] || return 1
     patch_touches_manifest_path || return 1
     printf '%s\n' "$cmd" |
-        grep -E '^[+-][[:space:]]*(status|phase|resolution|active_session_id|implementation_approval|semantic_reclassification|autonomy_grant|scope|folded_into|folded_cycles):[[:space:]]*' >/dev/null
+        grep -E '^[+-][[:space:]]*(status|phase|resolution|active_session_id|autonomy_grant|folded_into|folded_cycles):[[:space:]]*' >/dev/null
 }
 
 is_sage_capture_without_control_patch() {
@@ -642,57 +632,6 @@ is_unbound_active_cycle_claim_patch() {
     fi
 
     return 1
-}
-
-same_turn_bootstrapped_cycle() {
-    local cwd="$1"
-    local session_id="$2"
-    local cycle_id="$3"
-    local turn_id="$4"
-    local log="$cwd/.sage/.session-mutations.log"
-    local manifest_path=".sage/work/$cycle_id/manifest.md"
-    local plan_path=".sage/work/$cycle_id/plan.md"
-
-    [ -f "$log" ] || return 1
-
-    jq -e --arg sid "$session_id" --arg turn "$turn_id" --arg cycle "$cycle_id" --arg manifest "$manifest_path" --arg plan "$plan_path" '
-        select(.session_id == $sid and .turn_id == $turn and .cycle_id == $cycle and (((.files // []) | index($manifest)) or ((.files // []) | index($plan))))
-    ' "$log" >/dev/null 2>&1
-}
-
-has_valid_implementation_approval() {
-    local cwd="$1"
-    local session_id="$2"
-    local cycle_id="$3"
-    local turn_id="$4"
-    local manifest_file="$cwd/.sage/work/$cycle_id/manifest.md"
-    local plan_path=".sage/work/$cycle_id/plan.md"
-    local plan_file="$cwd/$plan_path"
-    local log="$cwd/.sage/.session-mutations.log"
-    local yaml mode artifact revision
-
-    [ -f "$manifest_file" ] || return 1
-    [ -f "$plan_file" ] || return 1
-    [ -f "$log" ] || return 1
-
-    yaml="$(manifest_yaml "$manifest_file")" || return 1
-    mode="$(printf '%s\n' "$yaml" | yq eval -r '.implementation_approval.mode // ""' - 2>/dev/null || true)"
-    artifact="$(printf '%s\n' "$yaml" | yq eval -r '.implementation_approval.artifact // ""' - 2>/dev/null || true)"
-    revision="$(printf '%s\n' "$yaml" | yq eval -r '.implementation_approval.revision // ""' - 2>/dev/null || true)"
-
-    case "$mode" in
-        approved) ;;
-        conditional_revision)
-            [ -n "$revision" ] || return 1 ;;
-        *)
-            return 1 ;;
-    esac
-
-    [ "$artifact" = "$plan_path" ] || return 1
-
-    jq -e --arg sid "$session_id" --arg turn "$turn_id" --arg cycle "$cycle_id" --arg plan "$plan_path" '
-        select(.session_id == $sid and .turn_id != $turn and .cycle_id == $cycle and ((.files // []) | index($plan)))
-    ' "$log" >/dev/null 2>&1
 }
 
 mutation_kind=""
@@ -787,7 +726,7 @@ else
             elif is_sage_capture_without_control_patch; then
                 mutation_kind="sage_capture_without_lock"
             else
-                printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has status in-progress but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.\n' \
+                printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.\n' \
                     "$cycle_id" >&2
                 exit 2
             fi
@@ -806,43 +745,31 @@ else
             exit 2
         fi
     fi
-    scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
-    if [ "$resolution_kind" = "parked-capture" ]; then
-        scope_globs+=("$(normalize_path "$cwd/.sage-memory/*.md" "$cwd")")
-    fi
-    while IFS= read -r line; do
-        [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-    done < <(manifest_scope_lines "$manifest")
-    out_of_scope=()
+    outside_repo_paths=()
     for path in "${claimed_paths[@]}"; do
-        matched=0
-        for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
-            case "$path" in $glob) matched=1; break ;; esac
-        done
-        [ "$matched" -eq 0 ] && out_of_scope+=("$path")
+        case "$path" in
+            /*) outside_repo_paths+=("$path") ;;
+        esac
     done
-    if [ "${#out_of_scope[@]}" -gt 0 ]; then
-        if try_safe_scope_autofix "$cwd" "$cycle_id" "$manifest" "$session_id" "${out_of_scope[@]}"; then
-            scope_globs=("$(normalize_path "$cycle_dir/*" "$cwd")" "$(normalize_path "$cwd/.sage/decisions.md" "$cwd")")
-            while IFS= read -r line; do
-                [ -n "$line" ] && scope_globs+=("$(normalize_path "$line" "$cwd")")
-            done < <(manifest_scope_lines "$manifest")
-            out_of_scope=()
-            for path in "${claimed_paths[@]}"; do
-                matched=0
-                for glob in ${scope_globs[@]+"${scope_globs[@]}"}; do
-                    case "$path" in $glob) matched=1; break ;; esac
-                done
-                [ "$matched" -eq 0 ] && out_of_scope+=("$path")
-            done
-        fi
-    fi
-    if [ "${#out_of_scope[@]}" -gt 0 ]; then
-        printf 'Sage: BLOCKING outside cycle scope: %s. Active cycle: %s. Allowed scope: %s. Next legal move: update the approved manifest scope/plan first, or create a minimal intake cycle if this is separate work.\n' \
-            "${out_of_scope[*]}" "$cycle_id" "${scope_globs[*]:-(none)}" >&2
+    if [ "${#outside_repo_paths[@]}" -gt 0 ]; then
+        printf 'Sage: BLOCKING mutation outside target repo: %s. Active cycle: %s. Next legal move: create a capture-only intake in the target repository or explicitly switch the target repo.\n' \
+            "${outside_repo_paths[*]}" "$cycle_id" >&2
         exit 2
     fi
-
+    cross_cycle_paths=()
+    for path in "${claimed_paths[@]}"; do
+        case "$path" in
+            .sage/work/*/*)
+                path_cycle="${path#.sage/work/}"
+                path_cycle="${path_cycle%%/*}"
+                [ "$path_cycle" = "$cycle_id" ] || cross_cycle_paths+=("$path") ;;
+        esac
+    done
+    if [ "${#cross_cycle_paths[@]}" -gt 0 ]; then
+        printf 'Sage: BLOCKING cross-cycle mutation under active cycle: %s. Active cycle: %s. Next legal move: resume the target cycle, create a capture-only intake, or split the patch.\n' \
+            "${cross_cycle_paths[*]}" "$cycle_id" >&2
+        exit 2
+    fi
     boundary_paths=()
     for path in "${claimed_paths[@]}"; do
         case "$path" in
@@ -852,42 +779,17 @@ else
             boundary_paths+=("$path")
         fi
     done
-    if [ "${#boundary_paths[@]}" -gt 0 ] && same_turn_bootstrapped_cycle "$cwd" "$session_id" "$cycle_id" "$turn_id"; then
-        if ! has_valid_implementation_approval "$cwd" "$session_id" "$cycle_id" "$turn_id"; then
-            printf 'Sage: BLOCKING implementation/instruction mutation without a recognized implementation approval contract: %s. Active cycle: %s. Same-turn manifest/plan writes need manifest frontmatter `implementation_approval` pointing at an existing canonical plan.md with prior-turn plan evidence, and targets must stay in manifest scope. Next legal move: present or revise the plan for user approval, then record the implementation approval marker before editing source/runtime/test/instruction files.\n' \
-                "${boundary_paths[*]}" "$cycle_id" >&2
+    if [ "${#boundary_paths[@]}" -gt 0 ]; then
+        cycle_status_value="$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)"
+        if ! is_implementation_status "$cycle_status_value"; then
+            printf 'Sage: BLOCKING implementation/instruction mutation before implementation state: %s. Active cycle: %s status=%s. Next legal move: move the workflow to implementing after the required checkpoint.\n' \
+                "${boundary_paths[*]}" "$cycle_id" "${cycle_status_value:-unknown}" >&2
             exit 2
         fi
     fi
 
-    risky_paths=()
-    reclass_ack="$(manifest_yaml "$manifest" | yq eval -r '.semantic_reclassification // .scope_change_checkpoint // .risk_checkpoint // ""' - 2>/dev/null || true)"
-    for i in "${!claimed_paths[@]}"; do
-        path="${claimed_paths[$i]}"
-        op="${claimed_ops[$i]}"
-        case "$path" in
-            ".sage/work/$cycle_id/"*|".sage/decisions.md") continue ;;
-        esac
-        risky=0
-        [ "$op" = "Delete" ] && risky=1
-        case "$path" in
-            .gitignore|.github/workflows/*|README.md|bin/*|*.bats|tests/*|*/tests/*)
-                risky=1 ;;
-        esac
-        [ "$risky" -eq 1 ] && risky_paths+=("$path")
-    done
-    if [ "${#risky_paths[@]}" -gt 0 ]; then
-        case "$reclass_ack" in
-            accepted|approved|true|yes) ;;
-            *)
-                printf 'Sage: BLOCKING risky scope mutation without semantic reclassification checkpoint: %s. Active cycle: %s. Repo-control files, public docs, CLI entrypoints, deletions, and tests require manifest frontmatter `semantic_reclassification: accepted` after an approved plan/scope review.\n' \
-                    "${risky_paths[*]}" "$cycle_id" >&2
-                exit 2 ;;
-        esac
-    fi
-
     if moderate_fix_artifacts_missing "$cycle_dir" "$manifest" "$cwd/.sage/.session-mutations.log" "$session_id" "$cycle_id" "${claimed_paths[@]}"; then
-        printf 'Sage: BLOCKING Moderate+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. Do not use scope amputation: if the third file is required, escalate to the Moderate+ scope gate instead of dropping it. Active cycle: %s.\n' "$cycle_id" >&2
+        printf 'Sage: BLOCKING Standard+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. If the third file is required, escalate to the required checkpoint instead of dropping it. Active cycle: %s.\n' "$cycle_id" >&2
         exit 2
     fi
 fi

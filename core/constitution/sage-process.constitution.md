@@ -32,14 +32,14 @@ This is a conversation contract, not a framework rename.
   rekomendowanymi wyborami.
 - After an approved plan, offer both `[C] Checkpointed implementation` and
   `[F] Full autonomous implementation`. Full autonomous implementation runs the
-  approved scope until verification/close without intermediate checkpoints, but
+  approved plan until verification/close without intermediate checkpoints, but
   stops for scope expansion, significant architecture/product decisions,
   conflicting instructions, failing tests that require changed assumptions, or
   partial-guardrail risk.
 
 ## Rule 0: Route Work, Preserve Conversation
 
-Before doing Standard+ work, classify scope and route to the right
+Before doing Standard+ work, assign `cycle_tier` and route to the right
 workflow. Conversation is not work by itself: read-only questions,
 conceptual discussion, and "what do you think?" prompts may be answered
 without announcing or starting a workflow.
@@ -54,31 +54,32 @@ without announcing or starting a workflow.
 - If active work exists, acknowledge it when relevant, but do not resume
   implementation or force methodology for unrelated read-only questions
 - After workflow entry, follow that workflow's gates exactly
-- Standard+/Moderate+ entry or resume is a manifest state transition, not a
+- Standard+ entry or resume is a manifest state transition, not a
   conversational claim: update `manifest.md` first, then say which
   `status`/`phase` changed, then write artifacts or code
 - In Codex, keep the native task-plan/progress UI aligned with Standard+ work
   as a visibility layer; it never replaces Sage artifacts or gates
 - Source/runtime/test/instruction behavior changes require the proper Sage
-  workflow and approved manifest scope, regardless of mutation tool
+  workflow and `status: implementing`, regardless of mutation tool
 - "Find and fix" prompts in instruction/process files require `/fix`
   diagnosis/scope before mutation, even for typos; only obvious
   non-canonical typos outside instruction/process surfaces stay Tier 1
-- Mutation preflight before write: check active cycle, scope, file count,
-  threshold, closeout state, and tool path. Text edits use `apply_patch`;
-  binary asset mutations need an explicit binary path inside approved scope
-- If a required file triggers a hook block, do not use scope amputation; escalate
-  to the named workflow/scope gate or ask the user
+- Mutation preflight before write: check active cycle, lifecycle status, file
+  count, tier threshold, closeout state, and tool path. Text edits use
+  `apply_patch`; binary asset mutations need an explicit binary path and
+  implementation state
+- If a required file reveals scope/risk expansion, escalate to the named
+  workflow gate or ask the user
 - Config changes are calibrated: single-file config-only Add/Update may be
-  Lightweight/Surgical when it matches the structural allowlist; multi-file,
+  Lightweight when it matches the structural allowlist; multi-file,
   security, hook, instruction, generated, or uncertain config changes require
-  workflow and approved manifest scope
+  workflow and implementation state
 
 **Scope calibration:** When in doubt, bias toward Standard. A brief note
 takes 2 minutes. Rework from undocumented decisions takes hours.
-- Tier 1 only: single file, no design decisions, no behavior changes
+- Lightweight only: single file, no design decisions, no behavior changes
   visible to other team members
-- Any behavior change, API change, or team-visible decision → Tier 2+
+- Any behavior change, API change, or team-visible decision → Standard+
 
 **Compliance:** Every Standard+ work response starts with a "Sage →"
 announcement, uses a slash command, or explicitly stays conversational
@@ -97,7 +98,7 @@ artifacts that already exist without acknowledging them.
 
 Before writing specs, plans, ADRs, or starting an investigation,
 search sage-memory for relevant context. This is mandatory for
-Standard+ scope work when sage-memory MCP is available.
+Standard+ cycle_tier work when sage-memory MCP is available.
 
 Two searches minimum:
 1. General domain search — query with task domain keywords, limit 5
@@ -133,7 +134,7 @@ Check available skills before proceeding with any substantial task.
 
 ## Rule 3: Spec Before Code (File Check)
 
-Standard+ scope: `.sage/work/[initiative]/spec.md` MUST exist before
+Standard+ cycle: `.sage/work/[initiative]/spec.md` MUST exist before
 implementation begins. This is a FILE CHECK, not a judgment call.
 
 Check: does the spec file exist on disk? If no → write it first.
@@ -163,7 +164,7 @@ Never skip human approval on:
 Show the work. Wait for explicit approval. Proceed only when confirmed.
 
 A completion checkpoint is not approval. At completion checkpoint, keep the
-cycle active, for example `status: in-progress` and
+cycle active, for example `status: implementing` or legacy `status: in-progress` and
 `phase: completion-checkpoint`, while showing verification evidence and asking
 for closeout approval. Only explicit user approval may move the cycle to
 cycle manifest `status: closed` and `phase: closed`, and that closed-status

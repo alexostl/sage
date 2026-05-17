@@ -24,11 +24,13 @@ to remember which workflow or initiative was in progress.
 ## Step 1: Scan for Active Cycles
 
 Scan `.sage/work/*/manifest.md` for cycles where
-`status: in-progress`, `status: paused`, or `status: intake`.
+`status: defining`, `status: implementing`, legacy `status: in-progress`,
+`status: paused`, or `status: intake`.
 
-Treat `in-progress` as implementation-active, including active approval
-checkpoints where the next move is to review/approve/revise the current gate.
-Do not "resume" an in-progress checkpoint by changing it to paused first. Treat
+Treat `defining`, `implementing`, and legacy `in-progress` as active workflow
+state, including active approval checkpoints where the next move is to
+review/approve/revise the current gate. Do not "resume" an active checkpoint
+by changing it to paused first. Treat
 `paused` and `intake` as parked/resumable but not mutation-active until the user
 confirms continuation.
 Treat `closed` and legacy `completed` cycle manifests as closed history, not
@@ -47,7 +49,7 @@ Formal resume checklist:
 
 1. Select the target manifest from the current repository, not a parent or
    framework repository.
-2. Change the parked cycle to `status: in-progress` and set `phase` to the
+2. Change the parked cycle to `status: defining` and set `phase` to the
    workflow's next real phase or gate.
 3. Preserve existing context fields; add `active_session_id` only for
    implementation/control readiness when the runtime `session_id` is available

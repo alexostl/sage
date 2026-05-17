@@ -4,7 +4,7 @@ type: report
 version: "1.0.0"
 description: >
   QA testing report. Produced by /qa workflow. Contains route results,
-  flow results, bugs with severity and fix classification, and
+  flow results, bugs with severity and suggested fix cycle_tier, and
   recommendations. Read by /fix to skip re-diagnosis.
 ---
 
@@ -63,7 +63,7 @@ scope: {cycle-id | standalone}
 - **Steps to reproduce:** {numbered steps}
 - **Expected:** {what should happen}
 - **Actual:** {what actually happens}
-- **Suggested fix classification:** Surgical | Moderate | Systemic
+- **Suggested fix cycle_tier:** lightweight | standard | comprehensive
 - **Evidence:** {console output, semantic tree snippet, or description}
 
 ## Recommendations

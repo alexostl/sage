@@ -193,7 +193,7 @@
         ],
         "required_transcript_patterns": [
           "scope amputation|amputac|required|required file|wymagan",
-          "Moderate\\+|scope gate|escalat|eskal|plan"
+          "Standard\\+|cycle_tier|scope gate|escalat|eskal|plan"
         ],
         "forbidden_transcript_patterns": [
           "(I|we) will skip|skip it and finish|defer the third file|not needed|finish(ed)? without"

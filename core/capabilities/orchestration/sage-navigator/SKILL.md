@@ -98,7 +98,7 @@ you the reasoning behind current state.
 
 This gives you instant orientation without reading full documents.
 
-- **Work in progress?** (status: in-progress) Report: "Sage: Resuming
+- **Work in progress?** (`status: defining`, `status: implementing`, or legacy `status: in-progress`) Report: "Sage: Resuming
   [initiative]. [Phase] phase." Offer to resume. If the user's new
   request is different, present both options — continue the old or start
   the new. Don't silently abandon work.
@@ -197,14 +197,14 @@ Ambiguous → present all matching options.
 
 ### State Transition Boundary
 
-Lightweight/Surgical work may finish with code plus a conversation summary; do
+Lightweight work may finish with code plus a conversation summary; do
 not create `.sage` records unless the small task creates a durable decision,
 follow-up, learning/correction, incident/recovery, or touches an active cycle.
-For Standard+/Moderate+ work, workflow entry or resume is a real state
+For Standard+ work, workflow entry or resume is a real state
 transition: create/update the manifest before writing artifacts or code, then
 say which `status`/`phase` changed.
 
-Use this sequence for Standard+/Moderate+ entry or resume:
+Use this sequence for Standard+ entry or resume:
 
 1. Identify the workflow and target cycle, or create a new cycle.
 2. Update `manifest.md` first (`status`, `phase`, and `active_session_id` when
@@ -218,18 +218,19 @@ Use this sequence for Standard+/Moderate+ entry or resume:
 Fix-trigger prompts in instruction, workflow, hook, generated, or process files
 are action mandates, not ordinary typo cleanup. Route them through `/fix`
 diagnosis and scope before editing, even when the requested change looks like a
-typo. Obvious non-canonical typos may remain Lightweight/Surgical only outside
+typo. Obvious non-canonical typos may remain Lightweight only outside
 instruction/process surfaces.
 
 If a hook blocks with a next legal move, treat it as recovery guidance. Retry
 through the legal path, or stop for the user decision named by the hook. Do not
-use scope amputation for a required file.
+drop a required file just to make the patch smaller.
 
-Mutation preflight before write: check active cycle, scope, file count,
-threshold, closeout state, and tool path. Text edits use `apply_patch`; binary
-asset mutations need an explicit binary path inside approved scope.
+Mutation preflight before write: check active cycle, lifecycle status, file
+count, tier threshold, closeout state, and tool path. Text edits use
+`apply_patch`; binary asset mutations need an explicit binary path and
+implementation state.
 
-Surgical mode is quantitative: exactly 1 file, at most 2 diff lines total, no
+Legacy surgical/lightweight mode is quantitative: exactly 1 file, at most 2 diff lines total, no
 manifest, and no secrets/policy/runtime/instruction surfaces.
 
 Before mutation, choose the legal mode: `read-only`, `surgical`, `capture`,

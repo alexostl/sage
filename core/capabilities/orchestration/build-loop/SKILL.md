@@ -33,12 +33,13 @@ asked before anything surprising happens.
 
 Autonomiczna kontynuacja after an approved plan has two explicit modes:
 `[C] Checkpointed implementation` and `[F] Full autonomous implementation`.
-When the user chooses `[F]`, continue through the approved scope until
+When the user chooses `[F]`, continue through the approved plan until
 verification/close without intermediate checkpoints. This is scoped autonomy,
 not general autonomy: it is bound to the approved plan snapshot and
-`manifest.scope`. Stop and ask one question when the next step changes a key
+workflow stop conditions. Stop and ask one question when the next step changes a key
 assumption, product/architecture decision, ownership, accepted risk, conflicts
-with the approved plan, adds files outside scope, or otherwise expands scope.
+with the approved plan, adds new files that change the approved plan, or
+otherwise expands scope.
 
 ## When to Use
 

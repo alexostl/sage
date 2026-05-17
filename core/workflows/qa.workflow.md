@@ -2,7 +2,7 @@
 name: qa
 version: "1.0.0"
 mode: qa
-produces: ["QA report with bugs, severity, and fix classification"]
+produces: ["QA report with bugs, severity, and suggested fix cycle_tier"]
 checkpoints: 1
 scope: "Single session"
 user-role: "Provide URL, confirm test scope, review findings"
@@ -177,7 +177,8 @@ Type a command, or describe what you want to do next.
 Good QA output:
 - Every route in scope was actually tested (not claimed-as-tested)
 - Bugs have concrete reproduction steps, not vague descriptions
-- Each bug includes suggested fix classification (Surgical/Moderate/Systemic)
+- Each bug includes a suggested fix cycle_tier
+  (`lightweight`/`standard`/`comprehensive`)
 - Evidence is included (console output, element state, response content)
 - Untested routes are noted as untested, NOT claimed as pass
 
@@ -221,16 +222,16 @@ BLOCKED RATIONALIZATIONS:
 - "I already tested this manually" — manual ≠ automated.
   Run the test suite.
 
-**Bug classification gate:** Every bug MUST be classified as
-Surgical/Moderate/Systemic with evidence supporting the classification.
+**Bug cycle_tier gate:** Every bug MUST include a suggested fix
+`cycle_tier` with evidence supporting the recommendation.
 
 BLOCKED RATIONALIZATIONS:
-- "This is clearly Surgical" — classification requires evidence.
+- "This is clearly lightweight" — the recommendation requires evidence.
   Read the stack trace before classifying.
 - "I'll just fix it and skip the report" — /qa produces a report
   for a reason. The report is the audit trail.
-- "This bug is too minor to classify" — minor bugs compound.
-  Classify or explain why classification doesn't apply.
+- "This bug is too minor to tier" — minor bugs compound.
+  Suggest a `cycle_tier` or explain why tiering doesn't apply.
 
 **Advisory only:** /qa reports. It does NOT fix bugs. If the agent
 catches itself thinking "I'll just fix this real quick" — STOP.
@@ -244,6 +245,6 @@ An agent that finds AND fixes has incentive to minimize findings.
 
 - /qa reports, /fix fixes. Never combine.
 - Code-only fallback is honest about its limitations.
-- Every bug gets a severity AND a fix classification.
+- Every bug gets a severity AND a suggested fix `cycle_tier`.
 - Evidence is mandatory for fail/warning findings.
 - Update manifest.md if cycle context exists.

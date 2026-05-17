@@ -41,6 +41,7 @@ seed_cycles() {
 ---
 title: Active feature build
 workflow: build
+cycle_tier: standard
 phase: implement
 status: in-progress
 updated: 2026-04-30
@@ -78,6 +79,7 @@ seed_paused_intake_cycles() {
 ---
 title: Active feature build
 workflow: build
+cycle_tier: standard
 phase: implement
 status: in-progress
 updated: 2026-04-30
@@ -88,6 +90,7 @@ EOF
 ---
 title: Paused hook repair
 workflow: fix
+cycle_tier: standard
 phase: diagnose
 status: paused
 updated: 2026-05-01
@@ -98,6 +101,7 @@ EOF
 ---
 title: Intake status visibility
 workflow: intake
+cycle_tier: lightweight
 phase: intake
 status: intake
 updated: 2026-05-02
@@ -112,6 +116,7 @@ seed_status_index_cycles() {
 cycle_id: "20260430-active"
 title: Active feature build
 workflow: build
+cycle_tier: standard
 phase: implement
 status: in-progress
 priority: P1
@@ -229,6 +234,7 @@ EOF
     echo "$output" | grep -q 'Active feature build'
     echo "$output" | grep -qi 'implement'
     echo "$output" | grep -qi 'in-progress'
+    echo "$output" | grep -qi 'tier=standard'
 }
 
 @test "status: lists ALL three in-progress cycles (active + 2 stale)" {
@@ -366,13 +372,14 @@ EOF
     run run_status --json
     echo "$output" | jq -e '.cycles[0].id' >/dev/null
     echo "$output" | jq -e '.cycles[0].status' >/dev/null
+    echo "$output" | jq -e '.cycles[] | select(.id == "20260430-active" and .cycle_tier == "standard")' >/dev/null
 }
 
 @test "status --json: work_index cycle entries include lifecycle fields from frontmatter only" {
     seed_status_index_cycles
     run run_status --json
     [ "$status" -eq 0 ]
-    echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .cycle_id == "20260430-active" and .title == "Active feature build" and .status == "in-progress" and .priority == "P1" and .owner == "alexostl" and .active_session_id == "session-123")' >/dev/null
+    echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .cycle_id == "20260430-active" and .title == "Active feature build" and .cycle_tier == "standard" and .status == "in-progress" and .priority == "P1" and .owner == "alexostl" and .active_session_id == "session-123")' >/dev/null
     ! echo "$output" | jq -e '.work_index.cycles[] | select(.id == "20260430-active" and .title == "Body title must not override frontmatter")' >/dev/null
 }
 

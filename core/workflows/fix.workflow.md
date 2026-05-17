@@ -4,7 +4,7 @@ version: "1.2.0"
 mode: fix
 produces: ["Root cause diagnosis with evidence", "Reproducing test", "Minimal patch"]
 checkpoints: 3
-scope: "Single session for surgical, multi-session for systemic"
+scope: "Single session for lightweight/standard, multi-session for comprehensive"
 user-role: "Confirm root cause, approve fix scope, approve fix"
 ---
 
@@ -30,7 +30,8 @@ artifact references that show why the diagnosis is credible.
 
 ## Auto-Pickup
 
-Scan `.sage/work/` for fix-related directories with `status: in-progress`.
+Scan `.sage/work/` for fix-related directories with `status: defining`,
+`status: implementing`, or legacy `status: in-progress`.
 This scan is MANDATORY — check the DISK.
 
 **Manifest-first path:** If manifest.md exists for a fix cycle, read it.
@@ -48,13 +49,13 @@ and fix patterns may be relevant.
 
 ### Manifest Lifecycle (fix workflow)
 
-**Surgical fixes:** No manifest. Too fast — completes in one session.
-**Moderate fixes:** Create/update manifest when fix plan is written
+**Lightweight fixes:** No manifest unless there is durable state to preserve.
+**Standard fixes:** Create/update manifest when fix plan is written
 (Step 3), before any fix code changes.
-**Systemic fixes:** Create manifest at escalation point.
+**Comprehensive fixes:** Create manifest at escalation point.
 **Update** at root cause gate, fix scope gate, implementation start, and close
 checkpoint.
-**Checkpoint state:** Approval checkpoints keep `status: in-progress` and move
+**Checkpoint state:** Approval checkpoints use `status: defining` and move
 `phase` to the current gate, such as `root-cause-gate` or `fix-scope-gate`.
 Do not use `paused` for a live approval checkpoint.
 After every `status` or `phase` change, tell the user what changed after the
@@ -63,7 +64,7 @@ diagnosis, root-cause, planning, or capture-only `.sage` artifacts. Before
 runtime/source/test implementation, bind `active_session_id` only to the current
 runtime hook `session_id`; never infer it from `codex://threads/*`,
 `CODEX_THREAD_ID`, transcripts, logs, or an analyzed thread id.
-**Session end ([N]) or explicit parking:** Mandatory update for Moderate+
+**Session end ([N]) or explicit parking:** Mandatory update for Standard+
 fixes; this is when `status: paused` is appropriate.
 
 ## Phase Announcements
@@ -77,7 +78,7 @@ Sage: Entering DELIVER phase [cycle-id] — implementing and verifying fix.
 ```
 
 The cycle ID is the directory name under `.sage/work/` (e.g., `20260324-auth-bug`).
-For Surgical fixes without a cycle directory, use the bug description as cycle ID.
+For lightweight fixes without a cycle directory, use the bug description as cycle ID.
 
 ## Step 1: Understand the Problem
 
@@ -93,7 +94,7 @@ Scan for recent reports that can serve as pre-diagnosed input:
 ```
 Sage: Found QA report with {N} bugs:
 
-[1] BUG-1: {title} — {severity} — suggested: {Surgical/Moderate/Systemic}
+[1] BUG-1: {title} — {severity} — suggested: {lightweight/standard/comprehensive}
 [2] BUG-2: {title} — {severity} — suggested: {classification}
 [3] BUG-3: {title} — {severity} — suggested: {classification}
 [A] Fix all — accept classifications and proceed
@@ -231,28 +232,27 @@ Do not proceed to Step 3 until the user confirms the root cause.
 
 Classify the fix by structural impact:
 
-**Surgical:** 1-2 files changed, no interface changes, no new
+**Lightweight:** 1-2 files changed, no interface changes, no new
 abstractions. The fix follows directly from the confirmed root cause.
 → Present classification to user for confirmation, then proceed
-  to Step 4 (implement fix). Even Surgical fixes require the user
+  to Step 4 (implement fix). Even lightweight fixes require the user
   to see and confirm the scope before implementation begins.
 
-**Moderate:** 3-5 files changed, OR test infrastructure changes,
+**Standard:** 3-5 files changed, OR test infrastructure changes,
 OR error handling pattern changes. The fix is clear but touches
 multiple components.
-→ MUST write a fix plan and update manifest scope before implementing:
+→ MUST write a fix plan and update manifest lifecycle before implementing:
   Save to `.sage/work/[fix-initiative]/plan.md`:
   - Files to change and what changes in each
   - Tests to add or modify
   - Rollback approach if fix doesn't work
-  Update `.sage/work/[fix-initiative]/manifest.md` in the same planning
-  gate with the approved scope.
+  Update `.sage/work/[fix-initiative]/manifest.md` in the same planning gate.
   Present [A]/[R] → wait for approval.
   Do not edit implementation code until both `plan.md` and `manifest.md`
   have been updated and approved. Writing these artifacts after code
   changes is a methodology violation, not a cure.
 
-**Systemic:** 5+ files changed, OR interface/API changes, OR new
+**Comprehensive:** 5+ files changed, OR interface/API changes, OR new
 abstractions needed, OR architectural implications. This is no
 longer a fix — it's a redesign.
 → MUST escalate:
@@ -267,10 +267,10 @@ Impact: [N files, M interfaces, architectural concern]
 [2] Escalate to /architect — the root cause is architectural
 [3] Proceed as fix anyway — I accept the risk of a large unplanned change
 
-If the user chooses [3], write a fix plan (same as Moderate)
+If the user chooses [3], write a fix plan (same as Standard)
 and record the decision in decisions.md.
 
-**Escalation signals** (any ONE makes it Moderate or above):
+**Escalation signals** (any ONE makes it Standard or above):
 - Fix touches more than 2 files
 - Fix changes a function signature or API contract
 - Fix requires a new abstraction (new class, new module, new pattern)
@@ -278,14 +278,14 @@ and record the decision in decisions.md.
 - Fix requires database migration
 - You realize "the real fix is to restructure X"
 
-**Anti-downgrade:** Do NOT classify as Surgical to skip the plan.
+**Anti-downgrade:** Do NOT classify as lightweight to skip the plan.
 If you find yourself thinking "I'll just quickly change these 5
-files," that's Moderate. If you're thinking "the real problem is
-the architecture," that's Systemic. Trust the signals, not your
+files," that's Standard. If you're thinking "the real problem is
+the architecture," that's Comprehensive. Trust the signals, not your
 optimism about how fast the fix will be.
 
-🔒 **FIX SCOPE GATE (Moderate+ only):**
-Sage: Fix scope: [Moderate/Systemic]
+🔒 **FIX SCOPE GATE (Standard+ only):**
+Sage: Fix tier: [standard/comprehensive]
 
   Files: [list of files to change]
   Changes: [summary of what changes]
@@ -312,29 +312,23 @@ return to the gate decision. See
 Selecting [A] is the user's explicit authorization to spawn a read-only
 subagent for this review when the platform tool is available.
 
-On approval, update the manifest before implementation: keep `status:
-in-progress`, set `phase: deliver` (or the workflow's implementation phase),
-and ensure `scope:` contains every approved runtime, test, CLI, docs, and
-artifact path to be mutated.
-Record `implementation_approval` in manifest frontmatter before implementation:
-`mode: approved` for normal approval, or `mode: conditional_revision` plus a
-non-empty `revision` for `[I]`. `[I]` is explicit bounded conditional approval:
+On approval, update the manifest before implementation: set `status:
+implementing` and `phase: deliver` (or the workflow's implementation phase).
+`[I]` is explicit bounded conditional approval:
 only the user-specified revision may happen before implementation. Scope
 expansion, new decisions, new risks, or ambiguous revision instructions stop
 the workflow and return to the gate.
 
-Before mutating runtime/source/test files, perform an implementation readiness preflight
-as a manifest-only readiness patch: bind the real runtime
-`active_session_id`, record `implementation_approval` pointing at the existing
-canonical `plan.md`, add `semantic_reclassification: accepted` when the
-approved scope includes hook-risky paths, and confirm `scope` covers all
-planned files. `active_session_id` must be verified against the current hook payload `session_id`;
+Before mutating runtime/source/test files, perform an implementation readiness
+preflight as a manifest-only readiness patch: bind the real runtime
+`active_session_id` when the platform exposes it and set `status:
+implementing`. `active_session_id` must be verified against the current hook payload `session_id`;
 if that value is not available with high confidence, do not guess. If the
 canonical `plan.md` lacks prior-turn evidence for a same-turn boundary
 edit, stop after the readiness patch and continue in a later turn.
 After the readiness patch, preserve `[C] Checkpointed implementation` and `[F]`
 Full autonomous implementation`; both remain bound to the approved `plan.md`
-and manifest scope.
+and workflow stop conditions.
 
 ## Step 4: Implement Fix
 
@@ -342,7 +336,7 @@ Write a failing test that reproduces the bug. Confirm the test fails
 for the right reason (the root cause, not a setup issue). Fix the
 code. Verify the test passes.
 
-**For Moderate+ fixes:** Follow the plan. Check off each file as
+**For Standard+ fixes:** Follow the plan. Check off each file as
 you change it. Do NOT change files not in the plan — if you discover
 additional changes are needed, update the plan first.
 
@@ -357,9 +351,9 @@ Now: [N+X files, M+Y changes]
 [2] Escalate to /build
 [3] Revert to original plan and accept limitations
 
-For Moderate/Systemic fixes, `[F] Full autonomous implementation` does not
+For Standard/Comprehensive fixes, `[F] Full autonomous implementation` does not
 override this stop. Plan approval and scope approval apply only to the
-currently approved `plan.md` and `manifest.scope`. New files, tests, workflow
+currently approved `plan.md`. New files, tests, workflow
 targets, or semantic plan changes require a scope expansion checkpoint before
 implementation continues:
 
@@ -410,7 +404,7 @@ advisory but surfaced to the user.
 
 **Self-check before presenting (FILE CHECKS):**
 - [ ] Root cause was presented and approved by user (Step 2 gate)
-- [ ] For Moderate+ fixes: plan.md exists in .sage/work/
+- [ ] For Standard+ fixes: plan.md exists in .sage/work/
 - [ ] Test output is PASTED in this response (not summarized)
 - [ ] Fix is contained to planned files (no scope creep)
 If ANY fails → go back. Do NOT present the checkpoint.
@@ -418,7 +412,7 @@ If ANY fails → go back. Do NOT present the checkpoint.
 **Closeout order:** The completion checkpoint is not approval. Before presenting
 it, finish final self-review, decisions, verification notes, plan/manifest
 bookkeeping, and handoff context while keeping the manifest active, for example
-`status: in-progress`, `phase: completion-checkpoint`. Only after explicit user
+`status: implementing`, `phase: completion-checkpoint`. Only after explicit user
 closeout approval may the agent close the cycle. Treat cycle manifest
 `status: closed` and `phase: closed` as the last Sage artifact mutation.
 Artifact frontmatter may still use `status: completed`. After closeout, report
@@ -440,7 +434,7 @@ cycle. Reopen is only for an immediate correction in the same active conversatio
 
 Sage: Fix ready for completion approval.
 - Root cause: [what was wrong]
-- Scope: [Surgical/Moderate/Systemic]
+- Cycle tier: [lightweight/standard/comprehensive]
 - Change: [what was changed, in which files]
 - Tests: [X passed, 0 failed — from actual output]
 Decision: [decision-worthy root cause + fix approach, if any]. (prepend to .sage/decisions.md)
@@ -467,7 +461,7 @@ Pick A/R/V, or tell me what to change.
 7. **Ontology update (if sage-memory available):** If the fix changed
    module dependencies or interfaces (e.g., a service now calls a
    different service, a dependency was added/removed), update ontology
-   relations. Most Surgical fixes won't need this — only update when
+   relations. Most lightweight fixes won't need this — only update when
    the codebase's structural relationships changed.
 8. **Next steps (Zone 3):**
 
@@ -497,7 +491,7 @@ Good fix output:
 - Root cause before fix (Step 2 gate). DO NOT fix before root cause
   is confirmed with evidence.
 - Scope before implementing (Step 3). Classify impact honestly.
-- For Moderate+ fixes: plan.md MUST EXIST before implementation.
+- For Standard+ fixes: plan.md MUST EXIST before implementation.
   "I know what to change" is NOT a plan file.
 - Tests before code (Base Principle 1). Write failing test first.
 - Verify with evidence (Rule 5). PASTE actual test output.

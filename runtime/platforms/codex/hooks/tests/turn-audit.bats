@@ -345,7 +345,7 @@ EOF
     [ "$count" -eq 1 ]
 }
 
-@test "turn-audit.sh: Moderate+ fix edits 3 implementation files before plan+manifest → artifact_order_violation" {
+@test "turn-audit.sh: Standard+ fix edits 3 implementation files before plan+manifest → artifact_order_violation" {
     cd "$PROJECT_ROOT"
     cycle="20260507-fix-order"
     mkdir -p src tests .sage/work/"$cycle"
@@ -363,7 +363,7 @@ EOF
     grep -q '"cycle":"20260507-fix-order"' "$log"
 }
 
-@test "turn-audit.sh: post-hoc plan+manifest do not cure code-first Moderate+ violation" {
+@test "turn-audit.sh: post-hoc plan+manifest do not cure code-first Standard+ violation" {
     cd "$PROJECT_ROOT"
     cycle="20260507-posthoc"
     mkdir -p src .sage/work/"$cycle"
@@ -381,7 +381,7 @@ EOF
     grep -q '"post_hoc_artifacts":true' "$log"
 }
 
-@test "turn-audit.sh: plan+manifest before Moderate+ implementation → no artifact_order_violation" {
+@test "turn-audit.sh: plan+manifest before Standard+ implementation → no artifact_order_violation" {
     cd "$PROJECT_ROOT"
     cycle="20260507-good-order"
     mkdir -p src .sage/work/"$cycle"

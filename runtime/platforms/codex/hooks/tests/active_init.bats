@@ -72,6 +72,26 @@ EOF
     [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-alpha" ]
 }
 
+@test "active_init_path: defining cycle is active" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
+    make_cycle "20260101-alpha" "defining"
+    result="$(active_init_path "$PROJECT_ROOT")"
+    [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-alpha" ]
+}
+
+@test "active_init_path: implementing cycle is active" {
+    # shellcheck disable=SC1090
+    source "$LIB"
+    # shellcheck disable=SC1090
+    source "$BOOTSTRAP_LIB"
+    make_cycle "20260101-alpha" "implementing"
+    result="$(active_init_path "$PROJECT_ROOT")"
+    [ "$result" = "$PROJECT_ROOT/.sage/work/20260101-alpha" ]
+}
+
 @test "active_init_path: only closed cycles → empty output" {
     # shellcheck disable=SC1090
     source "$LIB"

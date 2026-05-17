@@ -180,9 +180,10 @@ be presented to the user before Step 8.
 - Gate failures trigger fix-and-retry (max 3), then escalate to human.
 - Never skip mandatory gates. They are mandatory, not suggestions.
 - `[F] Full autonomous implementation` permits routine fixes only inside the
-  approved plan and `manifest.scope`. If a failing gate requires changing a key
-  assumption, modifying the plan, adding files outside scope, or expanding
-  scope, stop for a scope expansion checkpoint before making that change.
+  approved plan and workflow stop conditions. If a failing gate requires
+  changing a key assumption, modifying the plan, adding files outside the
+  approved implementation surface, or expanding risk, stop for a scope
+  expansion checkpoint before making that change.
 
 ## Fallbacks
 

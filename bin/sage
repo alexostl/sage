@@ -1396,7 +1396,7 @@ sage_doctor() {
     while IFS= read -r -d '' cycle; do
       local manifest="$cycle/manifest.md"
       [ -f "$manifest" ] || continue
-      grep -q '^status:[[:space:]]*in-progress' "$manifest" 2>/dev/null || continue
+      grep -Eq '^status:[[:space:]]*(in-progress|defining|implementing)' "$manifest" 2>/dev/null || continue
       local mtime
       mtime="$(stat -c '%Y' "$manifest" 2>/dev/null || stat -f '%m' "$manifest" 2>/dev/null || echo "$now")"
       local age=$((now - mtime))
@@ -1602,11 +1602,12 @@ sage_status() {
   while IFS= read -r -d '' cycle; do
     local manifest="$cycle/manifest.md"
     [ -f "$manifest" ] || continue
-    local id cycle_id title workflow phase status priority owner updated resolution folded_into active_session_id
+    local id cycle_id title workflow cycle_tier phase status priority owner updated resolution folded_into active_session_id
     id="$(basename "$cycle")"
     cycle_id="$(status_manifest_field "$manifest" cycle_id)"
     title="$(status_manifest_field "$manifest" title)"
     workflow="$(status_manifest_field "$manifest" workflow)"
+    cycle_tier="$(status_manifest_field "$manifest" cycle_tier)"
     phase="$(status_manifest_field "$manifest" phase)"
     status="$(status_manifest_field "$manifest" status)"
     priority="$(status_manifest_field "$manifest" priority)"
@@ -1625,24 +1626,25 @@ sage_status() {
       counts_by_resolution="$(jq -c --arg resolution "$resolution" '.[$resolution] = (.[$resolution] // 0) + 1' <<< "$counts_by_resolution")"
     fi
     case "$status" in
-      in-progress|in_progress|active|paused|intake) ;;
+      in-progress|in_progress|active|defining|implementing|paused|intake) ;;
       *) continue ;;
     esac
     local entry
     entry="$(jq -n \
       --arg id "$id" --arg cycle_id "$cycle_id" --arg title "$title" \
-      --arg workflow "$workflow" --arg phase "$phase" --arg status "$status" \
+      --arg workflow "$workflow" --arg cycle_tier "$cycle_tier" \
+      --arg phase "$phase" --arg status "$status" \
       --arg priority "$priority" --arg owner "$owner" --arg updated "$updated" \
       --arg resolution "$resolution" --arg folded_into "$folded_into" \
       --arg active_session_id "$active_session_id" \
-      '{id: $id, cycle_id: $cycle_id, title: $title, workflow: $workflow, phase: $phase, status: $status, priority: $priority, owner: $owner, updated: $updated, resolution: $resolution, folded_into: $folded_into, active_session_id: $active_session_id}')"
+      '{id: $id, cycle_id: $cycle_id, title: $title, workflow: $workflow, cycle_tier: $cycle_tier, phase: $phase, status: $status, priority: $priority, owner: $owner, updated: $updated, resolution: $resolution, folded_into: $folded_into, active_session_id: $active_session_id}')"
     if [ -z "$cycles_json" ]; then
       cycles_json="$entry"
     else
       cycles_json="${cycles_json},${entry}"
     fi
     case "$status" in
-      in-progress|in_progress|active)
+      in-progress|in_progress|active|defining|implementing)
         [ -z "$active_cycles_json" ] && active_cycles_json="$entry" || active_cycles_json="${active_cycles_json},${entry}" ;;
       paused|intake)
         [ -z "$parked_cycles_json" ] && parked_cycles_json="$entry" || parked_cycles_json="${parked_cycles_json},${entry}" ;;
@@ -1709,7 +1711,7 @@ sage_status() {
   if [ -z "$active_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${active_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)"'
+    echo "[${active_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)\(if .cycle_tier != "" then "  tier=\(.cycle_tier)" else "" end)  updated=\(.updated)"'
   fi
   echo ""
 
@@ -1717,7 +1719,7 @@ sage_status() {
   if [ -z "$parked_cycles_json" ]; then
     echo -e "    ${DIM}(none)${RESET}"
   else
-    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)  updated=\(.updated)  zaparkowane manifest-only; brak aktywnej implementacji; next: sage:continue albo jawne resume tego cyklu"'
+    echo "[${parked_cycles_json}]" | jq -r '.[] | "    • \(.id)  \(.title)  [\(.workflow)/\(.phase)]  status=\(.status)\(if .cycle_tier != "" then "  tier=\(.cycle_tier)" else "" end)  updated=\(.updated)  zaparkowane manifest-only; brak aktywnej implementacji; next: sage:continue albo jawne resume tego cyklu"'
   fi
   echo ""
 

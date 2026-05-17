@@ -234,26 +234,26 @@ Classify the user's mandate:
 When active work exists, acknowledge it when relevant, but unrelated
 read-only questions may be answered from context without resuming
 implementation. After workflow entry, Codex-native enforcement still applies:
-spec/plan gates, fix root-cause approval, manifest scope protection, and
+spec/plan gates, fix root-cause approval, lifecycle mutation protection, and
 verification-before-done remain mandatory.
 
-Moderate+ fixes must update plan.md and manifest.md before code changes.
+Standard+ fixes must update plan.md and manifest.md before code changes.
 Writing plan.md or manifest.md after code does not cure the violation.
 
 State transitions are part of the contract:
-- Lightweight/Surgical work may finish with code plus conversation summary; do
+- Lightweight work may finish with code plus conversation summary; do
   not create \`.sage\` records unless there is a durable decision, follow-up,
   learning, incident/recovery, or active-cycle mutation.
-- Standard+/Moderate+ entry or resume must create/update the manifest before
+- Standard+ entry or resume must create/update the manifest before
   artifacts or code. After changing \`status\` or \`phase\`, say what changed.
 - Use this order: identify workflow/cycle, update \`manifest.md\` first,
   announce the completed state change, then write artifacts/code.
 - Fix-trigger prompts in instruction/process files require \`/fix\` diagnosis and scope
   before mutation, even for typos; obvious non-canonical typos stay Tier 1 only
   outside instruction/process surfaces.
-- recoverable hook block is correction guidance: retry via legal path/stop for user decision; no scope amputation
-- Mutation preflight before write: active cycle/scope/count; threshold/closeout/tool path. Text edits use \`apply_patch\`; binary assets need explicit binary path.
-- Surgical mode is quantitative: exactly 1 file, at most 2 diff lines total,
+- recoverable hook block is correction guidance: retry via legal path/stop for user decision
+- Mutation preflight before write: active cycle/status/count; threshold/closeout/tool path. Text edits use \`apply_patch\`; binary assets need explicit binary path and implementation state.
+- Lightweight direct-edit mode is quantitative: exactly 1 file, at most 2 diff lines total,
   no manifest, and no secrets/policy/runtime/instruction surfaces.
 - Before mutation, choose the legal mode: read-only, surgical, capture, workflow, or closed-cycle-bookkeeping. If there is no valid mode, a mode mismatch, paused/closed/wrong-cycle state, cross-repo ambiguity, or prior hook block, activate Sage Navigator/workflow docs before editing; paused means route/recover, not wait.
 - Closeout order: completion checkpoint is not approval; keep manifest active until user approves closeout; then set cycle manifest \`status: closed\` and \`phase: closed\` last after self-review/artifacts/decisions/handoff; artifact frontmatter may still use \`status: completed\`; report stage/commit, ask handoff, no default push, no post-closeout .sage epilogue. Standalone closeout.md is exceptional: reserve it for umbrella/milestone/multi-phase/architecture cycles, not ordinary non-milestone work.
@@ -274,23 +274,21 @@ After an approved plan checkpoint, preserve two implementation paths:
 \`[C] Checkpointed implementation\` and \`[F] Full autonomous implementation\`.
 The full autonomous path is scoped autonomy, not general autonomy: execute the
 approved plan without intermediate checkpoints until verification/close, bound
-to the approved plan and manifest scope. Any scope expansion cancels the grant;
+to the approved plan and workflow stop conditions. Any scope expansion cancels the grant;
 so does a new workflow/follow-up, product/architecture decision, key assumption,
 conflict, or material risk changes the plan.
-Before either path mutates runtime/source/test files, write a manifest-only readiness patch: real runtime \`active_session_id\`, \`implementation_approval\`
-pointing at canonical \`plan.md\`, \`semantic_reclassification\` when hook-risky
-paths are in scope, and full approved scope. \`active_session_id\` is an
+Before either path mutates runtime/source/test files, write a manifest-only readiness patch: set \`status: implementing\` and bind the real runtime \`active_session_id\` when the platform exposes one. \`active_session_id\` is an
 implementation/control lock, not a planning requirement; never infer it from
 \`codex://threads/*\`, \`CODEX_THREAD_ID\`, transcripts, logs, or an analyzed
 thread id.
 
 \`[I] Revise and Implement in the same turn\` is explicit bounded conditional
-approval: apply only the user-specified revision, record manifest frontmatter
-\`implementation_approval\` pointing at an existing canonical \`plan.md\`, and
-continue only when prior plan/scope evidence exists. It is never self-approval.
+approval: apply only the user-specified revision and continue only when the
+revision stays inside the approved plan/checkpoint evidence. It is never
+self-approval.
 
 When using subagents/reviewer agents, give project instructions, Sage scope, and
-MCP/tool expectations. Subagent edits are not exempt from manifest scope, plan
+MCP/tool expectations. Subagent edits are not exempt from lifecycle state, plan
 approval, or verification gates.
 Alex-facing subagent handoff prompts use Polish natural-language prose;
 canonical identifiers stay verbatim.
@@ -305,13 +303,15 @@ Before any substantial response, scan \`.sage/work/\` frontmatter for
 active initiatives. Read \`.sage/decisions.md\` for recent context.
 Never start fresh when there is existing context.
 
-Treat \`status: in-progress\` as live workflow state, including active approval
-checkpoints such as \`root-cause-gate\`, \`fix-scope-gate\`, \`plan-gate\`, or
-\`findings-checkpoint\`. Checkpoints update \`phase\`; they do not pause the
-cycle. \`.sage\` diagnosis, planning, and capture may proceed without
+Treat \`status: defining\` and legacy \`status: in-progress\` as live workflow
+definition state, including active approval checkpoints such as
+\`root-cause-gate\`, \`fix-scope-gate\`, \`plan-gate\`, or
+\`findings-checkpoint\`. Use \`status: implementing\` for runtime/source/test
+implementation. Checkpoints update \`phase\`; they do not pause the cycle.
+\`.sage\` diagnosis, planning, and capture may proceed without
 \`active_session_id\` when they do not change ownership/lifecycle/control
-frontmatter. If an in-progress manifest has \`active_session_id\`, only that
-runtime session may perform implementation/control mutations; otherwise ask for
+frontmatter. If an active manifest has \`active_session_id\`, only that runtime
+session may perform implementation/control mutations; otherwise ask for
 handoff/parking or create a separate intake. Treat \`status: paused\` and
 \`status: intake\` as parked, resumable work. Parked work may be
 manifest-only/capture-only and is not implementation-active until explicit
@@ -368,8 +368,8 @@ was safe, what changed, resulting state, severity, and next legal move.
 ### Target Repo Ownership
 
 The current working directory / edited repository owns workflow state.
-The edited repository owns state, memory, scope, gates, and recovery. Its
-\`.sage/\`, \`.sage-memory/\`, manifest scope, and gate config are
+The edited repository owns state, memory, gates, and recovery. Its
+\`.sage/\`, \`.sage-memory/\`, lifecycle state, and gate config are
 authoritative for the task. The Sage framework repository must not impersonate
 target repo workflow state when Sage is invoked from another repo.
 
@@ -379,15 +379,15 @@ names another repository as the target for capture-only work, that repository
 owns the new intake state; create only a new \`.sage/work/<cycle>/manifest.md\`
 there and do not continue implementing it from the original repo/thread.
 Absolute paths outside the target repo are out of scope unless they are
-explicitly listed in the active manifest scope or match this new-intake-only
+part of an explicitly requested capture-only intake or match this new-intake-only
 capture path.
 
 Do not write \`.sage/**\` outside the target repo. Source/runtime/test/
-instruction behavior changes require the proper Sage workflow and approved
-manifest scope. Config changes are calibrated: single-file config-only
-Add/Update may be Lightweight/Surgical only when it matches the structural
+instruction behavior changes require the proper Sage workflow and \`status:
+implementing\`. Config changes are calibrated: single-file config-only
+Add/Update may be Lightweight only when it matches the structural
 allowlist; multi-file/security/hooks/instruction/generated or uncertain config
-changes require workflow scope.
+changes require workflow state.
 Same-turn self-created artifacts are not approval.
 
 ### Checkpoints And Done

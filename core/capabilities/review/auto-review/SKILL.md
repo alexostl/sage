@@ -394,7 +394,7 @@ Be concise. No generic praise. No padding. Just findings.
 ### Fix Plan Review
 
 Use when: fix plan is approved [A] at the fix workflow's Fix Scope
-Gate (Step 3, Moderate+ fixes only).
+Gate (Step 3, Standard+ fixes only).
 
 ```
 You are a fix plan reviewer. You were NOT involved in diagnosing
@@ -422,8 +422,8 @@ CHECK THESE 5 THINGS:
 4. REGRESSION RISK: Could these changes break existing functionality?
    Are related tests identified for regression checking?
 
-5. SCOPE HONESTY: Is this really a Moderate fix, or has it grown
-   to Systemic? Count the files and interface changes.
+5. SCOPE HONESTY: Is this really a Standard fix, or has it grown
+   to Comprehensive? Count the files and interface changes.
 
 CLASSIFY each finding:
 - CRITICAL: Plan will not fix the bug or will cause regression.

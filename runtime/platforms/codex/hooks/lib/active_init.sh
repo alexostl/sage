@@ -34,6 +34,24 @@ is_closed_cycle_status() {
     esac
 }
 
+is_active_cycle_status() {
+    case "$1" in
+        in-progress|defining|implementing)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+is_parked_cycle_status() {
+    case "$1" in
+        paused|intake)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
 active_init_path() {
     local project_root="$1"
     local work_dir="$project_root/.sage/work"
@@ -49,7 +67,7 @@ active_init_path() {
         [ -f "$manifest" ] || continue
         local status
         status=$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null) || continue
-        [ "$status" = "in-progress" ] || continue
+        is_active_cycle_status "$status" || continue
         local mtime
         mtime=$(stat -c '%Y' "$manifest" 2>/dev/null || stat -f '%m' "$manifest" 2>/dev/null) || continue
         matched_count=$((matched_count + 1))
@@ -74,7 +92,7 @@ active_init_path() {
                 '{kind:"skipped_check", ts:$ts, source:"active_init", cause:"multiple_in_progress_cycles", selected_cycle:$selected, selected_path:$selected_path, candidate_cycles:$candidates, session_id:"unknown", degraded:true}' \
                 >> "$skip_log"
         else
-            printf '%s active_init: multiple in-progress cycles found, picked newest=%s; all=%s\n' \
+            printf '%s active_init: multiple active cycles found, picked newest=%s; all=%s\n' \
                 "$ts" "$newest_path" "$matched_list" >> "$skip_log"
         fi
     fi
@@ -93,7 +111,7 @@ resumable_cycles_summary() {
         [ -f "$manifest" ] || continue
         local status id phase
         status=$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null) || continue
-        case "$status" in paused|intake) ;; *) continue ;; esac
+        is_parked_cycle_status "$status" || continue
         id="$(basename "$(dirname "$manifest")")"
         phase="$(manifest_yaml "$manifest" | yq eval '.phase // ""' - 2>/dev/null || true)"
         count=$((count + 1))
@@ -174,17 +192,18 @@ resolve_cycle_for_patch() {
             return 0
         fi
         status="$(cycle_status "$project_root" "$cycle_id" 2>/dev/null || true)"
-        case "$status" in
-            in-progress)
+        if is_active_cycle_status "$status"; then
                 printf 'active:%s\n' "$project_root/.sage/work/$cycle_id"
-                return 0 ;;
-            paused|intake)
+                return 0
+        fi
+        if is_parked_cycle_status "$status"; then
                 printf 'parked-capture:%s\n' "$project_root/.sage/work/$cycle_id"
-                return 0 ;;
-            closed|completed)
+                return 0
+        fi
+        if is_closed_cycle_status "$status"; then
                 printf 'closed:%s\n' "$project_root/.sage/work/$cycle_id"
-                return 0 ;;
-        esac
+                return 0
+        fi
     fi
 
     local active

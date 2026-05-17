@@ -69,7 +69,7 @@ run_stage4() {
     grep -q '\[F\] Full autonomous implementation' "$TARGET/.codex/config.toml"
     grep -q 'Subagents/reviewers inherit the same Sage scope' "$TARGET/.codex/config.toml"
     grep -q 'source/runtime/test/instruction changes require proper Sage workflow' "$TARGET/.codex/config.toml"
-    grep -q 'single-file config-only Add/Update may be Lightweight/Surgical' "$TARGET/.codex/config.toml"
+    grep -q 'single-file config-only Add/Update may be Lightweight' "$TARGET/.codex/config.toml"
     grep -q 'multi-file/security/hooks/instruction/generated config still needs workflow' "$TARGET/.codex/config.toml"
     grep -q 'same-turn self-created artifacts are not approval' "$TARGET/.codex/config.toml"
 }

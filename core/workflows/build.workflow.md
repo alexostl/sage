@@ -39,7 +39,7 @@ review paths and add an explicit autonomous path when appropriate:
   autonomous implementation`. If the user selects `[F]`, execute the approved
   plan snapshot end-to-end until verification/close without intermediate
   checkpoints. `[F]` is scoped autonomy, not general autonomy: it is bound to
-  the plan version, `manifest.scope`, known assumptions, and known stop
+  the plan version, known assumptions, and known stop
   conditions visible at the checkpoint. Scope expansion cancels the grant and
   requires a new user approval.
 
@@ -92,7 +92,7 @@ Use the template from `develop/templates/manifest-template.md`.
 - Phase transitions: update context summary if new information emerged
 - New decisions: append to the manifest's decisions list
 
-Approval checkpoints keep `status: in-progress` and move `phase` to the
+Approval checkpoints use `status: defining` and move `phase` to the
 current gate. Do not mark the cycle `paused` unless the user chooses `[N]` New
 session, asks to park the work, or the agent is writing a real handoff.
 
@@ -270,7 +270,7 @@ handoff: |
 3. Prepend decision-worthy spec choices to decisions.md (Rule 7).
 4. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
-   If conditions met (Task tool available + Standard+ scope +
+   If conditions met (Task tool available + Standard+ cycle_tier +
    auto_review ≠ false in config + user chose an option that explicitly
    authorized subagent review):
      Announce: "⚡ Running spec review (sub-agent)..."
@@ -344,7 +344,7 @@ This is advice only; wait for the user's choice before proceeding.
 1. Prepend the plan approach only if it is decision-worthy under Rule 7.
 2. **Run auto-review and return to the checkpoint decision:**
    Read `sage/core/capabilities/review/auto-review/SKILL.md`.
-   If conditions met (Task tool available + Standard+ scope +
+   If conditions met (Task tool available + Standard+ cycle_tier +
    auto_review ≠ false in config + user chose an option that explicitly
    authorized subagent review):
      Announce: "⚡ Running plan review (sub-agent)..."
@@ -356,11 +356,10 @@ This is advice only; wait for the user's choice before proceeding.
    If Task tool NOT available:
      Announce: "Task tool not available — skipping independent review."
 3. Update `manifest.md` BEFORE Step 6:
+   - Set `status: implementing`.
    - Set phase to `implement`.
-   - Add a `scope:` list containing every file or glob the approved plan
-     will mutate, including tests and implementation files.
-   - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
-   - If scope is uncertain, stop and ask before implementation.
+   - If the implementation boundary is uncertain, stop and ask before
+     implementation.
 4. Do not proceed to Step 6 until the user chooses an approval or
    autonomous-implementation path after seeing findings.
 
@@ -369,20 +368,16 @@ This is advice only; wait for the user's choice before proceeding.
 2. Announce: "Skipping independent review."
 3. Record the skip only if it is decision-worthy under Rule 7.
 4. Update `manifest.md` BEFORE Step 6:
+   - Set `status: implementing`.
    - Set phase to `implement`.
-   - Add a `scope:` list containing every file or glob the approved plan
-     will mutate, including tests and implementation files.
-   - Keep `.sage/work/<cycle-id>/*` and `.sage/decisions.md` in scope.
-   - If scope is uncertain, stop and ask before implementation.
+   - If the implementation boundary is uncertain, stop and ask before
+     implementation.
 5. Proceed to Step 6.
 
 **On [I] Revise and Implement in the same turn:**
 1. Apply only the specific user-requested plan revisions.
 2. Update `manifest.md` before implementation as above.
-3. Record `implementation_approval` in manifest frontmatter with
-   `mode: conditional_revision`, a non-empty `revision` summary, and
-   `artifact` pointing at the canonical `.sage/work/<cycle-id>/plan.md`.
-4. Proceed to Step 6 only if the revision stays inside the existing approved
+3. Proceed to Step 6 only if the revision stays inside the existing approved
    scope and introduces no new decision, risk, ownership conflict, or ambiguous
    assumption. Otherwise return to the checkpoint.
 
@@ -392,12 +387,11 @@ This is advice only; wait for the user's choice before proceeding.
    subagent quality gates during this approved implementation run when the
    platform tool is available.
 2. Update `manifest.md` before implementation as above and record an
-   `autonomy_grant` note that names the approved plan snapshot and
-   `manifest.scope`.
+   `autonomy_grant` note that names the approved plan snapshot.
 3. Execute Step 6 through Step 8 without intermediate checkpoints.
 4. Stop and ask one question if a key assumption, product/architecture
-   decision, accepted risk, ownership, conflict, new file outside scope, or
-   scope expansion changes the approved plan. Present:
+   decision, accepted risk, ownership, conflict, new file, or scope expansion
+   changes the approved plan. Present:
    `[A] Approve scope expansion`, `[R] Revise`, `[S] Split into intake`.
 
 ## Step 6: Implement
@@ -405,14 +399,13 @@ This is advice only; wait for the user's choice before proceeding.
 Execute the plan task by task using the build loop.
 
 Before the first implementation edit, run this preflight:
-- Re-read `manifest.md` and confirm `scope:` covers the next task's files.
-- Confirm implementation readiness frontmatter exists: a real runtime
-  `active_session_id`, `implementation_approval` pointing at the approved
-  `plan.md`, and any required `semantic_reclassification`.
-- If the next file is outside `manifest.scope`, stop for a scope expansion
+- Re-read `manifest.md` and confirm `status: implementing`.
+- Confirm implementation readiness frontmatter exists when the platform needs
+  it: a real runtime `active_session_id`.
+- If the next change expands the approved plan, stop for a scope expansion
   checkpoint. Do not update `manifest.md` and continue under the old grant.
 - Do not attempt the implementation patch and let PreToolUse reject it; the
-  manifest scope is part of the approved plan handoff.
+  lifecycle state is part of the approved plan handoff.
 
 Read and follow `sage/core/capabilities/orchestration/build-loop/SKILL.md`.
 It provides:

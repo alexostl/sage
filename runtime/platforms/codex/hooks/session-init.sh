@@ -5,7 +5,7 @@
 #   1. Print Sage banner to stdout (Codex injects as context).
 #   2. Trust state check: noop in v1 (Codex only fires hooks on
 #      trusted projects per ~/.codex/config.toml trust_level).
-#   3. Emit one-line summary for each in-progress / paused / intake cycle.
+#   3. Emit one-line summary for each active / paused / intake cycle.
 #   4. Emit last 3 decisions.md entries.
 #   5. Exit 0 always (session start must never block).
 #
@@ -50,7 +50,10 @@ if [ -d "$project_dir/.sage" ]; then
         while IFS= read -r manifest; do
             [ -f "$manifest" ] || continue
             status="$(manifest_yaml "$manifest" | yq eval '.status // ""' - 2>/dev/null || true)"
-            [ "$status" = "in-progress" ] || continue
+            case "$status" in
+                in-progress|defining|implementing) ;;
+                *) continue ;;
+            esac
             cycle="$(basename "$(dirname "$manifest")")"
             baseline_cycle_candidates="$(jq -c --arg cycle "$cycle" '. + [$cycle]' <<< "$baseline_cycle_candidates")"
         done < <(find "$project_dir/.sage/work" -mindepth 2 -maxdepth 2 -name manifest.md 2>/dev/null | sort)
@@ -80,7 +83,7 @@ if [ -d "$work_dir" ] && command -v yq >/dev/null 2>&1; then
         [ -f "$manifest" ] || continue
         status=$(yq eval '.status // ""' "$manifest" 2>/dev/null || true)
         case "$status" in
-            in-progress|paused|intake) ;;
+            in-progress|defining|implementing|paused|intake) ;;
             *) continue ;;
         esac
         cycle_id=$(yq eval '.cycle_id // ""' "$manifest" 2>/dev/null || true)

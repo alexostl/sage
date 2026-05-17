@@ -18,11 +18,17 @@ anglicisms. Do not translate framework conventions. -->
 ---
 cycle_id: "YYYYMMDD-slug"
 workflow: build | architect | fix | research | design | analyze | reflect
+cycle_tier: lightweight | standard | comprehensive
 phase: framing | brief | spec | plan | implement | quality-gates | review | closed
-status: intake | in-progress | paused | closed
+status: intake | defining | implementing | paused | closed
 resolution: shipped | superseded | folded_into | rejected  # only when status: closed
 created: YYYY-MM-DD
 updated: YYYY-MM-DD HH:MM
+priority: {agent-assigned; project-specific values}
+owner: {person-or-agent}
+source: conversation | qa-report | review | incident | other
+related:
+  - "{read/context reference; does not grant mutation rights}"
 ---
 
 # Cycle: {title}
@@ -35,7 +41,7 @@ updated: YYYY-MM-DD HH:MM
 - brief.md: {exists | missing | not-required}
 - spec.md: {exists | missing | not-required}
 - plan.md: {exists | missing | not-required}
-- implementation: {not-started | in-progress (N/M tasks) | complete}
+- implementation: {not-started | implementing (N/M tasks) | complete}
 - quality-gates: {not-run | passed | failed (which gate)}
 - qa-report.md: {exists — verdict | not run}
 - design-review.md: {exists — N issues, M warnings | not run}
@@ -118,6 +124,31 @@ Max 150 words.}
 ```
 
 # Rules
+
+## Frontmatter Contract
+
+- `cycle_id`, `title`, `workflow`, `cycle_tier`, `status`, `phase`,
+  `created`, and `updated` are the canonical always-present fields for new
+  cycle manifests.
+- `cycle_tier` is the process rigor tier:
+  `lightweight | standard | comprehensive`. Agents assign it at intake or
+  first workflow entry and may revise it at a gate when evidence changes.
+- `status` is the lifecycle/mutation state:
+  `intake | defining | implementing | paused | closed`.
+  - `intake`: captured but not actively worked.
+  - `defining`: active diagnosis/research/spec/plan/checkpoint work.
+  - `implementing`: source/runtime/test/instruction mutation is allowed by
+    lifecycle after the workflow-required checkpoint for the tier.
+  - `paused`: resumable but not active.
+  - `closed`: final state; requires `phase: closed` and `resolution`.
+- `phase` remains workflow-specific and intentionally has no global enum.
+- `related` is read/context only. It never grants mutation rights.
+- Do not add `scope` to new cycle manifests. Work boundaries live in the
+  approved plan, spec, or checkpoint prose; runtime mutation permission comes
+  from lifecycle state plus workflow/tier gates, not a manifest path allowlist.
+- Do not add `candidate_scope`, `implementation_approval`, or
+  `semantic_reclassification` as canonical cycle manifest fields. Legacy
+  manifests may contain them while older runtime surfaces are still migrating.
 
 ## Provenance contract
 

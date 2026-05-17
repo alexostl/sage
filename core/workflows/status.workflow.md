@@ -35,7 +35,7 @@ Present concisely:
 
 Active:
   [initiative-name] [status, phase]
-    brief ✓  spec ✓  plan (in-progress)
+    brief ✓  spec ✓  plan (defining)
     .sage/work/YYYYMMDD-slug/
 
 Paused / intake:
@@ -58,10 +58,10 @@ Gates: [mode config summary]
 - Compute from artifacts — never read progress.md.
 - If `.sage/work/` is empty, say so. Don't fabricate state.
 - Always suggest the next slash command.
-- `in-progress` is active workflow state, including gated checkpoints where
+- `defining`, `implementing`, and legacy `in-progress` are active workflow state, including gated checkpoints where
   `phase` is `root-cause-gate`, `fix-scope-gate`, `plan-gate`, or another
-  approval gate. Hooks may still block implementation until artifacts/scope are
-  approved, but the cycle is not parked.
+  approval gate. Hooks block implementation until lifecycle state is
+  `implementing`, but the cycle is not parked.
 - `paused` and `intake` are visible and resumable, but not
   implementation-active for hooks.
 - Closed cycle manifests use `status: closed` and `phase: closed`; the close

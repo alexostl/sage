@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for the Moderate+ fix artifact-order invariant.
+# Shared helpers for the Standard+ fix artifact-order invariant.
 
 is_cycle_artifact_path() {
     local path="$1"

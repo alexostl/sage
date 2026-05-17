@@ -133,8 +133,8 @@ for p in ${actual_paths[@]+"${actual_paths[@]}"}; do
     fi
 done
 
-# Critical fix invariant — Moderate+ fixes are artifact-first. A 3+ file
-# implementation change in a fix cycle is treated as Moderate+ for audit
+# Critical fix invariant — Standard+ fixes are artifact-first. A 3+ file
+# implementation change in a fix cycle is treated as Standard+ for audit
 # purposes, and `plan.md` + `manifest.md` must have appeared in the session
 # mutation stream before the first implementation file. Later artifact writes
 # are recorded as post-hoc and do not cure the violation.

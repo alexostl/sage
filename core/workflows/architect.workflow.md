@@ -32,9 +32,9 @@ checkpoint.
 Autonomous continuation is allowed after a reviewed design or plan only when
 the next step is mechanical. If a meaningful architecture trade-off, scope
 change, or unanswered question appears, stop and discuss before implementation.
-Any autonomy is scoped to the approved milestone scope. It does not carry into
-the next milestone, a new ADR, a new design decision, or files outside the
-approved milestone manifest scope.
+Any autonomy is scoped to the approved milestone plan. It does not carry into
+the next milestone, a new ADR, a new design decision, or work outside the
+approved milestone boundary.
 
 ## Auto-Pickup
 
@@ -270,10 +270,7 @@ This is advice only; wait for the user's choice before proceeding.
 
 **On [I] Revise and Implement in the same turn:**
 1. Apply only the specific user-requested milestone plan revisions.
-2. Record `implementation_approval` in manifest frontmatter with
-   `mode: conditional_revision`, a non-empty `revision` summary, and
-   `artifact` pointing at canonical `.sage/work/<cycle-id>/plan.md`.
-3. Proceed to implementation only if the revision stays inside the approved
+2. Proceed to implementation only if the revision stays inside the approved
    milestone scope and introduces no new decision, risk, ownership conflict, or
    ambiguous assumption. Otherwise return to the checkpoint.
 
@@ -303,9 +300,8 @@ Do NOT batch-implement multiple milestones without checkpoints.
 Do NOT skip per-milestone verification because "I'll test everything
 at the end."
 Before any milestone implementation edit, run the same implementation readiness
-preflight as build: real runtime `active_session_id`,
-`implementation_approval`, approved scope, and any required
-`semantic_reclassification`.
+preflight as build: `status: implementing` and real runtime
+`active_session_id` when the platform exposes it.
 Autonomy granted for one milestone does not approve the next milestone. If
 implementation reveals a new ADR/design decision or scope expansion, stop for
 the normal checkpoint before editing the expanded scope.

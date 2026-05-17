@@ -5,10 +5,10 @@
 #
 # §15.3 cases:
 #   - No active cycle → exit 2, stderr message present.
-#   - Active cycle, path in scope → exit 0, append to
+#   - Active implementation cycle → exit 0, append to
 #     .sage/.session-mutations.log.
-#   - Active cycle, path out of scope → exit 2, stderr lists
-#     out-of-scope paths.
+#   - Defining cycle, implementation path → exit 2, stderr lists
+#     the path.
 #   - jq/yq missing on PATH → exit 2 with install hint.
 #
 # §15.4 parity (vs sage_validate_mutation MCP tool):
@@ -132,7 +132,7 @@ make_cycle_with_scope() {
         else
             printf 'phase: implement\n'
         fi
-        [ "$status" = "in-progress" ] && printf 'active_session_id: test-uuid\n'
+        case "$status" in in-progress|defining|implementing) printf 'active_session_id: test-uuid\n' ;; esac
         printf 'scope:\n'
         local g
         for g in "$@"; do
@@ -154,7 +154,7 @@ make_cycle_with_writable_scope() {
         printf 'cycle_id: "%s"\n' "$cycle"
         printf 'status: %s\n' "$status"
         printf 'phase: implement\n'
-        [ "$status" = "in-progress" ] && printf 'active_session_id: test-uuid\n'
+        case "$status" in in-progress|defining|implementing) printf 'active_session_id: test-uuid\n' ;; esac
         printf 'scope:\n'
         printf '  writable: ['
         local first=1
@@ -169,31 +169,6 @@ make_cycle_with_writable_scope() {
         printf -- '---\n'
         printf '# %s\n' "$cycle"
     } > "$cycle_dir/manifest.md"
-}
-
-add_implementation_approval() {
-    local cycle="$1"
-    local mode="${2:-approved}"
-    local revision="${3:-}"
-    local cycle_dir="$PROJECT_ROOT/.sage/work/$cycle"
-    local tmp="$cycle_dir/manifest.tmp"
-    awk -v cycle="$cycle" -v mode="$mode" -v revision="$revision" '
-        /^scope:/ && !done {
-            print "implementation_approval:"
-            print "  mode: " mode
-            print "  approved_by: alexostl"
-            print "  approved_at: \"2026-05-14\""
-            print "  gate: fix-scope-gate"
-            print "  artifact: \".sage/work/" cycle "/plan.md\""
-            print "  scope: manifest"
-            if (mode == "conditional_revision") {
-                print "  revision: \"" revision "\""
-            }
-            done=1
-        }
-        { print }
-    ' "$cycle_dir/manifest.md" > "$tmp"
-    mv "$tmp" "$cycle_dir/manifest.md"
 }
 
 @test "pre-tool-validate.sh: no active cycle → exit 2, stderr says no active cycle" {
@@ -252,7 +227,7 @@ add_implementation_approval() {
 }
 
 @test "pre-tool-validate.sh: active cycle, path in scope → exit 0 + mutations log appended" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**" "tests/**"
     cmd="$(make_patch_cmd Add src/foo.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -263,7 +238,7 @@ add_implementation_approval() {
 }
 
 @test "pre-tool-validate.sh: active cycle, inline scope.writable exact path → exit 0" {
-    make_cycle_with_writable_scope "20260101-alpha" "in-progress" "AGENTS.md" ".sage/work/20260101-alpha/**" ".sage/decisions.md"
+    make_cycle_with_writable_scope "20260101-alpha" "implementing" "AGENTS.md" ".sage/work/20260101-alpha/**" ".sage/decisions.md"
     cmd="$(make_patch_cmd Update AGENTS.md)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
@@ -294,7 +269,7 @@ EOF
     echo "$output" | grep -q "separate intake"
 }
 
-@test "pre-tool-validate.sh: matching active_session_id allows in-progress cycle mutation" {
+@test "pre-tool-validate.sh: matching active_session_id does not make in-progress implementation-compatible" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<'EOF'
@@ -310,7 +285,8 @@ EOF
     cmd="$(make_patch_cmd Add src/foo.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 0 ]
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "before implementation state"
 }
 
 @test "pre-tool-validate.sh: active_session_id update to another UUID is blocked even when old lock matches" {
@@ -533,19 +509,19 @@ EOF
     echo "$output" | grep -q "unbound active cycle"
 }
 
-@test "pre-tool-validate.sh: blocks Moderate+ implementation before plan.md exists" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
+@test "pre-tool-validate.sh: blocks Standard+ implementation before plan.md exists" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**" "tests/**"
     cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: src/c.sh\n+z\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "Moderate+ fix"
+    echo "$output" | grep -q "Standard+ fix"
     echo "$output" | grep -q "plan.md"
     echo "$output" | grep -q "manifest.md"
 }
 
-@test "pre-tool-validate.sh: allows Moderate+ implementation after plan.md and manifest.md exist" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**" "tests/**"
+@test "pre-tool-validate.sh: allows Standard+ implementation after plan.md and manifest.md exist" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**" "tests/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
     cmd="$(printf '*** Begin Patch\n*** Add File: src/a.sh\n+x\n*** Add File: src/b.sh\n+y\n*** Add File: src/c.sh\n+z\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
@@ -554,20 +530,20 @@ EOF
 }
 
 @test "pre-tool-validate.sh: blocks third implementation file when artifacts were not written first" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     printf '{"session_id":"test-uuid","cycle_id":"20260101-alpha","files":["src/a.sh"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     printf '{"session_id":"test-uuid","cycle_id":"20260101-alpha","files":["src/b.sh"]}\n' >> "$PROJECT_ROOT/.sage/.session-mutations.log"
     cmd="$(make_patch_cmd Add src/c.sh)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "Moderate+ fix"
-    echo "$output" | grep -qi "scope amputation"
+    echo "$output" | grep -q "Standard+ fix"
+    ! echo "$output" | grep -qi "scope amputation"
     echo "$output" | grep -qi "required"
 }
 
 @test "pre-tool-validate.sh: binary Bash mutation without explicit intent is blocked" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "runtime/assets/**"
     payload="$(make_bash_payload "rm runtime/assets/old.png")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
@@ -576,7 +552,7 @@ EOF
 }
 
 @test "pre-tool-validate.sh: explicit binary Bash mutation in scope is allowed and logged" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "runtime/assets/**"
     mkdir -p "$PROJECT_ROOT/runtime/assets"
     printf 'png' > "$PROJECT_ROOT/runtime/assets/old.png"
     payload="$(make_bash_payload "SAGE_BINARY_MUTATION=1 rm runtime/assets/old.png")"
@@ -588,17 +564,15 @@ EOF
     tail -n1 "$log" | jq -e '.cycle_id == "20260101-alpha"' >/dev/null
 }
 
-@test "pre-tool-validate.sh: explicit binary Bash mutation outside scope is blocked" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+@test "pre-tool-validate.sh: explicit binary Bash mutation outside legacy scope is allowed in implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "runtime/assets/**"
     payload="$(make_bash_payload "SAGE_BINARY_MUTATION=1 rm docs/old.png")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "docs/old.png"
-    echo "$output" | grep -q "outside cycle scope"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: explicit binary Bash mutation with compound shell is fail-closed" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "runtime/assets/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "runtime/assets/**"
     payload="$(make_bash_payload "SAGE_BINARY_MUTATION=1 rm runtime/assets/old.png && touch runtime/assets/new.png")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
@@ -606,18 +580,17 @@ EOF
     echo "$output" | grep -qi "simple"
 }
 
-@test "pre-tool-validate.sh: path out of scope → exit 2, stderr lists out-of-scope paths" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: legacy manifest scope no longer blocks implementation path" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(make_patch_cmd Add docs/oops.md)"
     payload="$(make_payload "$cmd")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "docs/oops.md"
-    echo "$output" | grep -qi "scope"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    grep -q '"docs/oops.md"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
 @test "pre-tool-validate.sh: file_change-shaped payload in scope → exit 0 + mutations log appended" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/from-file-change.txt")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
@@ -626,38 +599,33 @@ EOF
     grep -q '"src/from-file-change.txt"' "$log"
 }
 
-@test "pre-tool-validate.sh: file_change-shaped payload out of scope → exit 2" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: file_change-shaped payload outside legacy scope → exit 0" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/docs/from-file-change.md")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "docs/from-file-change.md"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    grep -q '"docs/from-file-change.md"' "$PROJECT_ROOT/.sage/.session-mutations.log"
 }
 
-@test "pre-tool-validate.sh: same-turn manifest cannot authorize source file_change" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: same-turn manifest bookkeeping does not block implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/from-self-created-manifest.txt")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "implementation approval contract"
-    echo "$output" | grep -q "src/from-self-created-manifest.txt"
-    echo "$output" | grep -q "source/runtime/test/instruction"
-    ! echo "$output" | grep -q "source/runtime/test/config/instruction"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: same-turn plan still cannot authorize source file_change" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: same-turn plan bookkeeping does not block implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
     printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-plan.txt")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "implementation approval contract"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: prior-turn plan can authorize source file_change" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
     printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-approval-turn.txt")"
@@ -666,23 +634,21 @@ EOF
 }
 
 @test "pre-tool-validate.sh: prior approved plan allows same-turn manifest bookkeeping before source edit" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
-    add_implementation_approval "20260101-alpha"
     printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-approved-manifest-bookkeeping.txt")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: semantic_reclassification checkpoint after approval does not renew same-turn block" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: legacy semantic_reclassification marker is ignored" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     sed -i.bak '/phase: implement/a\
 semantic_reclassification: accepted
 ' "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md"
     rm -f "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md.bak"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
-    add_implementation_approval "20260101-alpha"
     printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-semantic-checkpoint.txt")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
@@ -690,62 +656,69 @@ semantic_reclassification: accepted
 }
 
 @test "pre-tool-validate.sh: same-turn milestone plan bookkeeping does not count as canonical self-approval" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan-milestone-1.md"
-    add_implementation_approval "20260101-alpha"
     printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan-milestone-1.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-milestone-plan.txt")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: conditional revision marker allows same-turn canonical plan revision" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: same-turn canonical plan revision does not require implementation approval marker" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
-    add_implementation_approval "20260101-alpha" "conditional_revision" "apply requested scope wording"
     printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/plan.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload add "$PROJECT_ROOT/src/after-conditional-plan-revision.txt")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: marker without prior canonical plan evidence still blocks AGENTS.md" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+@test "pre-tool-validate.sh: implementation-compatible cycle allows AGENTS.md without plan evidence marker" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "AGENTS.md"
     touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
-    add_implementation_approval "20260101-alpha"
     printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/work/20260101-alpha/plan.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload update "$PROJECT_ROOT/AGENTS.md")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "implementation approval contract"
-    echo "$output" | grep -q "AGENTS.md"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: manifest-only prior evidence without canonical plan still blocks AGENTS.md" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
-    add_implementation_approval "20260101-alpha"
+@test "pre-tool-validate.sh: manifest-only prior evidence does not block AGENTS.md in implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "AGENTS.md"
     printf '{"session_id":"test-uuid","turn_id":"turn-0","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload update "$PROJECT_ROOT/AGENTS.md")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "implementation approval contract"
-    echo "$output" | grep -q "AGENTS.md"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: same-turn manifest cannot authorize AGENTS.md" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+@test "pre-tool-validate.sh: same-turn manifest does not block AGENTS.md in implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "AGENTS.md"
     printf '{"session_id":"test-uuid","turn_id":"turn-1","cycle_id":"20260101-alpha","files":[".sage/work/20260101-alpha/manifest.md",".sage/decisions.md"]}\n' > "$PROJECT_ROOT/.sage/.session-mutations.log"
     payload="$(make_file_change_payload update "$PROJECT_ROOT/AGENTS.md")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "instruction"
-    echo "$output" | grep -q "implementation approval contract"
-    echo "$output" | grep -q "AGENTS.md"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: Update File path in scope → allow" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
+    cmd="$(make_patch_cmd Update src/existing.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+}
+
+@test "pre-tool-validate.sh: defining cycle blocks implementation boundary path" {
+    make_cycle_with_scope "20260101-alpha" "defining" "src/**"
+    cmd="$(make_patch_cmd Update src/existing.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "before implementation state"
+    echo "$output" | grep -q "src/existing.txt"
+}
+
+@test "pre-tool-validate.sh: implementing cycle allows implementation boundary path" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(make_patch_cmd Update src/existing.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -753,24 +726,19 @@ semantic_reclassification: accepted
 }
 
 @test "pre-tool-validate.sh: Delete File path in scope → allow" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
-    sed -i.bak '/phase: implement/a\
-semantic_reclassification: accepted
-' "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md"
-    rm -f "$PROJECT_ROOT/.sage/work/20260101-alpha/manifest.md.bak"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(make_patch_cmd Delete src/old.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: multiple paths, one out of scope → exit 2 + lists offender" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: multiple paths outside legacy scope → exit 0" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(printf '*** Begin Patch\n*** Add File: src/ok.txt\n+x\n*** Add File: docs/bad.md\n+y\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "docs/bad.md"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: closed cycle (not in-progress) → exit 2 (no active cycle)" {
@@ -1191,28 +1159,23 @@ semantic_reclassification: accepted
     echo "$output" | grep -q "src/nope.sh"
 }
 
-@test "pre-tool-validate.sh: risky repo-control/doc/test/CLI path requires semantic reclassification" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" ".gitignore" "README.md" "bin/*" "tests/**"
+@test "pre-tool-validate.sh: risky repo-control/doc/test/CLI path allowed in implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" ".gitignore" "README.md" "bin/*" "tests/**"
+    touch "$PROJECT_ROOT/.sage/work/20260101-alpha/plan.md"
     cmd="$(printf '*** Begin Patch\n*** Update File: .gitignore\n@@\n+tmp\n*** Update File: README.md\n@@\n+docs\n*** Update File: bin/sage\n@@\n+cli\n*** Add File: tests/new.bats\n+test\n*** End Patch\n')"
     payload="$(make_payload "$cmd")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "semantic reclassification"
-    echo "$output" | grep -q ".gitignore"
-    echo "$output" | grep -q "README.md"
-    echo "$output" | grep -q "bin/sage"
-    echo "$output" | grep -q "tests/new.bats"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: risky path allowed after semantic_reclassification accepted" {
+@test "pre-tool-validate.sh: legacy semantic_reclassification is not required for risky path" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
-semantic_reclassification: accepted
 active_session_id: test-uuid
 scope:
   - ".gitignore"
@@ -1226,24 +1189,22 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: Delete File is risky even when path is otherwise in scope" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+@test "pre-tool-validate.sh: Delete File allowed in implementation-compatible cycle" {
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(make_patch_cmd Delete src/old.txt)"
     payload="$(make_payload "$cmd")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -qi "semantic reclassification"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: phase value is irrelevant (§15.4 parity)" {
-    # phase=design is "earlier" than implement, but predicate is
-    # cycle-scope-only — must allow regardless.
+    # phase is intentionally ignored; status is the implementation boundary.
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<'EOF'
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: design
 active_session_id: test-uuid
 scope:
@@ -1257,7 +1218,7 @@ EOF
 }
 
 @test "pre-tool-validate.sh: session-mutations log line is valid JSON" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(make_patch_cmd Add src/foo.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -1309,7 +1270,7 @@ EOF
 }
 
 @test "pre-tool-validate.sh: scope glob matches nested path (src/**) → src/sub/deep.txt allow" {
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     cmd="$(make_patch_cmd Add src/sub/deep.txt)"
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
@@ -1322,7 +1283,7 @@ EOF
     # didn't match absolute paths) AND session-mutations.log stored absolute
     # paths that turn-audit later compared against relative porcelain →
     # 18 false bypass_mutation incidents per 5-prompt harness run.
-    make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
+    make_cycle_with_scope "20260101-alpha" "implementing" "src/**"
     abs_path="$PROJECT_ROOT/src/foo.txt"
     cmd="$(make_patch_cmd Add "$abs_path")"
     payload="$(make_payload "$cmd")"
@@ -1400,7 +1361,7 @@ EOF
     cat > "$cycle_dir/manifest.md" <<EOF
 ---
 cycle_id: "20260101-alpha"
-status: in-progress
+status: implementing
 phase: implement
 active_session_id: test-uuid
 scope:
@@ -1415,8 +1376,9 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: BUG-F1-3 — absolute scope + truly out-of-scope relative path still rejected" {
-    # Regression guard: scope normalization must not make rejection paths leak.
+@test "pre-tool-validate.sh: BUG-F1-3 legacy absolute scope no longer rejects relative path" {
+    # Manifest scope is legacy and no longer rejects implementation-compatible
+    # cycle paths.
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<EOF
@@ -1432,9 +1394,8 @@ scope:
 EOF
     cmd="$(make_patch_cmd Add docs/leak.md)"
     payload="$(make_payload "$cmd")"
-    run bash -c "echo '$payload' | '$HOOK' 2>&1"
-    [ "$status" -eq 2 ]
-    echo "$output" | grep -q "docs/leak.md"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
 }
 
 @test "pre-tool-validate.sh: BUG-F1-5 — manifest with empty scope still allows cycle-self files (.sage/work/<id>/**)" {
@@ -1497,8 +1458,9 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: BUG-F1-5 — cross-cycle path still rejected (no over-broad allow)" {
-    # Implicit scope-self only covers the ACTIVE cycle's dir, not other cycles.
+@test "pre-tool-validate.sh: BUG-F1-5 — cross-cycle path still rejected" {
+    # The active cycle may update its own artifacts, but not silently mutate
+    # a different cycle's .sage/work directory.
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-alpha"
     other_dir="$PROJECT_ROOT/.sage/work/20260102-beta"
     mkdir -p "$cycle_dir" "$other_dir"
@@ -1515,14 +1477,14 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 2 ]
-    [[ "$output" == *"outside cycle scope"* ]]
+    [[ "$output" == *"cross-cycle mutation"* ]]
 }
 
 @test "pre-tool-validate.sh: macOS /private prefix on apply_patch path → stripped before scope check" {
     # macOS /var → /private/var symlink: apply_patch DSL may carry the
     # /private prefix while the cycle scope globs are project-relative.
     # Normalization strips both variants of the cwd prefix.
-    make_cycle_with_scope "20260101-alpha" "in-progress" "AGENTS.md"
+    make_cycle_with_scope "20260101-alpha" "implementing" "AGENTS.md"
     abs_path="/private${PROJECT_ROOT}/AGENTS.md"
     case "$PROJECT_ROOT" in
         /private/*) skip "PROJECT_ROOT already canonical with /private — case covered by sibling test" ;;
@@ -1536,7 +1498,7 @@ EOF
     grep -q '"AGENTS.md"' "$log"
 }
 
-@test "pre-tool-validate.sh: architect ADR docs do not count as Moderate+ implementation files" {
+@test "pre-tool-validate.sh: architect ADR docs do not count as Standard+ implementation files" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
     mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
     cat > "$cycle_dir/manifest.md" <<EOF
@@ -1568,7 +1530,7 @@ EOF
     [ "$status" -eq 0 ]
 }
 
-@test "pre-tool-validate.sh: safe auto-fix adds same-cycle architect doc scope and logs audit evidence" {
+@test "pre-tool-validate.sh: architect doc path no longer requires manifest scope auto-fix" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
     mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
     cat > "$cycle_dir/manifest.md" <<EOF
@@ -1586,16 +1548,11 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
-    grep -q '.sage/docs/decision-codex-\*.md' "$cycle_dir/manifest.md"
-    log="$PROJECT_ROOT/.sage/.auto-fixes.log"
-    [ -f "$log" ]
-    tail -n1 "$log" | jq -e '.kind == "safe_auto_fix"' >/dev/null
-    tail -n1 "$log" | jq -e '.fix == "manifest_scope_add"' >/dev/null
-    tail -n1 "$log" | jq -e '.severity == "info"' >/dev/null
-    tail -n1 "$log" | jq -e '.why_safe | test("reversible")' >/dev/null
+    ! grep -q '.sage/docs/decision-codex-\*.md' "$cycle_dir/manifest.md"
+    [ ! -f "$PROJECT_ROOT/.sage/.auto-fixes.log" ]
 }
 
-@test "pre-tool-validate.sh: safe auto-fix creates missing scope key for architect doc metadata repair" {
+@test "pre-tool-validate.sh: architect doc metadata repair does not create missing scope key" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
     mkdir -p "$cycle_dir" "$PROJECT_ROOT/.sage/docs"
     cat > "$cycle_dir/manifest.md" <<EOF
@@ -1611,18 +1568,17 @@ EOF
     payload="$(make_payload "$cmd")"
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 0 ]
-    grep -q '^scope:' "$cycle_dir/manifest.md"
-    grep -q '.sage/docs/analysis-codex-\*.md' "$cycle_dir/manifest.md"
+    ! grep -q '^scope:' "$cycle_dir/manifest.md"
 }
 
-@test "pre-tool-validate.sh: safe auto-fix does not expand scope for implementation paths" {
+@test "pre-tool-validate.sh: defining architect cycle blocks implementation paths without scope auto-fix" {
     cycle_dir="$PROJECT_ROOT/.sage/work/20260101-architect"
     mkdir -p "$cycle_dir"
     cat > "$cycle_dir/manifest.md" <<EOF
 ---
 cycle_id: "20260101-architect"
 workflow: architect
-status: in-progress
+status: defining
 phase: design
 active_session_id: test-uuid
 scope:
@@ -1634,11 +1590,11 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     [ "$status" -eq 2 ]
     echo "$output" | grep -q "BLOCKING"
-    echo "$output" | grep -q "outside cycle scope"
+    echo "$output" | grep -q "before implementation state"
     [ ! -f "$PROJECT_ROOT/.sage/.auto-fixes.log" ]
 }
 
-@test "pre-tool-validate.sh: absolute path outside target repo hard-stops as out-of-scope ownership issue" {
+@test "pre-tool-validate.sh: absolute path outside target repo hard-stops as ownership issue" {
     make_cycle_with_scope "20260101-alpha" "in-progress" "src/**"
     outside_dir="$(mktemp -d -t sage_other_repo.XXXXXX)"
     outside_path="$outside_dir/src/leak.sh"
@@ -1647,7 +1603,7 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     rm -rf "$outside_dir"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "outside cycle scope"
+    echo "$output" | grep -q "outside target repo"
     echo "$output" | grep -q "$outside_path"
 }
 
@@ -1677,7 +1633,7 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     rm -rf "$outside_dir"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "outside cycle scope"
+    echo "$output" | grep -q "outside target repo"
 }
 
 @test "pre-tool-validate.sh: cross-repo intake blocks existing manifest edit" {
@@ -1691,7 +1647,7 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     rm -rf "$outside_dir"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "outside cycle scope"
+    echo "$output" | grep -q "outside target repo"
 }
 
 @test "pre-tool-validate.sh: cross-repo intake blocks second file" {
@@ -1703,5 +1659,5 @@ EOF
     run bash -c "echo '$payload' | '$HOOK' 2>&1"
     rm -rf "$outside_dir"
     [ "$status" -eq 2 ]
-    echo "$output" | grep -q "outside cycle scope"
+    echo "$output" | grep -q "outside target repo"
 }

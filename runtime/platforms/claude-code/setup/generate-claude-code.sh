@@ -220,7 +220,7 @@ After announcing a workflow, read and follow the command file at
 `.claude/commands/[workflow].md` for detailed steps and capability
 references. If you cannot load it, these gates are the minimum:
 
-**Build (Standard+ scope) — FILE CHECKS:**
+**Build (Standard+ cycle_tier) — FILE CHECKS:**
 BEFORE implementing, verify BOTH files exist on disk:
   .sage/work/[initiative]/spec.md — with status: completed
   .sage/work/[initiative]/plan.md — with status: completed
@@ -229,7 +229,7 @@ If EITHER file is missing → create it first. No exceptions.
 Do NOT rationalize skipping:
 - "The design is clear from previous discussion" → NOT a spec file
 - "The user described what they want" → NOT a spec file
-- "This is straightforward" → if Standard scope, spec required
+- "This is straightforward" → if cycle_tier is standard or comprehensive, spec required
 - "Just build it" → write a minimal 5-line spec, get [A]/[R]
 
 Gate sequence:
@@ -240,10 +240,10 @@ Gate sequence:
 
 **Fix — SCOPE AFTER ROOT CAUSE:**
 1. Investigate root cause with evidence → present [A]/[R]/[S] → wait
-2. SCOPE THE FIX after root cause is confirmed:
-   Surgical (1-2 files) → proceed to fix
-   Moderate (3-5 files) → write fix plan first → [A]/[R]
-   Systemic (5+ files, interface changes) → ESCALATE to /build or /architect
+2. ASSIGN FIX cycle_tier after root cause is confirmed:
+   lightweight (1-2 files) → present scope, then proceed to fix
+   standard (3-5 files) → write fix plan first → [A]/[R]
+   comprehensive (5+ files, interface changes) → ESCALATE to /build or /architect
 3. Implement fix → verify with PASTED test output → [A]/[R]
 DO NOT fix before root cause is confirmed.
 DO NOT skip fix scoping — a "quick fix" that touches 8 files is a rebuild.
@@ -564,7 +564,7 @@ for wf in "$CORE"/workflows/*.workflow.md; do
   search sage-memory with the feature domain as query (limit: 5), then
   search again with filter_tags: ["self-learning"] (limit: 5). Use findings
   to avoid past mistakes. This is MANDATORY, not optional.
-- Standard+ scope: spec.md MUST EXIST at .sage/work/ before implementing.
+- Standard+ cycle_tier: spec.md MUST EXIST at .sage/work/ before implementing.
   "Design is clear" is NOT a spec. "We discussed this" is NOT a spec.
   A spec is a FILE. No file = no implementation. Write it first.
 - [A] = REVIEW: When user picks [A] at spec or plan checkpoint,
@@ -600,8 +600,8 @@ for wf in "$CORE"/workflows/*.workflow.md; do
   autonomous implementation`; full autonomous runs without intermediate
   checkpoints until verification/close, but stops for scope expansion,
   architecture/product decisions, conflicting instructions, failing tests that
-  require changed assumptions, partial-guardrail risk, or mutations outside
-  approved manifest scope.
+  require changed assumptions, partial-guardrail risk, or changes outside the
+  approved plan and workflow stop conditions.
 
 '
       ;;
@@ -615,11 +615,11 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - MUST complete root cause investigation before ANY fix attempt.
   Present root cause with evidence to user. Wait for [A] confirmation.
   Do NOT skip this gate for ANY reason — not for "obvious" bugs, not for
-  "simple" fixes, not for Surgical scope. Every fix needs confirmed diagnosis.
-- AFTER root cause confirmed: MUST scope the fix (Surgical/Moderate/Systemic)
-  Even Surgical fixes: present scope to user before implementing.
-  Moderate+ (3+ files): write fix plan BEFORE implementing.
-  Systemic (5+ files, interface changes): ESCALATE to /build or /architect.
+  "simple" fixes, not for lightweight tier. Every fix needs confirmed diagnosis.
+- AFTER root cause confirmed: MUST assign fix cycle_tier (lightweight/standard/comprehensive)
+  Even lightweight fixes: present scope to user before implementing.
+  Standard+ (3+ files): write fix plan BEFORE implementing.
+  Comprehensive (5+ files, interface changes): ESCALATE to /build or /architect.
   "I know what to change" is NOT a plan file.
 - [A] = REVIEW: When user picks [A] at root cause gate or fix plan gate,
   you MUST run auto-review sub-agent BEFORE proceeding. [S] = Skip review
@@ -640,8 +640,8 @@ for wf in "$CORE"/workflows/*.workflow.md; do
   autonomous implementation`; full autonomous runs without intermediate
   checkpoints until verification/close, but stops for scope expansion,
   architecture/product decisions, conflicting instructions, failing tests that
-  require changed assumptions, partial-guardrail risk, or mutations outside
-  approved manifest scope.
+  require changed assumptions, partial-guardrail risk, or changes outside the
+  approved plan and workflow stop conditions.
 
 '
       ;;
@@ -676,8 +676,8 @@ for wf in "$CORE"/workflows/*.workflow.md; do
   autonomous implementation`; full autonomous runs without intermediate
   checkpoints until verification/close, but stops for scope expansion,
   architecture/product decisions, conflicting instructions, failing tests that
-  require changed assumptions, partial-guardrail risk, or mutations outside
-  approved manifest scope.
+  require changed assumptions, partial-guardrail risk, or changes outside the
+  approved plan and workflow stop conditions.
 
 '
       ;;
@@ -802,7 +802,7 @@ for wf in "$CORE"/workflows/*.workflow.md; do
 - Do NOT fabricate browser test results if no browser is available
 - Report completeness: untested routes are "not tested", NOT "pass"
 - /qa REPORTS ONLY — do NOT fix bugs. Suggest /fix instead.
-- Each bug gets severity AND fix classification (Surgical/Moderate/Systemic)
+- Each bug gets severity AND suggested fix cycle_tier
 - Evidence is mandatory for all fail/warning findings
 - Never use code blocks for interaction (checkpoints, options, status)
 
