@@ -284,6 +284,8 @@ EOF
     PRESET=base run_stage3
     grep -q 'Closeout order' "$TARGET/AGENTS.md"
     grep -q 'completion checkpoint is not approval' "$TARGET/AGENTS.md"
+    grep -q 'identify every cycle proposed for closeout' "$TARGET/AGENTS.md"
+    grep -q 'short per-cycle summary of what was done, result, and out-of-scope/follow-up' "$TARGET/AGENTS.md"
     grep -q 'keep manifest active until user approves closeout' "$TARGET/AGENTS.md"
     grep -q 'status: closed' "$TARGET/AGENTS.md"
     grep -q 'phase: closed' "$TARGET/AGENTS.md"

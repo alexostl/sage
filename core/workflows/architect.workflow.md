@@ -315,6 +315,10 @@ Standalone closeout artifacts are appropriate for architecture, umbrella,
 milestone-based, or multi-phase cycles when they summarize multiple milestones,
 absorbed cycles, or long verification streams. Do not create `closeout.md` by
 default for ordinary non-milestone work.
+Before presenting a milestone completion checkpoint, identify the milestone,
+cycle, or cycles being closed or proposed for closeout. Include a concise
+user-facing summary for each: what was delivered, the result, and what remains
+out of scope or as follow-up.
 
 Quality gates for each milestone include Gate 8 (Auto-QA) which runs
 automatically as part of the gate sequence when Task tool is available.
@@ -322,6 +326,8 @@ See `quality-gates.workflow.md` for the full sequence including Gate 8.
 
 **At each milestone completion checkpoint:**
 Sage: Milestone [N] complete — [summary]
+- Cycles proposed for closeout:
+  - `[cycle-id or milestone]`: [what was delivered; result; out-of-scope/follow-up]
 Decision: [decision-worthy implementation learning, if any]. (prepend to decisions.md)
 
 [C] Continue to milestone [N+1]

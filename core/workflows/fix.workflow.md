@@ -419,6 +419,9 @@ Artifact frontmatter may still use `status: completed`. After closeout, report
 stage/commit status and ask whether to perform local handoff for this cycle's
 changes; do not ask for `push` by default and do not add a post-closeout
 `.sage` epilogue.
+Before presenting the checkpoint, resolve which cycle or cycles are being closed
+or proposed for closeout. For each cycle, include a concise user-facing summary:
+what was fixed, the result, and what remains out of scope or as follow-up.
 
 Standalone `closeout.md` is not the default for ordinary non-milestone fixes.
 Keep closeout evidence in existing lifecycle artifacts such as `manifest.md`,
@@ -433,6 +436,8 @@ legacy `status: completed` during migration). A substantive issue found later ne
 cycle. Reopen is only for an immediate correction in the same active conversation before handoff.
 
 Sage: Fix ready for completion approval.
+- Cycles proposed for closeout:
+  - `[cycle-id]`: [what was fixed; result; out-of-scope/follow-up]
 - Root cause: [what was wrong]
 - Cycle tier: [lightweight/standard/comprehensive]
 - Change: [what was changed, in which files]

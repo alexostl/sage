@@ -465,6 +465,9 @@ artifact mutation for the cycle. Artifact frontmatter may still use `status:
 completed`. After closeout, report stage/commit status and ask whether to
 perform local handoff for this cycle's changes; do not ask for `push` by default
 and do not add a post-closeout `.sage` epilogue.
+Before presenting the checkpoint, resolve which cycle or cycles are being closed
+or proposed for closeout. For each cycle, include a concise user-facing summary:
+what was built, the result, and what remains out of scope or as follow-up.
 
 Standalone `closeout.md` is not the default for ordinary non-milestone builds.
 Keep closeout evidence in existing lifecycle artifacts such as `manifest.md`,
@@ -490,6 +493,8 @@ defer planned work without the user's explicit decision.
 🔒 **CHECKPOINT:**
 
 Sage: Build ready for completion approval. [summary of what was built]
+- Cycles proposed for closeout:
+  - `[cycle-id]`: [what was built; result; out-of-scope/follow-up]
 Decision: [decision-worthy implementation choices, if any]. (prepend to .sage/decisions.md)
 
 [A] Approve closeout — close the Sage cycle locally

@@ -171,6 +171,9 @@ cycle manifest `status: closed` and `phase: closed`, and that closed-status
 update must be the last Sage artifact mutation for the closeout. Artifact
 frontmatter such as `plan.md` may still use `status: completed` to mean the
 artifact is approved/done.
+Before presenting the completion checkpoint, identify the cycle or cycles being
+closed or proposed for closeout. Include a short user-facing summary for each:
+what was done, the result, and what remains out of scope or as follow-up.
 Standalone `closeout.md` is exceptional: use existing lifecycle artifacts for
 ordinary non-milestone work, and reserve standalone closeout artifacts for
 umbrella, milestone-based, multi-phase, or architecture cycles.
