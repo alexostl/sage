@@ -12,6 +12,8 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$HOOK_DIR/lib/bootstrap_check.sh"
 # shellcheck source=/dev/null
 . "$HOOK_DIR/lib/artifact_order.sh"
+# shellcheck source=/dev/null
+. "$HOOK_DIR/lib/approval_pending.sh"
 
 for tool in jq yq; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -42,6 +44,47 @@ cmd="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')"
 session_id="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"')"
 turn_id="$(printf '%s' "$payload" | jq -r '.turn_id // "unknown"')"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty')"
+claimed_paths=()
+claimed_ops=()
+
+developer_override_files_json() {
+    if [ "${#claimed_paths[@]}" -eq 0 ]; then
+        printf '[]'
+    else
+        printf '%s\n' "${claimed_paths[@]}" | jq -R . | jq -sc .
+    fi
+}
+
+log_developer_override_allow() {
+    local reason="$1"
+    local ts files_json log_line
+
+    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    files_json="$(developer_override_files_json)"
+    log_line="$(jq -nc \
+        --arg sid "$session_id" \
+        --arg turn "$turn_id" \
+        --arg ts "$ts" \
+        --arg tool "$tool_name" \
+        --arg reason "$reason" \
+        --argjson files "$files_json" \
+        '{kind:"session_mutation", session_id:$sid, turn_id:$turn, ts:$ts, cycle_id:"", files:$files, mutation_kind:"developer_override", tool_name:$tool, reason:$reason}')"
+    json_log_append "$cwd/.sage/.session-mutations.log" "$log_line"
+}
+
+block_with_developer_override() {
+    local reason="$1"
+
+    if approval_pending_consume_approved "$cwd" "$session_id"; then
+        log_developer_override_allow "$reason"
+        exit 0
+    fi
+
+    approval_pending_write_pending "$cwd" "$session_id" "$turn_id" "$tool_name" "$reason"
+    printf '%s\n\n' "$reason" >&2
+    printf 'Sage: DEVELOPER OVERRIDE PENDING. If the user types exactly A or a as the next prompt, UserPromptSubmit will arm a one-shot developer override: the next PreToolUse block in the same session will be allowed. This override does not match cycle/path/gate and may allow source/runtime/test/instruction mutation if that is the next blocked operation. Any other response cancels the pending override; while this pending override exists, the next prompt is reserved for this decision.\n' >&2
+    exit 2
+}
 
 bash_strip_token_path() {
     local token="$1"
@@ -170,37 +213,31 @@ if [ "$tool_name" = "Bash" ]; then
     fi
     if [ "$mutating" -eq 1 ] && [[ "$cmd" == SAGE_BINARY_MUTATION=1* ]]; then
         if [[ "$cmd" =~ [\;\|\&\<\>\*\?\[\]\{\}\`] ]] || [[ "$cmd" == *'$('* ]]; then
-            printf 'Sage: BLOCKING binary asset mutation with non-simple Bash syntax. Binary asset mutations must use a simple allowlisted command with exact paths only. Next legal move: use a generator/helper after the workflow is in implementation state, or split to a simple `SAGE_BINARY_MUTATION=1 rm <path>` command.\n' >&2
-            exit 2
+            block_with_developer_override 'Sage: BLOCKING binary asset mutation with non-simple Bash syntax. Binary asset mutations must use a simple allowlisted command with exact paths only. Next legal move: use a generator/helper after the workflow is in implementation state, or split to a simple `SAGE_BINARY_MUTATION=1 rm <path>` command.'
         fi
         binary_path=""
         if [[ "$cmd" =~ ^SAGE_BINARY_MUTATION=1[[:space:]]+rm[[:space:]]+([^[:space:]]+)$ ]]; then
             binary_path="${BASH_REMATCH[1]}"
         else
-            printf 'Sage: BLOCKING binary asset mutation with unsupported Bash shape. Allowed v1 shape is simple and exact, for example: `SAGE_BINARY_MUTATION=1 rm path/to/asset.png`.\n' >&2
-            exit 2
+            block_with_developer_override 'Sage: BLOCKING binary asset mutation with unsupported Bash shape. Allowed v1 shape is simple and exact, for example: `SAGE_BINARY_MUTATION=1 rm path/to/asset.png`.'
         fi
         claimed_path="$(normalize_path "$binary_path" "$cwd")"
         resolution="$(resolve_cycle_for_patch "$cwd" "$claimed_path")"
         resolution_kind="${resolution%%:*}"
         resolution_value="${resolution#*:}"
         if [ "$resolution_kind" != "active" ]; then
-            printf 'Sage: BLOCKING binary asset mutation without an active implementation cycle. File: %s. Next legal move: start/resume the workflow and move to implementation state after the required checkpoint.\n' "$claimed_path" >&2
-            exit 2
+            block_with_developer_override "$(printf 'Sage: BLOCKING binary asset mutation without an active implementation cycle. File: %s. Next legal move: start/resume the workflow and move to implementation state after the required checkpoint.' "$claimed_path")"
         fi
         cycle_dir="$resolution_value"
         cycle_id="$(basename "$cycle_dir")"
         manifest="$cycle_dir/manifest.md"
         active_session_id="$(cycle_active_session_id "$cwd" "$cycle_id" 2>/dev/null || true)"
         if [ -n "$active_session_id" ] && [ "$active_session_id" != "$session_id" ]; then
-            printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask for handoff/parking, or create a separate intake.\n' \
-                "$cycle_id" "$active_session_id" "$session_id" >&2
-            exit 2
+            block_with_developer_override "$(printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask for handoff/parking, or create a separate intake.' "$cycle_id" "$active_session_id" "$session_id")"
         fi
         cycle_status_value="$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)"
         if ! is_implementation_status "$cycle_status_value"; then
-            printf 'Sage: BLOCKING binary asset mutation before implementation state. File: %s. Active cycle: %s status=%s. Next legal move: move the workflow to implementing after the required checkpoint.\n' "$claimed_path" "$cycle_id" "${cycle_status_value:-unknown}" >&2
-            exit 2
+            block_with_developer_override "$(printf 'Sage: BLOCKING binary asset mutation before implementation state. File: %s. Active cycle: %s status=%s. Next legal move: move the workflow to implementing after the required checkpoint.' "$claimed_path" "$cycle_id" "${cycle_status_value:-unknown}")"
         fi
         ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         files_json="$(printf '%s\n' "$claimed_path" | jq -R . | jq -sc .)"
@@ -211,11 +248,9 @@ if [ "$tool_name" = "Bash" ]; then
     fi
     if [ "$mutating" -eq 1 ] && [ "$targets_guarded" -eq 1 ]; then
         if [ "$binary_like" -eq 1 ]; then
-            printf 'Sage: BLOCKING binary asset mutation without explicit binary intent. Binary assets cannot use apply_patch, but shell mutation still needs implementation state. Next legal move: use a simple `SAGE_BINARY_MUTATION=1 rm <path>` command after moving the workflow to implementation state.\n' >&2
-            exit 2
+            block_with_developer_override 'Sage: BLOCKING binary asset mutation without explicit binary intent. Binary assets cannot use apply_patch, but shell mutation still needs implementation state. Next legal move: use a simple `SAGE_BINARY_MUTATION=1 rm <path>` command after moving the workflow to implementation state.'
         fi
-        printf 'Sage: BLOCKING mutating Bash command against managed/project paths. Bash cannot provide exact pre-write mutation intent. Next legal move: use apply_patch so PreToolUse can validate exact paths and lifecycle state.\n' >&2
-        exit 2
+        block_with_developer_override 'Sage: BLOCKING mutating Bash command against managed/project paths. Bash cannot provide exact pre-write mutation intent. Next legal move: use apply_patch so PreToolUse can validate exact paths and lifecycle state.'
     fi
     exit 0
 fi
@@ -225,8 +260,6 @@ case "$tool_name" in
     *) exit 0 ;;
 esac
 
-claimed_paths=()
-claimed_ops=()
 while IFS= read -r line; do
     case "$line" in
         '*** Add File: '*)
@@ -646,8 +679,7 @@ if patch_contains_real_secret_value; then
     printf 'Sage: BLOCKING real secret value write. Agents may create placeholder env/config files, but real secrets must be edited by the user. Next legal move: write placeholders only, or ask the user to fill the secret locally.\n' >&2
     exit 2
 elif patch_adds_active_session_id && ! patch_sets_only_current_active_session_id "$session_id"; then
-    printf 'Sage: BLOCKING invalid active_session_id update. active_session_id must equal the current hook payload session_id. current session_id: %s. Do not use codex://threads/*, CODEX_THREAD_ID, transcripts, logs, or analyzed thread ids as the ownership lock.\n' "$session_id" >&2
-    exit 2
+    block_with_developer_override "$(printf 'Sage: BLOCKING invalid active_session_id update. active_session_id must equal the current hook payload session_id. current session_id: %s. Do not use codex://threads/*, CODEX_THREAD_ID, transcripts, logs, or analyzed thread ids as the ownership lock.' "$session_id")"
 elif is_surgical_patch; then
     resolution_kind="surgical"
     resolution_value=""
@@ -671,8 +703,7 @@ else
 fi
 
 if [ "$resolution_kind" = "ambiguous" ]; then
-    printf 'Sage: BLOCKING ambiguous cycle selection for patch paths. Matching cycles: %s. Next legal move: explicitly select/resume one cycle or split the patch.\n' "$resolution_value" >&2
-    exit 2
+    block_with_developer_override "$(printf 'Sage: BLOCKING ambiguous cycle selection for patch paths. Matching cycles: %s. Next legal move: explicitly select/resume one cycle or split the patch.' "$resolution_value")"
 fi
 
 if [ "$resolution_kind" = "surgical" ]; then
@@ -690,8 +721,7 @@ elif [ "$resolution_kind" = "closed" ]; then
     if is_closed_manifest_reconciliation_patch "$cycle_id"; then
         mutation_kind="closed_manifest_reconciliation"
     else
-        printf 'Sage: BLOCKING closed cycle mutation. Cycle: %s. Closed cycles are immutable. Next legal move: if this is stale closed-cycle bookkeeping, use a manifest-only reconciliation that keeps status closed; otherwise create a wrapper/follow-up cycle. Do not add a post-closeout .sage epilogue.\n' "$cycle_id" >&2
-        exit 2
+        block_with_developer_override "$(printf 'Sage: BLOCKING closed cycle mutation. Cycle: %s. Closed cycles are immutable. Next legal move: if this is stale closed-cycle bookkeeping, use a manifest-only reconciliation that keeps status closed; otherwise create a wrapper/follow-up cycle. Do not add a post-closeout .sage epilogue.' "$cycle_id")"
     fi
 elif [ "$resolution_kind" = "none" ]; then
     if is_decisions_only_log_patch; then
@@ -701,19 +731,16 @@ elif [ "$resolution_kind" = "none" ]; then
         cycle_id=""
         mutation_kind="decisions_only_repo_hygiene"
     elif is_standalone_repo_hygiene_patch; then
-        printf 'Sage: BLOCKING standalone repo hygiene mutation. Decisions-only repo hygiene requires the single repo-hygiene file plus .sage/decisions.md in the same patch. Next legal move: add a concise .sage/decisions.md entry or start a workflow if this is not obvious low-risk hygiene.\n' >&2
-        exit 2
+        block_with_developer_override 'Sage: BLOCKING standalone repo hygiene mutation. Decisions-only repo hygiene requires the single repo-hygiene file plus .sage/decisions.md in the same patch. Next legal move: add a concise .sage/decisions.md entry or start a workflow if this is not obvious low-risk hygiene.'
     elif is_lightweight_config_only_patch; then
         cycle_id=""
     else
         resumable="$(resumable_cycles_summary "$cwd" || true)"
         if [ -n "$resumable" ]; then
-            printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly use `sage:continue` or natural-language resume for the right cycle, or start a new workflow.\n' "$resumable" >&2
-            exit 2
+            block_with_developer_override "$(printf 'Sage: no active implementation cycle. Found parked paused/intake work: %s. Parked cycles are manifest-only/resumable context, not implementation-active. Next legal move: run `sage status`, then explicitly use `sage:continue` or natural-language resume for the right cycle, or start a new workflow.' "$resumable")"
         fi
         # shellcheck disable=SC2016
-        printf 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.\n' >&2
-        exit 2
+        block_with_developer_override 'Sage: no active cycle. Run `/sage:build` (or `/sage:fix`, `/sage:architect`) to start a workflow before mutating files.'
     fi
 else
     cycle_dir="$resolution_value"
@@ -725,9 +752,7 @@ else
             if is_sage_capture_without_control_patch; then
                 mutation_kind="sage_capture_without_lock"
             else
-                printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.\n' \
-                    "$cycle_id" "$active_session_id" "$session_id" >&2
-                exit 2
+                block_with_developer_override "$(printf 'Sage: BLOCKING active cycle owned by another session. Cycle: %s. active_session_id: %s. current session_id: %s. Next legal move: return to the original session, ask the user for explicit handoff/parking, or create a separate intake for independent work.' "$cycle_id" "$active_session_id" "$session_id")"
             fi
         fi
         if [ -z "$active_session_id" ]; then
@@ -736,9 +761,7 @@ else
             elif is_sage_capture_without_control_patch; then
                 mutation_kind="sage_capture_without_lock"
             else
-                printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.\n' \
-                    "$cycle_id" >&2
-                exit 2
+                block_with_developer_override "$(printf 'Sage: BLOCKING unbound active cycle mutation. Cycle: %s has active status but no real active_session_id. Lightweight .sage capture/diagnosis/planning is allowed, but ownership/lifecycle/control changes and implementation paths require claim/handoff first. Next legal move: make a single-file manifest-only claim/handoff patch that sets active_session_id to the current session, park the cycle as paused, or limit this patch to capture-only .sage artifacts.' "$cycle_id")"
             fi
         fi
     fi
@@ -751,8 +774,7 @@ else
             esac
         done
         if [ "${#capture_out_of_scope[@]}" -gt 0 ]; then
-            printf 'Sage: BLOCKING parked-cycle capture with implementation/out-of-cycle paths: %s. Parked cycles allow only same-cycle .sage artifacts, .sage/decisions.md, and narrow .sage-memory capture. Next legal move: explicitly continue the cycle before implementation.\n' "${capture_out_of_scope[*]}" >&2
-            exit 2
+            block_with_developer_override "$(printf 'Sage: BLOCKING parked-cycle capture with implementation/out-of-cycle paths: %s. Parked cycles allow only same-cycle .sage artifacts, .sage/decisions.md, and narrow .sage-memory capture. Next legal move: explicitly continue the cycle before implementation.' "${capture_out_of_scope[*]}")"
         fi
     fi
     outside_repo_paths=()
@@ -762,9 +784,7 @@ else
         esac
     done
     if [ "${#outside_repo_paths[@]}" -gt 0 ]; then
-        printf 'Sage: BLOCKING mutation outside target repo: %s. Active cycle: %s. Next legal move: create a capture-only intake in the target repository or explicitly switch the target repo.\n' \
-            "${outside_repo_paths[*]}" "$cycle_id" >&2
-        exit 2
+        block_with_developer_override "$(printf 'Sage: BLOCKING mutation outside target repo: %s. Active cycle: %s. Next legal move: create a capture-only intake in the target repository or explicitly switch the target repo.' "${outside_repo_paths[*]}" "$cycle_id")"
     fi
     cross_cycle_paths=()
     for path in "${claimed_paths[@]}"; do
@@ -776,9 +796,7 @@ else
         esac
     done
     if [ "${#cross_cycle_paths[@]}" -gt 0 ]; then
-        printf 'Sage: BLOCKING cross-cycle mutation under active cycle: %s. Active cycle: %s. Next legal move: resume the target cycle, create a capture-only intake, or split the patch.\n' \
-            "${cross_cycle_paths[*]}" "$cycle_id" >&2
-        exit 2
+        block_with_developer_override "$(printf 'Sage: BLOCKING cross-cycle mutation under active cycle: %s. Active cycle: %s. Next legal move: resume the target cycle, create a capture-only intake, or split the patch.' "${cross_cycle_paths[*]}" "$cycle_id")"
     fi
     boundary_paths=()
     for path in "${claimed_paths[@]}"; do
@@ -792,15 +810,12 @@ else
     if [ "${#boundary_paths[@]}" -gt 0 ]; then
         cycle_status_value="$(cycle_status "$cwd" "$cycle_id" 2>/dev/null || true)"
         if ! is_implementation_status "$cycle_status_value"; then
-            printf 'Sage: BLOCKING implementation/instruction mutation before implementation state: %s. Active cycle: %s status=%s. Next legal move: move the workflow to implementing after the required checkpoint.\n' \
-                "${boundary_paths[*]}" "$cycle_id" "${cycle_status_value:-unknown}" >&2
-            exit 2
+            block_with_developer_override "$(printf 'Sage: BLOCKING implementation/instruction mutation before implementation state: %s. Active cycle: %s status=%s. Next legal move: move the workflow to implementing after the required checkpoint.' "${boundary_paths[*]}" "$cycle_id" "${cycle_status_value:-unknown}")"
         fi
     fi
 
     if moderate_fix_artifacts_missing "$cycle_dir" "$manifest" "$cwd/.sage/.session-mutations.log" "$session_id" "$cycle_id" "${claimed_paths[@]}"; then
-        printf 'Sage: BLOCKING Standard+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. If the third file is required, escalate to the required checkpoint instead of dropping it. Active cycle: %s.\n' "$cycle_id" >&2
-        exit 2
+        block_with_developer_override "$(printf 'Sage: BLOCKING Standard+ fix implementation before approved artifacts. Detected 3+ implementation files before plan.md and manifest.md existed first. Next legal move: write/update those artifacts before code changes; post-hoc artifacts do not cure a code-first violation. If the third file is required, escalate to the required checkpoint instead of dropping it. Active cycle: %s.' "$cycle_id")"
     fi
 fi
 

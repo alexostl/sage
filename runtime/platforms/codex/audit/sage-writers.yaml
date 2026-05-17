@@ -5,15 +5,17 @@
 # Stage 6, consumed by ADR-7 audit + `sage doctor`.
 #
 # Maps `.sage/` paths → list of allowed writer scripts. Entries with
-# `writers: []` are v2-only (UPS approval deferred).
+# `writers: []` are v2-only/deferred.
 
 .sage/.approval-pending:
-  # v2 only — UPS approval hook deferred per §6.2; in v1 this file
-  # is never written. ADR-7 C1/C2 audit checks degrade to "skipped".
-  writers: []
+  # v1 developer override state: PreToolUse records pending blocks and
+  # UserPromptSubmit arms/cancels the one-shot latch.
+  writers:
+    - pre-tool-validate.sh
+    - user-prompt-submit.sh
 
 .sage/.ups-hook.log:
-  # v2 only — see above. v1 has no UPS hook script.
+  # v2 only. v1 has no UPS hook script.
   writers: []
 
 .sage/.mcp-incidents.log:

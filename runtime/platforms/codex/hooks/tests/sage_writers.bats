@@ -2,8 +2,8 @@
 # T1.3 — audit/sage-writers.yaml: writers manifest per spec §6.7.
 #
 # Plan contract (T1.3): yq parses cleanly; values match spec §6.7
-# verbatim (v1 entries — `.approval-pending` and `.ups-hook.log`
-# empty writers; v2 commented in-line).
+# verbatim (`.approval-pending` is v1 developer override state;
+# `.ups-hook.log` remains v2/deferred).
 
 setup() {
     MANIFEST="$BATS_TEST_DIRNAME/../../audit/sage-writers.yaml"
@@ -14,9 +14,9 @@ setup() {
     yq eval '.' "$MANIFEST" >/dev/null
 }
 
-@test "sage-writers.yaml: .approval-pending writers is empty (v2 deferred)" {
-    result=$(yq eval '.[".sage/.approval-pending"].writers | length' "$MANIFEST")
-    [ "$result" = "0" ]
+@test "sage-writers.yaml: .approval-pending writers = [pre-tool-validate, user-prompt-submit]" {
+    result=$(yq eval '.[".sage/.approval-pending"].writers | join(",")' "$MANIFEST")
+    [ "$result" = "pre-tool-validate.sh,user-prompt-submit.sh" ]
 }
 
 @test "sage-writers.yaml: .ups-hook.log writers is empty (v2 deferred)" {

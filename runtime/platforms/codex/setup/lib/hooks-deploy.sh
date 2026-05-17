@@ -2,7 +2,8 @@
 # hooks-deploy.sh — Stage 5 (.codex/hooks.json) + Stage 6 (deploy hook scripts).
 #
 # Stage 5: full regenerate of `.codex/hooks.json` registry.
-#   - 4 events (SessionStart, PreToolUse[Bash|apply_patch|Edit|Write],
+#   - 5 events (SessionStart, UserPromptSubmit,
+#     PreToolUse[Bash|apply_patch|Edit|Write],
 #     PostToolUse[apply_patch|Edit|Write], Stop).
 #   - If a different file is present: backup as
 #     `hooks.json.user-edit-backup-<iso-ts>`, then overwrite.
@@ -13,8 +14,8 @@
 # v1 spec ref: §4 Stage 5 + Stage 6.
 # v1 plan ref: T1.13.
 
-# v1 hook list — 4 events. ups-approval.sh deferred to v2 per §6.2.
-CODEX_V1_HOOKS=(session-init pre-tool-validate post-tool-check turn-audit)
+# v1 hook list — 5 events.
+CODEX_V1_HOOKS=(session-init user-prompt-submit pre-tool-validate post-tool-check turn-audit)
 
 # ------------------------------------------------------------------
 # Stage 5 — hooks.json
@@ -28,6 +29,13 @@ _build_hooks_json() {
       {
         "hooks": [
           { "type": "command", "command": "bash -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); exec \"$root/.codex/hooks/session-init.sh\"'" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash -lc 'root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); exec \"$root/.codex/hooks/user-prompt-submit.sh\"'" }
         ]
       }
     ],
@@ -82,7 +90,7 @@ compose_hooks_json() {
 
     cat <<EOF
 [stage 5] composed .codex/hooks.json
-  events=SessionStart, PreToolUse[Bash|apply_patch|Edit|Write], PostToolUse[apply_patch|Edit|Write], Stop
+  events=SessionStart, UserPromptSubmit, PreToolUse[Bash|apply_patch|Edit|Write], PostToolUse[apply_patch|Edit|Write], Stop
   path=$target_file
 EOF
 }

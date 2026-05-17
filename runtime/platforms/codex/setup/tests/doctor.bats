@@ -87,7 +87,7 @@ run_doctor() {
 
 # ─── M2 — hooks present + executable, jq+yq on PATH ──────────────────
 
-@test "M2 pass: 4 hooks executable + jq + yq on PATH" {
+@test "M2 pass: 5 hooks executable + jq + yq on PATH" {
     run run_doctor
     echo "$output" | grep -qi 'M2'
     # No explicit "fail" associated with M2 in healthy state.

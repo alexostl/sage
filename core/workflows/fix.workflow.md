@@ -319,8 +319,8 @@ only the user-specified revision may happen before implementation. Scope
 expansion, new decisions, new risks, or ambiguous revision instructions stop
 the workflow and return to the gate.
 
-Before mutating runtime/source/test files, perform an implementation readiness
-preflight as a manifest-only readiness patch: bind the real runtime
+Before mutating runtime/source/test files, perform an implementation readiness preflight
+as a manifest-only readiness patch: bind the real runtime
 `active_session_id` when the platform exposes it and set `status:
 implementing`. `active_session_id` must be verified against the current hook payload `session_id`;
 if that value is not available with high confidence, do not guess. If the

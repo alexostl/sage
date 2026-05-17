@@ -55,6 +55,24 @@ make_payload() {
     }'
 }
 
+write_approval_state() {
+    local state="$1"
+    local session_id="${2:-test-uuid}"
+    jq -n --arg state "$state" --arg sid "$session_id" '{
+        version: 1,
+        sessions: {
+            ($sid): {
+                state: $state,
+                session_id: $sid,
+                turn_id: "turn-approval",
+                ts: "2026-05-17T00:00:00Z",
+                tool_name: "apply_patch",
+                reason: "blocked"
+            }
+        }
+    }' > "$PROJECT_ROOT/.sage/.approval-pending"
+}
+
 make_bash_payload() {
     local cmd="$1"
     local cwd="${2:-$PROJECT_ROOT}"
@@ -177,6 +195,65 @@ make_cycle_with_writable_scope() {
     run bash -c "echo '$payload' | '$HOOK'"
     [ "$status" -eq 2 ]
     echo "$stderr" "$output" | grep -qi "no active cycle"
+}
+
+@test "pre-tool-validate.sh: blocked PreToolUse writes per-session pending override with explicit warning" {
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    pending="$PROJECT_ROOT/.sage/.approval-pending"
+    [ -f "$pending" ]
+    jq -e '.sessions["test-uuid"].state == "pending"' "$pending" >/dev/null
+    jq -e '.sessions["test-uuid"].tool_name == "apply_patch"' "$pending" >/dev/null
+    echo "$output" | grep -q "DEVELOPER OVERRIDE PENDING"
+    echo "$output" | grep -q "exactly A or a"
+    echo "$output" | grep -q "next PreToolUse block"
+    echo "$output" | grep -q "same session"
+    echo "$output" | grep -q "does not match cycle/path/gate"
+    echo "$output" | grep -q "source/runtime/test/instruction"
+    echo "$output" | grep -q "Any other response cancels"
+}
+
+@test "pre-tool-validate.sh: approved latch allows next block in same session without active cycle matching" {
+    write_approval_state approved
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    jq -e '.sessions["test-uuid"] == null' "$PROJECT_ROOT/.sage/.approval-pending" >/dev/null
+    grep -q '"mutation_kind":"developer_override"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: approved latch can allow source/instruction mutation before implementation state" {
+    make_cycle_with_writable_scope "20260101-alpha" "defining" "AGENTS.md"
+    write_approval_state approved
+    cmd="$(make_patch_cmd Update AGENTS.md)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 0 ]
+    grep -q '"mutation_kind":"developer_override"' "$PROJECT_ROOT/.sage/.session-mutations.log"
+}
+
+@test "pre-tool-validate.sh: approved latch is one-shot" {
+    write_approval_state approved
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK'"
+    [ "$status" -eq 0 ]
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    echo "$output" | grep -q "DEVELOPER OVERRIDE PENDING"
+}
+
+@test "pre-tool-validate.sh: approved latch from another session cannot be consumed" {
+    write_approval_state approved other-session
+    cmd="$(make_patch_cmd Add src/foo.txt)"
+    payload="$(make_payload "$cmd")"
+    run bash -c "echo '$payload' | '$HOOK' 2>&1"
+    [ "$status" -eq 2 ]
+    jq -e '.sessions["other-session"].state == "approved"' "$PROJECT_ROOT/.sage/.approval-pending" >/dev/null
+    jq -e '.sessions["test-uuid"].state == "pending"' "$PROJECT_ROOT/.sage/.approval-pending" >/dev/null
 }
 
 @test "pre-tool-validate.sh: Bash read command is allowed without active cycle" {

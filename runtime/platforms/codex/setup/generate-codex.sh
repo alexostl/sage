@@ -290,9 +290,9 @@ stage_10_sanity_sweep() {
         fi
     fi
 
-    # Check 5: 4 hook scripts executable and byte-identical to source.
+    # Check 5: 5 hook scripts executable and byte-identical to source.
     local hook
-    for hook in session-init pre-tool-validate post-tool-check turn-audit; do
+    for hook in session-init user-prompt-submit pre-tool-validate post-tool-check turn-audit; do
         local p="$TARGET/.codex/hooks/$hook.sh"
         if [ ! -x "$p" ]; then
             msg+="
@@ -392,8 +392,8 @@ stage_10_sanity_sweep() {
   Deployed summary:
     AGENTS.md           ✓ (Rule 1A v1 filesystem variant)
     .codex/config.toml  ✓ (managed block, hooks=true)
-    .codex/hooks.json   ✓ (4 events: SessionStart, PreToolUse, PostToolUse, Stop)
-    .codex/hooks/       ✓ (4 hook scripts + libs, byte-identical to source)
+    .codex/hooks.json   ✓ (5 events: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop)
+    .codex/hooks/       ✓ (5 hook scripts + libs, byte-identical to source)
     .agents/skills/     ✓ (${_skill_count} skill loaders)
     .sage/gates/scripts ✓ (${_tgt_gate_count}/${_src_gate_count} gates)
     .sage/constitution  ✓ (preset=${PRESET})

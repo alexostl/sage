@@ -3,7 +3,8 @@
 #
 # Plan contract (T1.13):
 #   Stage 5: full regenerate of `<target>/.codex/hooks.json` registry —
-#     4 events (SessionStart, PreToolUse[Bash|apply_patch|Edit|Write],
+#     5 events (SessionStart, UserPromptSubmit,
+#     PreToolUse[Bash|apply_patch|Edit|Write],
 #     PostToolUse[apply_patch|Edit|Write], Stop). Backup user file
 #     before overwrite when content differs.
 #   Stage 6: copy `<sage>/runtime/platforms/codex/hooks/*.sh` →
@@ -49,6 +50,15 @@ run_stage() {
     echo "$cmd" | grep -q '.codex/hooks/session-init.sh'
 }
 
+@test "stage5: UserPromptSubmit → user-prompt-submit.sh" {
+    run_stage 5
+    cmd="$(jq -r '.hooks.UserPromptSubmit[0].hooks[0].command' "$TARGET/.codex/hooks.json")"
+    count="$(jq '.hooks.UserPromptSubmit | length' "$TARGET/.codex/hooks.json")"
+    echo "$cmd" | grep -q 'git rev-parse --show-toplevel'
+    echo "$cmd" | grep -q '.codex/hooks/user-prompt-submit.sh'
+    [ "$count" -eq 1 ]
+}
+
 @test "stage5: PreToolUse uses single matcher group for Bash and file edits" {
     run_stage 5
     matcher="$(jq -r '.hooks.PreToolUse[0].matcher' "$TARGET/.codex/hooks.json")"
@@ -86,18 +96,19 @@ run_stage() {
 
 # ─── Stage 6 ────────────────────────────────────────────────────────
 
-@test "stage6: deploys all 4 hook scripts to .codex/hooks/" {
+@test "stage6: deploys all 5 hook scripts to .codex/hooks/" {
     run run_stage 6
     [ "$status" -eq 0 ]
     [ -f "$TARGET/.codex/hooks/session-init.sh" ]
+    [ -f "$TARGET/.codex/hooks/user-prompt-submit.sh" ]
     [ -f "$TARGET/.codex/hooks/pre-tool-validate.sh" ]
     [ -f "$TARGET/.codex/hooks/post-tool-check.sh" ]
     [ -f "$TARGET/.codex/hooks/turn-audit.sh" ]
 }
 
-@test "stage6: all 4 hook scripts are executable" {
+@test "stage6: all 5 hook scripts are executable" {
     run_stage 6
-    for h in session-init pre-tool-validate post-tool-check turn-audit; do
+    for h in session-init user-prompt-submit pre-tool-validate post-tool-check turn-audit; do
         [ -x "$TARGET/.codex/hooks/$h.sh" ] || {
             echo "NOT EXECUTABLE: $h.sh"
             return 1
@@ -115,7 +126,7 @@ run_stage() {
 
 @test "stage6: deployed scripts are byte-identical to source" {
     run_stage 6
-    for h in session-init pre-tool-validate post-tool-check turn-audit; do
+    for h in session-init user-prompt-submit pre-tool-validate post-tool-check turn-audit; do
         cmp -s "$REPO_ROOT/runtime/platforms/codex/hooks/$h.sh" \
                "$TARGET/.codex/hooks/$h.sh" || {
             echo "MISMATCH: $h.sh"
